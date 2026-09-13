@@ -100,6 +100,10 @@
           <i class="fa-solid fa-gear"></i>
           <span>Settings</span>
         </a>
+        <a href="#/docs" class="nav-item" data-view="docs" title="Documentation & App Guide">
+          <i class="fa-solid fa-book-open"></i>
+          <span>Documentation</span>
+        </a>
 
         <!-- Active Projects Shortcut Section -->
         <div class="nav-group-title" style="margin-top: 8px;">Active Projects</div>
@@ -264,6 +268,12 @@
         <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Toggle Theme</span><kbd class="command-item-kbd">T</kbd></div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Submit Form</span><kbd class="command-item-kbd">Enter</kbd></div>
       </div>
+      <div style="grid-column: 1 / -1; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+        <span style="color: var(--text-muted); font-size: 12px;">Need comprehensive architecture & workflow guides?</span>
+        <button class="btn btn-secondary btn-sm" onclick="Modal.close(); Router.navigate('docs');">
+          <i class="fa-solid fa-book-open"></i> Open Documentation
+        </button>
+      </div>
     </div>
   </div>
 
@@ -302,6 +312,7 @@
   <script src="js/views/goals.js"></script>
   <script src="js/views/focus.js"></script>
   <script src="js/views/settings.js"></script>
+  <script src="js/views/docs.js"></script>
 
   <!-- Router & Application Bootstrap -->
   <script src="js/router.js"></script>

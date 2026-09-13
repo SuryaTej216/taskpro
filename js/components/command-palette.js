@@ -74,7 +74,8 @@ const CommandPalette = {
       { id: 'nav_rep', title: 'Go to Reports & Analytics', icon: 'fa-chart-line', category: 'Navigation', action: () => Router.navigate('reports') },
       { id: 'nav_goals', title: 'Go to Goals', icon: 'fa-flag-checkered', category: 'Navigation', action: () => Router.navigate('goals') },
       { id: 'nav_focus', title: 'Go to Focus Mode (Pomodoro)', icon: 'fa-bullseye', category: 'Navigation', action: () => Router.navigate('focus') },
-      { id: 'nav_settings', title: 'Go to Settings', icon: 'fa-gear', category: 'Navigation', action: () => Router.navigate('settings') }
+      { id: 'nav_settings', title: 'Go to Settings', icon: 'fa-gear', category: 'Navigation', action: () => Router.navigate('settings') },
+      { id: 'nav_docs', title: 'Go to Documentation & Guide', icon: 'fa-book-open', category: 'Navigation', action: () => Router.navigate('docs') }
     ];
 
     // 2. Action Commands
@@ -83,7 +84,8 @@ const CommandPalette = {
       { id: 'act_theme', title: 'Toggle Dark / Light Theme', icon: 'fa-circle-half-stroke', kbd: 'T', category: 'Actions', action: () => ThemeManager.toggle() },
       { id: 'act_export_json', title: 'Export Full Backup (JSON)', icon: 'fa-download', category: 'Actions', action: () => SettingsView.downloadBackup() },
       { id: 'act_export_csv', title: 'Export Tasks to CSV', icon: 'fa-file-csv', category: 'Actions', action: () => SettingsView.downloadCSV() },
-      { id: 'act_shortcuts', title: 'Show Keyboard Shortcuts', icon: 'fa-keyboard', kbd: '?', category: 'Actions', action: () => KeyboardManager.showShortcutCheatSheet() }
+      { id: 'act_shortcuts', title: 'Show Keyboard Shortcuts', icon: 'fa-keyboard', kbd: '?', category: 'Actions', action: () => KeyboardManager.showShortcutCheatSheet() },
+      { id: 'act_docs', title: 'View Full Documentation & Architecture', icon: 'fa-book-open', category: 'Actions', action: () => Router.navigate('docs') }
     ];
 
     // Filter commands by query

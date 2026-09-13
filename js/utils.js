@@ -28,6 +28,10 @@ const Utils = {
       .replace(/'/g, '&#039;');
   },
 
+  escapeHtml(str) {
+    return this.escapeHTML(str);
+  },
+
   /**
    * Formats ISO date string to readable format e.g. "Oct 14, 2026"
    * @param {string|Date} dateVal 

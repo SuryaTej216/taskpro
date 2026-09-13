@@ -16,7 +16,8 @@ const Router = {
       reports: typeof ReportsView !== 'undefined' ? ReportsView : null,
       goals: typeof GoalsView !== 'undefined' ? GoalsView : null,
       focus: typeof FocusView !== 'undefined' ? FocusView : null,
-      settings: typeof SettingsView !== 'undefined' ? SettingsView : null
+      settings: typeof SettingsView !== 'undefined' ? SettingsView : null,
+      docs: typeof DocsView !== 'undefined' ? DocsView : null
     };
     return routes[viewName] || routes['dashboard'];
   },
