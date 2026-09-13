@@ -49,7 +49,22 @@ const SettingsView = {
             </div>
           </div>
 
-          <!-- 3. Data Portability Section (JSON & CSV) -->
+          <!-- 3. Workflow & Automation Section -->
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 20px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
+                  <i class="fa-solid fa-arrows-rotate" style="color: var(--accent-primary);"></i> Auto-sync Checklist & Subtasks
+                </h3>
+                <p style="font-size: 13px; color: var(--text-secondary);">
+                  Automatically synchronize task checklist items with child subtasks and mirror completion status bidirectionally by default.
+                </p>
+              </div>
+              <input type="checkbox" id="settings-sync-toggle" ${settings.autoSyncChecklistSubtasks !== false ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer;">
+            </div>
+          </div>
+
+          <!-- 4. Data Portability Section (JSON & CSV) -->
           <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 20px;">
             <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px;">
               <i class="fa-solid fa-database"></i> Data Portability & Backup
@@ -71,7 +86,7 @@ const SettingsView = {
             </div>
           </div>
 
-          <!-- 4. Danger Zone -->
+          <!-- 5. Danger Zone -->
           <div style="background: var(--bg-surface); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: var(--radius-lg); padding: 20px;">
             <h3 style="font-size: 15px; font-weight: 700; color: var(--accent-danger); margin-bottom: 12px;">
               <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
@@ -100,6 +115,16 @@ const SettingsView = {
         AppState.settings.soundEffects = e.target.checked;
         StorageService.set(StorageService.KEYS.SETTINGS, AppState.settings);
         Toast.info(`Sound effects ${e.target.checked ? 'enabled' : 'disabled'}`);
+      });
+    }
+
+    // Bind sync toggle
+    const syncToggle = container.querySelector('#settings-sync-toggle');
+    if (syncToggle) {
+      syncToggle.addEventListener('change', (e) => {
+        AppState.settings.autoSyncChecklistSubtasks = e.target.checked;
+        StorageService.set(StorageService.KEYS.SETTINGS, AppState.settings);
+        Toast.info(`Checklist & subtask auto-sync default ${e.target.checked ? 'enabled' : 'disabled'}`);
       });
     }
   },

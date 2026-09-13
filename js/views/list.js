@@ -85,6 +85,8 @@ const ListView = {
                 </tr>
               ` : tasks.map(t => {
                 const isSelected = this.selectedTaskIds.has(t.id);
+                const parentTask = t.parentId ? AppState.tasks.find(p => p.id === t.parentId) : null;
+                const sprint = t.sprintId ? AppState.sprints.find(s => s.id === t.sprintId) : null;
                 return `
                   <tr class="table-row ${isSelected ? 'row-selected' : ''}" style="border-bottom: 1px solid var(--border-subtle); transition: background var(--transition-fast); ${isSelected ? 'background: var(--accent-primary-subtle);' : ''}">
                     <td style="padding: 10px 14px; text-align: center;">
@@ -97,7 +99,11 @@ const ListView = {
                       <span class="badge" style="background: var(--bg-surface-elevated); color: var(--text-secondary); text-transform: capitalize;">${t.type}</span>
                     </td>
                     <td style="padding: 10px 14px; font-weight: 500; color: var(--text-primary); cursor: pointer;" onclick="TaskModal.openDetail('${t.id}')">
-                      ${Utils.escapeHTML(t.title)}
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span>${Utils.escapeHTML(t.title)}</span>
+                        ${parentTask ? `<span class="badge" style="background: var(--accent-primary-subtle); color: var(--accent-primary); font-size: 10px;">↳ ${parentTask.key}</span>` : ''}
+                        ${sprint ? `<span class="badge" style="background: var(--bg-surface-elevated); color: var(--text-muted); font-size: 10px;"><i class="fa-solid fa-person-running"></i> ${Utils.escapeHTML(sprint.name)}</span>` : ''}
+                      </div>
                     </td>
                     <td style="padding: 10px 14px;">
                       <span class="badge badge-status-${t.status}">${t.status}</span>
@@ -128,6 +134,13 @@ const ListView = {
           <span style="font-weight: 600; font-size: 13px;">${this.selectedTaskIds.size} selected</span>
           <div style="height: 18px; width: 1px; background: var(--border-default);"></div>
           
+          <!-- Bulk Sprint Dropdown -->
+          <select id="bulk-sprint-select" class="form-select" style="width: auto; padding: 4px 8px; font-size: 12px; border-radius: var(--radius-full);">
+            <option value="">Assign to Sprint...</option>
+            <option value="__backlog__">Backlog Pool (No Sprint)</option>
+            ${AppState.sprints.map(s => `<option value="${s.id}">${Utils.escapeHTML(s.name)} [${s.status.toUpperCase()}]</option>`).join('')}
+          </select>
+
           <!-- Bulk Status Dropdown -->
           <select id="bulk-status-select" class="form-select" style="width: auto; padding: 4px 8px; font-size: 12px; border-radius: var(--radius-full);">
             <option value="">Change Status...</option>
@@ -189,6 +202,23 @@ const ListView = {
         this.render(container);
       });
     });
+
+    // Bulk Sprint Change
+    const sprintSelect = container.querySelector('#bulk-sprint-select');
+    if (sprintSelect) {
+      sprintSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (!val) return;
+        const sprintId = val === '__backlog__' ? null : val;
+        const count = this.selectedTaskIds.size;
+        this.selectedTaskIds.forEach(id => {
+          AppState.updateTask(id, { sprintId });
+        });
+        Toast.success(`Assigned ${count} tasks to ${sprintId ? 'sprint' : 'backlog pool'}.`);
+        this.selectedTaskIds.clear();
+        this.render(container);
+      });
+    }
 
     // Bulk Status Change
     const statusSelect = container.querySelector('#bulk-status-select');

@@ -53,8 +53,12 @@ const AppState = {
     this.notifications = StorageService.get(StorageService.KEYS.NOTIFICATIONS, []);
     this.settings = StorageService.get(StorageService.KEYS.SETTINGS, {
       theme: 'dark',
-      soundEffects: true
+      soundEffects: true,
+      autoSyncChecklistSubtasks: true
     });
+    if (this.settings.autoSyncChecklistSubtasks === undefined) {
+      this.settings.autoSyncChecklistSubtasks = true;
+    }
 
     // Apply saved theme
     document.documentElement.setAttribute('data-theme', this.settings.theme || 'dark');
@@ -172,6 +176,7 @@ const AppState = {
       storyPoints: parseInt(taskData.storyPoints, 10) || 0,
       dependencies: Array.isArray(taskData.dependencies) ? taskData.dependencies : [],
       checklist: Array.isArray(taskData.checklist) ? taskData.checklist : [],
+      mergeChecklistAndSubtasks: taskData.mergeChecklistAndSubtasks !== undefined ? !!taskData.mergeChecklistAndSubtasks : false,
       createdAt: now,
       updatedAt: now,
       completedAt: taskData.status === 'done' ? now : null,
@@ -183,6 +188,11 @@ const AppState = {
 
     this.addActivityLog(newTask.id, 'created', `Created task ${newTask.key}`);
     
+    // Automation trigger for subtask
+    if (newTask.parentId && window.Automations) {
+      Automations.updateParentProgress(newTask.parentId);
+    }
+
     // Undo support
     this.recordUndoAction(
       `Create task ${newTask.key}`,
@@ -211,7 +221,7 @@ const AppState = {
 
     const oldTask = { ...this.tasks[taskIndex] };
     const now = new Date().toISOString();
-    
+
     // Automatically record completion timestamp if transitioned to done
     if (updates.status && updates.status === 'done' && oldTask.status !== 'done') {
       updates.completedAt = now;
@@ -236,6 +246,11 @@ const AppState = {
     if (updates.priority && updates.priority !== oldTask.priority) {
       this.addActivityLog(taskId, 'priority_changed', `Priority changed to ${updates.priority.toUpperCase()}`);
     }
+    if (updates.sprintId !== undefined && updates.sprintId !== oldTask.sprintId) {
+      const sprint = this.sprints.find(s => s.id === updates.sprintId);
+      const sprintName = sprint ? sprint.name : 'Backlog';
+      this.addActivityLog(taskId, 'sprint_changed', `Moved to ${sprintName}`);
+    }
 
     // Trigger local automations
     if (window.Automations) {
@@ -247,7 +262,7 @@ const AppState = {
   },
 
   /**
-   * Deletes a task
+   * Deletes a task and its subtasks
    * @param {string} taskId 
    * @param {boolean} recordUndo 
    * @param {boolean} askConfirm 
@@ -257,14 +272,23 @@ const AppState = {
     if (!task) return;
 
     const performDelete = () => {
-      this.tasks = this.tasks.filter(t => t.id !== taskId);
+      // Find subtasks of this task
+      const childSubtasks = this.tasks.filter(t => t.parentId === taskId);
+      const allToDeleteIds = new Set([taskId, ...childSubtasks.map(c => c.id)]);
+
+      this.tasks = this.tasks.filter(t => !allToDeleteIds.has(t.id));
       StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+
+      // If deleted task was a subtask, recalculate parent progress
+      if (task.parentId && window.Automations) {
+        Automations.updateParentProgress(task.parentId);
+      }
 
       if (recordUndo) {
         this.recordUndoAction(
           `Delete task ${task.key}`,
           () => {
-            this.tasks.push(task);
+            this.tasks.push(task, ...childSubtasks);
             StorageService.set(StorageService.KEYS.TASKS, this.tasks);
             this.emit('tasks:changed', { action: 'restore', task });
           },
@@ -273,7 +297,7 @@ const AppState = {
       }
 
       this.emit('tasks:changed', { action: 'delete', taskId });
-      Toast.info(`Deleted ${task.key}`);
+      Toast.info(`Deleted ${task.key}${childSubtasks.length > 0 ? ` and ${childSubtasks.length} subtask(s)` : ''}`);
     };
 
     if (askConfirm) {
@@ -312,6 +336,237 @@ const AppState = {
     const copy = this.createTask(dupData);
     Toast.success(`Duplicated to ${copy.key}`);
     return copy;
+  },
+
+  /**
+   * Synchronizes a task's checklist items with its child subtasks
+   * Converts unlinked checklist items into child subtasks,
+   * imports unlinked child subtasks into checklist, and harmonizes completion states.
+   * @param {string} taskId 
+   * @returns {{ createdSubtasks: number, createdChecklistItems: number, updatedStates: number }}
+   */
+  syncTaskChecklistAndSubtasks(taskId) {
+    const parent = this.tasks.find(t => t.id === taskId);
+    if (!parent) return { createdSubtasks: 0, createdChecklistItems: 0, updatedStates: 0 };
+
+    let createdSubtasks = 0;
+    let createdChecklistItems = 0;
+    let updatedStates = 0;
+
+    const childSubtasks = this.tasks.filter(t => t.parentId === taskId);
+    const checklist = Array.isArray(parent.checklist) ? [...parent.checklist] : [];
+
+    // Helper to normalize strings for comparison
+    const norm = (s) => (s || '').trim().toLowerCase();
+
+    // 1. Match checklist items with child subtasks
+    checklist.forEach(item => {
+      let matchedSubtask = null;
+      if (item.subtaskId) {
+        matchedSubtask = childSubtasks.find(st => st.id === item.subtaskId);
+      }
+      if (!matchedSubtask) {
+        matchedSubtask = childSubtasks.find(st => norm(st.title) === norm(item.text));
+      }
+
+      if (matchedSubtask) {
+        item.subtaskId = matchedSubtask.id;
+
+        // Reconcile status: if either is done, sync to done; otherwise todo
+        const isDone = item.completed || matchedSubtask.status === 'done';
+        if (item.completed !== isDone) {
+          item.completed = isDone;
+          updatedStates++;
+        }
+        if ((matchedSubtask.status === 'done') !== isDone) {
+          const nextStatus = isDone ? 'done' : 'todo';
+          this.updateTask(matchedSubtask.id, { status: nextStatus });
+          updatedStates++;
+        }
+      } else {
+        // Create new child subtask for this checklist item
+        const newSubtask = this.createTask({
+          projectId: parent.projectId,
+          parentId: parent.id,
+          sprintId: parent.sprintId,
+          type: 'subtask',
+          title: item.text,
+          status: item.completed ? 'done' : 'todo',
+          priority: parent.priority || 'medium'
+        });
+        item.subtaskId = newSubtask.id;
+        childSubtasks.push(newSubtask);
+        createdSubtasks++;
+      }
+    });
+
+    // 2. Check for child subtasks not yet in checklist
+    childSubtasks.forEach(st => {
+      let matchedItem = checklist.find(c => c.subtaskId === st.id || norm(c.text) === norm(st.title));
+      if (!matchedItem) {
+        const newItem = {
+          id: Utils.generateId('chk_'),
+          text: st.title,
+          completed: st.status === 'done',
+          subtaskId: st.id
+        };
+        checklist.push(newItem);
+        createdChecklistItems++;
+      }
+    });
+
+    // Update parent task checklist and sync property
+    this.updateTask(taskId, {
+      checklist: checklist,
+      syncChecklistSubtasks: true
+    });
+
+    if (window.Automations) {
+      Automations.updateParentProgress(taskId);
+    }
+
+    this.emit('tasks:changed', { action: 'sync', taskId });
+    return { createdSubtasks, createdChecklistItems, updatedStates };
+  },
+
+  /**
+   * Retrieves unified clubbed list of subtasks and checklist items for a task
+   * @param {string} taskId 
+   * @returns {Array<Object>}
+   */
+  getClubbedItems(taskId) {
+    const parent = this.tasks.find(t => t.id === taskId);
+    if (!parent) return [];
+
+    const childSubtasks = this.tasks.filter(t => t.parentId === taskId);
+    const checklist = Array.isArray(parent.checklist) ? parent.checklist : [];
+
+    const norm = (s) => (s || '').trim().toLowerCase();
+    const clubbed = [];
+    const visitedSubtaskIds = new Set();
+
+    // 1. Process checklist items
+    checklist.forEach(item => {
+      let linkedSubtask = null;
+      if (item.subtaskId) {
+        linkedSubtask = childSubtasks.find(st => st.id === item.subtaskId);
+      }
+      if (!linkedSubtask) {
+        linkedSubtask = childSubtasks.find(st => !visitedSubtaskIds.has(st.id) && norm(st.title) === norm(item.text));
+      }
+
+      if (linkedSubtask) {
+        visitedSubtaskIds.add(linkedSubtask.id);
+        clubbed.push({
+          id: item.id || ('chk_' + linkedSubtask.id),
+          subtaskId: linkedSubtask.id,
+          key: linkedSubtask.key,
+          title: linkedSubtask.title || item.text,
+          completed: linkedSubtask.status === 'done' || !!item.completed,
+          isSubtask: true,
+          status: linkedSubtask.status
+        });
+      } else {
+        clubbed.push({
+          id: item.id || Utils.generateId('chk_'),
+          subtaskId: null,
+          key: null,
+          title: item.text,
+          completed: !!item.completed,
+          isSubtask: false,
+          status: item.completed ? 'done' : 'todo'
+        });
+      }
+    });
+
+    // 2. Any child subtasks not matched to checklist
+    childSubtasks.forEach(st => {
+      if (!visitedSubtaskIds.has(st.id)) {
+        visitedSubtaskIds.add(st.id);
+        clubbed.push({
+          id: 'chk_' + st.id,
+          subtaskId: st.id,
+          key: st.key,
+          title: st.title,
+          completed: st.status === 'done',
+          isSubtask: true,
+          status: st.status
+        });
+      }
+    });
+
+    return clubbed;
+  },
+
+  /**
+   * Toggles whether checklist and subtasks are shown merged or separate
+   * @param {string} taskId 
+   * @returns {boolean}
+   */
+  toggleMergeChecklistAndSubtasks(taskId) {
+    const task = this.tasks.find(t => t.id === taskId);
+    if (!task) return false;
+    const nextVal = !task.mergeChecklistAndSubtasks;
+    this.updateTask(taskId, { mergeChecklistAndSubtasks: nextVal });
+    return nextVal;
+  },
+
+  /**
+   * Converts all unlinked checklist items into child subtasks
+   * @param {string} taskId 
+   * @returns {number}
+   */
+  mergeChecklistToSubtasks(taskId) {
+    const parent = this.tasks.find(t => t.id === taskId);
+    if (!parent || !Array.isArray(parent.checklist) || parent.checklist.length === 0) return 0;
+    const childSubtasks = this.tasks.filter(t => t.parentId === taskId);
+    const norm = (s) => (s || '').trim().toLowerCase();
+    let count = 0;
+    const updatedChecklist = parent.checklist.map(chk => {
+      let matched = childSubtasks.find(st => st.id === chk.subtaskId || norm(st.title) === norm(chk.text));
+      if (!matched) {
+        matched = this.createTask({
+          title: chk.text,
+          parentId: taskId,
+          projectId: parent.projectId,
+          sprintId: parent.sprintId,
+          type: 'subtask',
+          status: chk.completed ? 'done' : 'todo'
+        });
+        count++;
+      }
+      return { ...chk, subtaskId: matched.id };
+    });
+    this.updateTask(taskId, { checklist: updatedChecklist });
+    return count;
+  },
+
+  /**
+   * Imports all child subtasks into checklist items
+   * @param {string} taskId 
+   * @returns {number}
+   */
+  mergeSubtasksToChecklist(taskId) {
+    const parent = this.tasks.find(t => t.id === taskId);
+    if (!parent) return 0;
+    const childSubtasks = this.tasks.filter(t => t.parentId === taskId);
+    const checklist = Array.isArray(parent.checklist) ? [...parent.checklist] : [];
+    const norm = (s) => (s || '').trim().toLowerCase();
+    let count = 0;
+    childSubtasks.forEach(st => {
+      let matched = checklist.find(chk => chk.subtaskId === st.id || norm(chk.text) === norm(st.title));
+      if (!matched) {
+        checklist.push({
+          id: Utils.generateId('chk_'),
+          text: st.title,
+          completed: st.status === 'done',
+          subtaskId: st.id
+        });
+        count++;
+      }
+    });
+    this.updateTask(taskId, { checklist });
+    return count;
   },
 
   // -------------------------------------------------------------
@@ -376,6 +631,118 @@ const AppState = {
         Toast.warning(`Deleted project ${proj.name}`);
       }
     );
+  },
+
+  // -------------------------------------------------------------
+  // SPRINT MUTATIONS
+  // -------------------------------------------------------------
+
+  createSprint(sprintData) {
+    const newSprint = {
+      id: Utils.generateId('sprint_'),
+      projectId: sprintData.projectId || this.selectedProjectId || (this.projects[0] ? this.projects[0].id : 'proj_web'),
+      name: sprintData.name.trim(),
+      goal: sprintData.goal ? sprintData.goal.trim() : '',
+      startDate: sprintData.startDate || new Date().toISOString(),
+      endDate: sprintData.endDate || new Date().toISOString(),
+      status: sprintData.status || 'planned'
+    };
+
+    this.sprints.push(newSprint);
+    StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+    this.emit('sprints:changed', { action: 'create', sprint: newSprint });
+    Toast.success(`Created sprint "${newSprint.name}"`);
+    return newSprint;
+  },
+
+  updateSprint(sprintId, updates) {
+    const idx = this.sprints.findIndex(s => s.id === sprintId);
+    if (idx === -1) return null;
+
+    this.sprints[idx] = {
+      ...this.sprints[idx],
+      ...updates
+    };
+
+    StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+    this.emit('sprints:changed', { action: 'update', sprint: this.sprints[idx] });
+    return this.sprints[idx];
+  },
+
+  deleteSprint(sprintId, returnTasksToBacklog = true, askConfirm = true) {
+    const sprint = this.sprints.find(s => s.id === sprintId);
+    if (!sprint) return;
+
+    const performDelete = () => {
+      this.sprints = this.sprints.filter(s => s.id !== sprintId);
+      StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+
+      if (returnTasksToBacklog) {
+        let count = 0;
+        this.tasks.forEach(t => {
+          if (t.sprintId === sprintId) {
+            t.sprintId = null;
+            count++;
+          }
+        });
+        if (count > 0) {
+          StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+          this.emit('tasks:changed', { action: 'bulk_update' });
+        }
+      }
+
+      this.emit('sprints:changed', { action: 'delete', sprintId });
+      Toast.info(`Deleted sprint "${sprint.name}"`);
+    };
+
+    if (askConfirm) {
+      Modal.confirm(
+        'Delete Sprint',
+        `Are you sure you want to delete sprint "${sprint.name}"? Tasks in this sprint will return to the backlog pool.`,
+        performDelete
+      );
+    } else {
+      performDelete();
+    }
+  },
+
+  startSprint(sprintId) {
+    const sprint = this.sprints.find(s => s.id === sprintId);
+    if (!sprint) return false;
+
+    // Check if another sprint is currently active
+    const active = this.sprints.find(s => s.status === 'active' && s.id !== sprintId);
+    if (active) {
+      Toast.warning(`Another sprint ("${active.name}") is currently active. Complete it first.`);
+      return false;
+    }
+
+    sprint.status = 'active';
+    StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+    this.emit('sprints:changed', { action: 'start', sprint });
+    Toast.success(`Started sprint "${sprint.name}"!`);
+    return true;
+  },
+
+  completeSprint(sprintId, moveToNextSprintId = null) {
+    const sprint = this.sprints.find(s => s.id === sprintId);
+    if (!sprint) return;
+
+    const sprintTasks = this.tasks.filter(t => t.sprintId === sprintId);
+    const incomplete = sprintTasks.filter(t => t.status !== 'done');
+
+    sprint.status = 'completed';
+
+    // Move incomplete tasks to next sprint or backlog
+    incomplete.forEach(t => {
+      t.sprintId = moveToNextSprintId || null;
+    });
+
+    StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+    StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+    this.emit('sprints:changed', { action: 'complete', sprint });
+    this.emit('tasks:changed', { action: 'bulk_update' });
+    Toast.success(`Completed sprint "${sprint.name}"!`);
   },
 
   // -------------------------------------------------------------

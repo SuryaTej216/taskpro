@@ -22,9 +22,18 @@ const ContextMenu = {
     if (!this.menuEl) this.init();
     this.activeTask = task;
 
+    const activeSprint = AppState.sprints.find(s => s.status === 'active');
+    const isInSprint = !!task.sprintId;
+
     this.menuEl.innerHTML = `
       <div class="context-menu-item" id="ctx-open">
         <i class="fa-regular fa-folder-open"></i> Open Task
+      </div>
+      <div class="context-menu-item" id="ctx-subtask">
+        <i class="fa-solid fa-network-wired"></i> Add Subtask
+      </div>
+      <div class="context-menu-item" id="ctx-sync">
+        <i class="fa-solid fa-arrows-rotate"></i> Sync Checklist & Subtasks
       </div>
       <div class="context-menu-item" id="ctx-focus">
         <i class="fa-solid fa-bullseye"></i> Focus Mode
@@ -33,6 +42,15 @@ const ContextMenu = {
         <i class="fa-regular fa-copy"></i> Duplicate
       </div>
       <div class="context-menu-divider"></div>
+      ${activeSprint && !isInSprint ? `
+        <div class="context-menu-item" id="ctx-sprint-add">
+          <i class="fa-solid fa-person-running"></i> Move to Active Sprint
+        </div>
+      ` : (isInSprint ? `
+        <div class="context-menu-item" id="ctx-sprint-remove">
+          <i class="fa-solid fa-box-archive"></i> Move to Backlog Pool
+        </div>
+      ` : '')}
       <div class="context-menu-item" id="ctx-status-todo">
         <i class="fa-regular fa-circle"></i> Move to To Do
       </div>
@@ -50,8 +68,8 @@ const ContextMenu = {
 
     // Position correctly within viewport boundaries
     this.menuEl.style.display = 'block';
-    const menuWidth = this.menuEl.offsetWidth || 180;
-    const menuHeight = this.menuEl.offsetHeight || 220;
+    const menuWidth = this.menuEl.offsetWidth || 190;
+    const menuHeight = this.menuEl.offsetHeight || 260;
     const posX = (x + menuWidth > window.innerWidth) ? (window.innerWidth - menuWidth - 10) : x;
     const posY = (y + menuHeight > window.innerHeight) ? (window.innerHeight - menuHeight - 10) : y;
 
@@ -62,6 +80,37 @@ const ContextMenu = {
     document.getElementById('ctx-open').addEventListener('click', () => {
       TaskModal.openDetail(task.id);
     });
+
+    const ctxSubtask = document.getElementById('ctx-subtask');
+    if (ctxSubtask) {
+      ctxSubtask.addEventListener('click', () => {
+        TaskModal.openCreate({ parentId: task.id, projectId: task.projectId });
+      });
+    }
+
+    const ctxSync = document.getElementById('ctx-sync');
+    if (ctxSync) {
+      ctxSync.addEventListener('click', () => {
+        const res = AppState.syncTaskChecklistAndSubtasks(task.id);
+        Toast.success(`Synced ${task.key}! (${res.createdSubtasks} subtasks, ${res.createdChecklistItems} checklist items)`);
+      });
+    }
+
+    const ctxSprintAdd = document.getElementById('ctx-sprint-add');
+    if (ctxSprintAdd && activeSprint) {
+      ctxSprintAdd.addEventListener('click', () => {
+        AppState.updateTask(task.id, { sprintId: activeSprint.id });
+        Toast.success(`Moved ${task.key} to ${activeSprint.name}`);
+      });
+    }
+
+    const ctxSprintRemove = document.getElementById('ctx-sprint-remove');
+    if (ctxSprintRemove) {
+      ctxSprintRemove.addEventListener('click', () => {
+        AppState.updateTask(task.id, { sprintId: null });
+        Toast.info(`Moved ${task.key} to Backlog Pool`);
+      });
+    }
 
     document.getElementById('ctx-focus').addEventListener('click', () => {
       window.location.hash = `#/focus?task=${task.id}`;

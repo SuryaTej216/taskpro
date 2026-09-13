@@ -67,14 +67,375 @@ const StorageService = {
   },
 
   /**
-   * Checks if app has been initialized before; initializes empty storage schema.
+   * Checks if app has been initialized before or if projects are missing; seeds realistic initial demo data.
    */
   initDemoDataIfFirstTime() {
     const initialized = this.get(this.KEYS.INITIALIZED, false);
-    if (!initialized) {
-      this.initEmptyData();
+    const existingProjects = this.get(this.KEYS.PROJECTS, []);
+    if (!initialized || existingProjects.length === 0) {
+      this.seedDemoData();
       this.set(this.KEYS.INITIALIZED, true);
     }
+  },
+
+  /**
+   * Seeds realistic demo data with projects, sprints, epics, tasks, and subtasks
+   */
+  seedDemoData() {
+    const now = new Date();
+    const isoNow = now.toISOString();
+
+    const sprint1Start = new Date(now);
+    sprint1Start.setDate(sprint1Start.getDate() - 5);
+    const sprint1End = new Date(now);
+    sprint1End.setDate(sprint1End.getDate() + 9);
+
+    const sprint2Start = new Date(sprint1End);
+    sprint2Start.setDate(sprint2Start.getDate() + 1);
+    const sprint2End = new Date(sprint2Start);
+    sprint2End.setDate(sprint2End.getDate() + 14);
+
+    const projects = [
+      {
+        id: 'proj_web',
+        key: 'WEB',
+        name: 'Website Redesign',
+        description: 'Modernizing corporate web application with responsive UI, design tokens, and agile workflows.',
+        status: 'active',
+        color: '#388bfd',
+        icon: 'fa-globe',
+        startDate: sprint1Start.toISOString(),
+        targetDate: sprint2End.toISOString(),
+        createdAt: isoNow,
+        updatedAt: isoNow
+      },
+      {
+        id: 'proj_ai',
+        key: 'AI',
+        name: 'AI Workflow Assistant',
+        description: 'Context-aware intelligence features and automated task prioritization engine.',
+        status: 'active',
+        color: '#a371f7',
+        icon: 'fa-robot',
+        startDate: isoNow,
+        targetDate: null,
+        createdAt: isoNow,
+        updatedAt: isoNow
+      },
+      {
+        id: 'proj_sys',
+        key: 'SYS',
+        name: 'Personal Growth & Systems',
+        description: 'Habit engineering, reading lists, knowledge base management, and deep work scheduling.',
+        status: 'active',
+        color: '#2ea043',
+        icon: 'fa-compass',
+        startDate: isoNow,
+        targetDate: null,
+        createdAt: isoNow,
+        updatedAt: isoNow
+      }
+    ];
+
+    const epics = [
+      { id: 'epic_ui', projectId: 'proj_web', title: 'Design System & UI Components', color: '#388bfd' },
+      { id: 'epic_api', projectId: 'proj_web', title: 'State Management & Offline Storage', color: '#a371f7' },
+      { id: 'epic_ml', projectId: 'proj_ai', title: 'NLP Extraction Pipeline', color: '#f59e0b' }
+    ];
+
+    const sprints = [
+      {
+        id: 'sprint_1',
+        projectId: 'proj_web',
+        name: 'Sprint 1: Core Foundation',
+        goal: 'Deliver design tokens, slide-over task drawer with subtask breakdowns, and interactive backlog.',
+        startDate: sprint1Start.toISOString(),
+        endDate: sprint1End.toISOString(),
+        status: 'active'
+      },
+      {
+        id: 'sprint_2',
+        projectId: 'proj_web',
+        name: 'Sprint 2: Performance & Polish',
+        goal: 'Implement drag-and-drop sprint planning, burndown velocity analytics, and multi-select bulk operations.',
+        startDate: sprint2Start.toISOString(),
+        endDate: sprint2End.toISOString(),
+        status: 'planned'
+      }
+    ];
+
+    const tasks = [
+      {
+        id: 'task_web1',
+        key: 'WEB-1',
+        projectId: 'proj_web',
+        parentId: null,
+        epicId: 'epic_ui',
+        sprintId: 'sprint_1',
+        type: 'task',
+        title: 'Setup responsive application shell and sidebar navigation',
+        description: 'Implement dark/light themes, collapsible sidebar, and responsive breakpoints.',
+        status: 'done',
+        priority: 'high',
+        labels: ['frontend', 'shell'],
+        dueDate: sprint1Start.toISOString(),
+        startDate: sprint1Start.toISOString(),
+        estimate: 180,
+        trackedTime: 180,
+        storyPoints: 5,
+        dependencies: [],
+        checklist: [
+          { id: 'chk_1', text: 'Define CSS custom properties in styles.css', completed: true },
+          { id: 'chk_2', text: 'Add sidebar collapse trigger and mobile backdrop', completed: true }
+        ],
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        completedAt: isoNow,
+        archived: false
+      },
+      {
+        id: 'task_web2',
+        key: 'WEB-2',
+        projectId: 'proj_web',
+        parentId: null,
+        epicId: 'epic_ui',
+        sprintId: 'sprint_1',
+        type: 'story',
+        title: 'Implement Jira-style task slide-over drawer with subtasks',
+        description: 'Provide quick editing of status, priority, sprint, due date, checklists, and nested subtasks.',
+        status: 'inprogress',
+        priority: 'critical',
+        labels: ['ui', 'core'],
+        dueDate: sprint1End.toISOString(),
+        startDate: sprint1Start.toISOString(),
+        estimate: 360,
+        trackedTime: 120,
+        storyPoints: 8,
+        dependencies: [],
+        checklist: [
+          { id: 'chk_3', text: 'Create two-column slide-over container', completed: true },
+          { id: 'chk_4', text: 'Integrate real-time title and description sync', completed: true },
+          { id: 'chk_5', text: 'Support inline checklist additions', completed: true }
+        ],
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        completedAt: null,
+        archived: false
+      },
+      // Subtasks for WEB-2
+      {
+        id: 'task_web3',
+        key: 'WEB-3',
+        projectId: 'proj_web',
+        parentId: 'task_web2',
+        epicId: 'epic_ui',
+        sprintId: 'sprint_1',
+        type: 'subtask',
+        title: 'Design subtask list with checkboxes and progress bar',
+        description: 'Subtasks inside the drawer should display completion percentage and allow inline toggling.',
+        status: 'done',
+        priority: 'high',
+        labels: ['subtask', 'ui'],
+        dueDate: sprint1Start.toISOString(),
+        startDate: sprint1Start.toISOString(),
+        estimate: 90,
+        trackedTime: 90,
+        storyPoints: 2,
+        dependencies: [],
+        checklist: [],
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        completedAt: isoNow,
+        archived: false
+      },
+      {
+        id: 'task_web4',
+        key: 'WEB-4',
+        projectId: 'proj_web',
+        parentId: 'task_web2',
+        epicId: 'epic_ui',
+        sprintId: 'sprint_1',
+        type: 'subtask',
+        title: 'Add Sprint and Epic selector dropdowns to task properties',
+        description: 'Allow changing sprint assignment and parent epic directly from the detail panel sidebar.',
+        status: 'inprogress',
+        priority: 'high',
+        labels: ['subtask', 'sprints'],
+        dueDate: sprint1End.toISOString(),
+        startDate: sprint1Start.toISOString(),
+        estimate: 120,
+        trackedTime: 30,
+        storyPoints: 3,
+        dependencies: [],
+        checklist: [],
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        completedAt: null,
+        archived: false
+      },
+      {
+        id: 'task_web5',
+        key: 'WEB-5',
+        projectId: 'proj_web',
+        parentId: 'task_web2',
+        epicId: 'epic_ui',
+        sprintId: 'sprint_1',
+        type: 'subtask',
+        title: 'Add inline subtask quick-create input row',
+        description: 'Provide a clean, fast inline input field to add child subtasks directly inside the drawer.',
+        status: 'todo',
+        priority: 'medium',
+        labels: ['subtask'],
+        dueDate: sprint1End.toISOString(),
+        startDate: sprint1Start.toISOString(),
+        estimate: 60,
+        trackedTime: 0,
+        storyPoints: 1,
+        dependencies: [],
+        checklist: [],
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        completedAt: null,
+        archived: false
+      },
+      {
+        id: 'task_web6',
+        key: 'WEB-6',
+        projectId: 'proj_web',
+        parentId: null,
+        epicId: 'epic_api',
+        sprintId: 'sprint_1',
+        type: 'task',
+        title: 'Connect Sprint Burndown report to active sprint metrics',
+        description: 'Calculate daily guideline and remaining story points from tasks allocated to Sprint 1.',
+        status: 'todo',
+        priority: 'medium',
+        labels: ['reporting', 'analytics'],
+        dueDate: sprint1End.toISOString(),
+        startDate: sprint1Start.toISOString(),
+        estimate: 150,
+        trackedTime: 0,
+        storyPoints: 5,
+        dependencies: [],
+        checklist: [],
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        completedAt: null,
+        archived: false
+      },
+      {
+        id: 'task_web7',
+        key: 'WEB-7',
+        projectId: 'proj_web',
+        parentId: null,
+        epicId: 'epic_ui',
+        sprintId: 'sprint_2',
+        type: 'story',
+        title: 'Develop drag-and-drop planning between Sprints and Backlog Pool',
+        description: 'Enable HTML5 drag events on backlog items to drop directly into planned sprints.',
+        status: 'todo',
+        priority: 'high',
+        labels: ['backlog', 'sprints'],
+        dueDate: sprint2End.toISOString(),
+        startDate: sprint2Start.toISOString(),
+        estimate: 240,
+        trackedTime: 0,
+        storyPoints: 5,
+        dependencies: [],
+        checklist: [],
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        completedAt: null,
+        archived: false
+      },
+      {
+        id: 'task_web8',
+        key: 'WEB-8',
+        projectId: 'proj_web',
+        parentId: null,
+        epicId: 'epic_api',
+        sprintId: null,
+        type: 'task',
+        title: 'Audit LocalStorage quota limit and backup recovery',
+        description: 'Ensure graceful error recovery if JSON backup format has missing keys.',
+        status: 'backlog',
+        priority: 'low',
+        labels: ['security', 'storage'],
+        dueDate: null,
+        startDate: null,
+        estimate: 90,
+        trackedTime: 0,
+        storyPoints: 2,
+        dependencies: [],
+        checklist: [],
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        completedAt: null,
+        archived: false
+      },
+      {
+        id: 'task_web9',
+        key: 'WEB-9',
+        projectId: 'proj_web',
+        parentId: null,
+        epicId: 'epic_ui',
+        sprintId: null,
+        type: 'bug',
+        title: 'Fix mobile table horizontal scrolling in List view',
+        description: 'Ensure table-responsive-container has touch-friendly scroll behavior.',
+        status: 'backlog',
+        priority: 'medium',
+        labels: ['bug', 'mobile'],
+        dueDate: null,
+        startDate: null,
+        estimate: 60,
+        trackedTime: 0,
+        storyPoints: 3,
+        dependencies: [],
+        checklist: [],
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        completedAt: null,
+        archived: false
+      }
+    ];
+
+    const goals = [
+      {
+        id: 'goal_1',
+        title: 'Launch Redesigned Web Workspace',
+        description: 'Complete Sprint 1 and Sprint 2 commitments on schedule.',
+        progress: 40,
+        status: 'ontrack',
+        targetDate: sprint2End.toISOString(),
+        projectIds: ['proj_web'],
+        taskIds: ['task_web1', 'task_web2', 'task_web7']
+      }
+    ];
+
+    const activity = [
+      { id: 'act_1', taskId: 'task_web1', action: 'completed', details: 'Completed task WEB-1', timestamp: sprint1Start.toISOString() },
+      { id: 'act_2', taskId: 'task_web3', action: 'completed', details: 'Completed subtask WEB-3', timestamp: isoNow },
+      { id: 'act_3', taskId: 'task_web2', action: 'status_changed', details: 'Status changed to IN PROGRESS', timestamp: isoNow }
+    ];
+
+    this.set(this.KEYS.PROJECTS, projects);
+    this.set(this.KEYS.EPICS, epics);
+    this.set(this.KEYS.SPRINTS, sprints);
+    this.set(this.KEYS.TASKS, tasks);
+    this.set(this.KEYS.GOALS, goals);
+    this.set(this.KEYS.LABELS, ['frontend', 'ui', 'core', 'subtask', 'sprints', 'reporting', 'bug', 'mobile', 'storage']);
+    this.set(this.KEYS.COMMENTS, [
+      { id: 'comm_1', taskId: 'task_web2', text: 'Subtasks structure is defined. Now wiring up interactive toggles.', createdAt: isoNow }
+    ]);
+    this.set(this.KEYS.ACTIVITY, activity);
+    this.set(this.KEYS.NOTIFICATIONS, [
+      { id: 'notif_1', title: 'Sprint 1 is Active', message: 'Core Foundation sprint ends in 9 days.', type: 'info', read: false, createdAt: isoNow }
+    ]);
+    this.set(this.KEYS.SETTINGS, {
+      theme: 'dark',
+      soundEffects: true
+    });
   },
 
   /**

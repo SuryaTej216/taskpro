@@ -30,6 +30,16 @@ const BoardView = {
           </div>
 
           <div class="view-actions">
+            <!-- Sprint Filter Quick Select -->
+            <select id="board-sprint-filter" class="form-select" style="width: auto; padding: 6px 12px; font-size: 12px;">
+              <option value="">All Sprints</option>
+              ${AppState.sprints.map(s => `
+                <option value="${s.id}" ${AppState.activeFilters.sprintId === s.id ? 'selected' : ''}>
+                  ${s.status === 'active' ? '⚡ ' : ''}${Utils.escapeHTML(s.name)} [${s.status.toUpperCase()}]
+                </option>
+              `).join('')}
+            </select>
+
             <!-- Project Filter Quick Select -->
             <select id="board-project-filter" class="form-select" style="width: auto; padding: 6px 12px; font-size: 12px;">
               <option value="">All Projects</option>
@@ -134,8 +144,12 @@ const BoardView = {
         if (taskId) {
           const task = AppState.tasks.find(t => t.id === taskId);
           if (task && task.status !== col.id) {
-            AppState.updateTask(taskId, { status: col.id });
-            Toast.info(`Moved ${task.key} to ${col.title}`);
+            const res = AppState.updateTask(taskId, { status: col.id });
+            if (res) {
+              Toast.info(`Moved ${task.key} to ${col.title}`);
+            } else {
+              this.render(container);
+            }
           }
         }
       });
@@ -155,7 +169,16 @@ const BoardView = {
       createBtn.addEventListener('click', () => TaskModal.openCreate());
     }
 
-    // 5. Project filter change
+    // 5. Sprint filter change
+    const sprintSelect = container.querySelector('#board-sprint-filter');
+    if (sprintSelect) {
+      sprintSelect.addEventListener('change', (e) => {
+        AppState.activeFilters.sprintId = e.target.value || null;
+        this.render(container);
+      });
+    }
+
+    // 6. Project filter change
     const projSelect = container.querySelector('#board-project-filter');
     if (projSelect) {
       projSelect.addEventListener('change', (e) => {
@@ -164,7 +187,7 @@ const BoardView = {
       });
     }
 
-    // 6. Priority filter change
+    // 7. Priority filter change
     const prioSelect = container.querySelector('#board-priority-filter');
     if (prioSelect) {
       prioSelect.addEventListener('change', (e) => {

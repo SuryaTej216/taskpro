@@ -15,14 +15,27 @@ const TaskCard = {
     card.dataset.taskId = task.id;
 
     const isOverdue = Utils.isOverdue(task.dueDate, task.status);
-    const completedChecklist = task.checklist ? task.checklist.filter(c => c.completed).length : 0;
-    const totalChecklist = task.checklist ? task.checklist.length : 0;
+    const parentTask = task.parentId ? AppState.tasks.find(t => t.id === task.parentId) : null;
+
+    const checklist = Array.isArray(task.checklist) ? task.checklist : [];
+    const chkTotal = checklist.length;
+    const chkDone = checklist.filter(c => c.completed).length;
+
+    const subtasks = AppState.tasks.filter(t => t.parentId === task.id);
+    const stTotal = subtasks.length;
+    const stDone = subtasks.filter(t => t.status === 'done').length;
+
+    const totalCount = chkTotal + stTotal;
+    const totalDone = chkDone + stDone;
+    const isAllDone = totalCount > 0 && totalDone === totalCount;
+    const isMerged = !!task.mergeChecklistAndSubtasks;
 
     // Issue Type Icons
     let typeIcon = 'fa-square-check';
     if (task.type === 'bug') typeIcon = 'fa-circle-dot';
     if (task.type === 'story') typeIcon = 'fa-bookmark';
     if (task.type === 'epic') typeIcon = 'fa-bolt';
+    if (task.type === 'subtask') typeIcon = 'fa-network-wired';
     if (task.type === 'improvement') typeIcon = 'fa-arrow-up-right-dots';
 
     // Priority Icon & Class
@@ -32,11 +45,16 @@ const TaskCard = {
 
     card.innerHTML = `
       <div class="task-card-header">
-        <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
           <span class="type-icon type-${task.type || 'task'}" title="${task.type || 'task'}">
             <i class="fa-solid ${typeIcon}"></i>
           </span>
           <span class="task-card-key">${task.key}</span>
+          ${parentTask ? `
+            <span style="font-size: 10px; color: var(--accent-primary); background: var(--accent-primary-subtle); padding: 1px 5px; border-radius: 3px;" title="Subtask of ${parentTask.key}">
+              ↳ ${parentTask.key}
+            </span>
+          ` : ''}
         </div>
         <span class="badge-priority priority-${task.priority}" title="Priority: ${task.priority}">
           <i class="fa-solid ${priorityIcon}"></i>
@@ -51,14 +69,23 @@ const TaskCard = {
         </div>
       ` : ''}
 
-      ${totalChecklist > 0 ? `
-        <div style="margin-top: 4px;">
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-bottom: 3px;">
-            <span><i class="fa-regular fa-square-check"></i> ${completedChecklist}/${totalChecklist}</span>
-            <span>${Math.round((completedChecklist / totalChecklist) * 100)}%</span>
+      ${totalCount > 0 ? `
+        <div style="margin-top: 5px;">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-bottom: 3px; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${isMerged ? `
+                <span><i class="fa-solid fa-layer-group" style="color: var(--accent-primary);"></i> Items ${totalDone}/${totalCount}</span>
+              ` : `
+                ${chkTotal > 0 ? `<span><i class="fa-regular fa-square-check" style="color: var(--accent-primary);"></i> ${chkDone}/${chkTotal}</span>` : ''}
+                ${stTotal > 0 ? `<span><i class="fa-solid fa-network-wired" style="color: var(--accent-primary);"></i> ${stDone}/${stTotal}</span>` : ''}
+              `}
+            </div>
+            <span style="color: ${isAllDone ? 'var(--accent-success)' : 'inherit'}; font-weight: 600;">
+              ${Math.round((totalDone / totalCount) * 100)}%
+            </span>
           </div>
           <div class="progress-bar-container" style="height: 4px;">
-            <div class="progress-bar-fill" style="width: ${(completedChecklist / totalChecklist) * 100}%;"></div>
+            <div class="progress-bar-fill" style="width: ${(totalDone / totalCount) * 100}%; background: ${isAllDone ? 'var(--accent-success)' : 'var(--accent-primary)'};"></div>
           </div>
         </div>
       ` : ''}

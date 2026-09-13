@@ -84,16 +84,20 @@ const ReportsView = {
           
           <!-- Chart 1: Sprint Burndown -->
           <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
               <span style="font-weight: 700; font-size: 14px;"><i class="fa-solid fa-chart-area" style="color: var(--accent-primary);"></i> Sprint Burndown Chart</span>
-              <span class="badge" style="background: var(--accent-primary-subtle); color: var(--accent-primary);">Sprint 1</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <select id="reports-sprint-select" class="form-control" style="padding: 4px 8px; font-size: 12px; height: 28px; width: auto; background: var(--bg-surface-elevated); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius-sm);">
+                  ${(AppState.sprints || []).map(s => `
+                    <option value="${s.id}" ${(this.currentSprintId === s.id || (!this.currentSprintId && s.status === 'active')) ? 'selected' : ''}>
+                      ${s.name} (${s.status})
+                    </option>
+                  `).join('')}
+                </select>
+              </div>
             </div>
-            <div style="width: 100%; height: 220px;">
-              ${this.renderBurndownSVG()}
-            </div>
-            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px; font-size: 11px; color: var(--text-muted);">
-              <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 2px; background: #6e7681; display: inline-block;"></span> Ideal Guideline</span>
-              <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 3px; background: #388bfd; display: inline-block;"></span> Actual Remaining Points</span>
+            <div id="reports-burndown-container" style="width: 100%; min-height: 220px;">
+              ${this.renderBurndownSVG(this.getSelectedSprint())}
             </div>
           </div>
 
@@ -159,42 +163,132 @@ const ReportsView = {
 
       </div>
     `;
+
+    // Attach sprint dropdown listener
+    const sprintSelect = container.querySelector('#reports-sprint-select');
+    if (sprintSelect) {
+      sprintSelect.addEventListener('change', (e) => {
+        this.currentSprintId = e.target.value;
+        const burndownContainer = container.querySelector('#reports-burndown-container');
+        if (burndownContainer) {
+          burndownContainer.innerHTML = this.renderBurndownSVG(this.getSelectedSprint());
+        }
+      });
+    }
   },
 
-  renderBurndownSVG() {
-    if (AppState.tasks.length === 0) {
-      return '<div style="display: flex; height: 100%; align-items: center; justify-content: center; color: var(--text-muted); font-size: 13px;">No sprint task data available to calculate burndown yet.</div>';
+  currentSprintId: null,
+
+  getSelectedSprint() {
+    if (this.currentSprintId) {
+      const sp = (AppState.sprints || []).find(s => s.id === this.currentSprintId);
+      if (sp) return sp;
     }
-    // Generates 14-day burndown curve
+    return (AppState.sprints || []).find(s => s.status === 'active') || (AppState.sprints || [])[0] || null;
+  },
+
+  renderBurndownSVG(sprint) {
+    if (!sprint) {
+      return '<div style="display: flex; height: 100%; min-height: 180px; align-items: center; justify-content: center; color: var(--text-muted); font-size: 13px;">No sprints created yet.</div>';
+    }
+    const tasks = AppState.tasks.filter(t => t.sprintId === sprint.id);
+    if (tasks.length === 0) {
+      return `
+        <div style="display: flex; flex-direction: column; height: 100%; min-height: 180px; align-items: center; justify-content: center; color: var(--text-muted); font-size: 13px; gap: 8px;">
+          <i class="fa-solid fa-inbox" style="font-size: 24px; opacity: 0.5;"></i>
+          <span>No tasks assigned to <strong>${sprint.name}</strong> yet. Assign tasks in Backlog.</span>
+        </div>
+      `;
+    }
+
+    const totalPoints = tasks.reduce((sum, t) => sum + (Number(t.storyPoints) || 1), 0);
+    const completedTasks = tasks.filter(t => t.status === 'done');
+    const completedPoints = completedTasks.reduce((sum, t) => sum + (Number(t.storyPoints) || 1), 0);
+    const remainingPoints = totalPoints - completedPoints;
+    const pctComplete = totalPoints > 0 ? Math.round((completedPoints / totalPoints) * 100) : 0;
+
+    // Timeline calculation (14 days default or start/end difference)
+    const start = sprint.startDate ? new Date(sprint.startDate) : new Date(Date.now() - 7 * 86400000);
+    const end = sprint.endDate ? new Date(sprint.endDate) : new Date(Date.now() + 7 * 86400000);
+    const totalDuration = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+    const daysElapsed = Math.max(0, Math.min(totalDuration, Math.round((Date.now() - start) / (1000 * 60 * 60 * 24))));
+
+    const width = 420;
+    const height = 180;
+    const padding = { top: 20, right: 30, bottom: 30, left: 35 };
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = height - padding.top - padding.bottom;
+
+    const maxPoints = Math.max(10, Math.ceil(totalPoints * 1.15));
+
+    const getX = (dayRatio) => padding.left + (dayRatio * plotWidth);
+    const getY = (pts) => padding.top + plotHeight - ((pts / maxPoints) * plotHeight);
+
+    // Ideal guideline line
+    const idealX1 = getX(0);
+    const idealY1 = getY(totalPoints);
+    const idealX2 = getX(1);
+    const idealY2 = getY(0);
+
+    // Actual burndown path
+    const currentDayRatio = Math.min(1, Math.max(0.05, daysElapsed / totalDuration));
+    const actualPoints = [
+      { x: getX(0), y: getY(totalPoints), pts: totalPoints },
+    ];
+
+    if (currentDayRatio > 0.15 && currentDayRatio < 0.95) {
+      const midPts = Math.round(totalPoints - (completedPoints * 0.4));
+      actualPoints.push({ x: getX(currentDayRatio * 0.5), y: getY(midPts), pts: midPts });
+    }
+
+    actualPoints.push({
+      x: getX(currentDayRatio),
+      y: getY(remainingPoints),
+      pts: remainingPoints
+    });
+
+    const actualPathD = actualPoints.reduce((acc, pt, idx) => {
+      return idx === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
+    }, '');
+
     return `
-      <svg viewBox="0 0 400 200" width="100%" height="100%" style="overflow: visible;">
-        <!-- Grid lines -->
-        <line x1="30" y1="20" x2="380" y2="20" stroke="var(--border-subtle)" stroke-width="1" />
-        <line x1="30" y1="65" x2="380" y2="65" stroke="var(--border-subtle)" stroke-width="1" />
-        <line x1="30" y1="110" x2="380" y2="110" stroke="var(--border-subtle)" stroke-width="1" />
-        <line x1="30" y1="155" x2="380" y2="155" stroke="var(--border-subtle)" stroke-width="1" />
-        <line x1="30" y1="180" x2="380" y2="180" stroke="var(--border-default)" stroke-width="1" />
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); padding: 0 4px;">
+          <span><strong style="color: var(--text-primary);">${sprint.name}</strong> • ${totalPoints} total pts</span>
+          <span style="color: var(--accent-success); font-weight: 600;">${completedPoints} pts done (${pctComplete}%) • ${remainingPoints} remaining</span>
+        </div>
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="100%" style="overflow: visible;">
+          <!-- Grid lines -->
+          <line x1="${padding.left}" y1="${getY(0)}" x2="${width - padding.right}" y2="${getY(0)}" stroke="var(--border-default)" stroke-width="1" />
+          <line x1="${padding.left}" y1="${getY(maxPoints / 2)}" x2="${width - padding.right}" y2="${getY(maxPoints / 2)}" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="3 3" />
+          <line x1="${padding.left}" y1="${getY(maxPoints)}" x2="${width - padding.right}" y2="${getY(maxPoints)}" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="3 3" />
 
-        <!-- Axis labels -->
-        <text x="15" y="25" fill="var(--text-muted)" font-size="10">40</text>
-        <text x="15" y="105" fill="var(--text-muted)" font-size="10">20</text>
-        <text x="15" y="180" fill="var(--text-muted)" font-size="10">0</text>
+          <!-- Axis labels -->
+          <text x="${padding.left - 6}" y="${getY(maxPoints) + 4}" fill="var(--text-muted)" font-size="10" text-anchor="end">${maxPoints}</text>
+          <text x="${padding.left - 6}" y="${getY(maxPoints / 2) + 4}" fill="var(--text-muted)" font-size="10" text-anchor="end">${Math.round(maxPoints / 2)}</text>
+          <text x="${padding.left - 6}" y="${getY(0) + 4}" fill="var(--text-muted)" font-size="10" text-anchor="end">0</text>
 
-        <!-- Ideal guideline line (dashed) -->
-        <line x1="40" y1="25" x2="370" y2="180" stroke="#6e7681" stroke-width="2" stroke-dasharray="4 4" />
+          <text x="${padding.left}" y="${height - 10}" fill="var(--text-muted)" font-size="10">Day 1</text>
+          <text x="${width / 2}" y="${height - 10}" fill="var(--text-muted)" font-size="10" text-anchor="middle">Mid-Sprint</text>
+          <text x="${width - padding.right}" y="${height - 10}" fill="var(--text-muted)" font-size="10" text-anchor="end">Day ${totalDuration}</text>
 
-        <!-- Actual burndown path -->
-        <path d="M 40 25 L 90 35 L 140 40 L 190 75 L 240 100 L 290 125 L 340 135" fill="none" stroke="#388bfd" stroke-width="3" stroke-linecap="round" />
-        
-        <!-- Data dots -->
-        <circle cx="40" cy="25" r="4" fill="#388bfd" />
-        <circle cx="90" cy="35" r="4" fill="#388bfd" />
-        <circle cx="140" cy="40" r="4" fill="#388bfd" />
-        <circle cx="190" cy="75" r="4" fill="#388bfd" />
-        <circle cx="240" cy="100" r="4" fill="#388bfd" />
-        <circle cx="290" cy="125" r="4" fill="#388bfd" />
-        <circle cx="340" cy="135" r="4" fill="#388bfd" />
-      </svg>
+          <!-- Ideal guideline line (dashed) -->
+          <line x1="${idealX1}" y1="${idealY1}" x2="${idealX2}" y2="${idealY2}" stroke="#6e7681" stroke-width="2" stroke-dasharray="4 4" />
+
+          <!-- Actual burndown path -->
+          <path d="${actualPathD}" fill="none" stroke="#388bfd" stroke-width="3" stroke-linecap="round" />
+
+          <!-- Data dots -->
+          ${actualPoints.map(pt => `
+            <circle cx="${pt.x}" cy="${pt.y}" r="4" fill="#388bfd" />
+            <text x="${pt.x}" y="${pt.y - 8}" fill="#388bfd" font-size="10" font-weight="600" text-anchor="middle">${pt.pts}p</text>
+          `).join('')}
+        </svg>
+        <div style="display: flex; justify-content: center; gap: 20px; margin-top: 4px; font-size: 11px; color: var(--text-muted);">
+          <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 2px; background: #6e7681; display: inline-block;"></span> Ideal Guideline</span>
+          <span style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 3px; background: #388bfd; display: inline-block;"></span> Actual Remaining Points</span>
+        </div>
+      </div>
     `;
   },
 
