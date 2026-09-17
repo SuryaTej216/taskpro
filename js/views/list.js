@@ -84,10 +84,10 @@ const ListView = {
                   </td>
                 </tr>
               ` : tasks.map(t => {
-                const isSelected = this.selectedTaskIds.has(t.id);
-                const parentTask = t.parentId ? AppState.tasks.find(p => p.id === t.parentId) : null;
-                const sprint = t.sprintId ? AppState.sprints.find(s => s.id === t.sprintId) : null;
-                return `
+      const isSelected = this.selectedTaskIds.has(t.id);
+      const parentTask = t.parentId ? AppState.tasks.find(p => p.id === t.parentId) : null;
+      const sprint = t.sprintId ? AppState.sprints.find(s => s.id === t.sprintId) : null;
+      return `
                   <tr class="table-row ${isSelected ? 'row-selected' : ''}" style="border-bottom: 1px solid var(--border-subtle); transition: background var(--transition-fast); ${isSelected ? 'background: var(--accent-primary-subtle);' : ''}">
                     <td style="padding: 10px 14px; text-align: center;">
                       <input type="checkbox" class="chk-task-row" data-id="${t.id}" ${isSelected ? 'checked' : ''} style="cursor: pointer;">
@@ -124,7 +124,7 @@ const ListView = {
                     </td>
                   </tr>
                 `;
-              }).join('')}
+    }).join('')}
             </tbody>
           </table>
         </div>

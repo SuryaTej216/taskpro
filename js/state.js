@@ -60,6 +60,18 @@ const AppState = {
       this.settings.autoSyncChecklistSubtasks = true;
     }
 
+    // Ensure all subtasks have default 1 story points if unset or 0
+    let subtasksUpdated = false;
+    this.tasks.forEach(t => {
+      if ((t.type === 'subtask' || t.parentId) && (t.storyPoints === undefined || t.storyPoints === null || t.storyPoints === 0)) {
+        t.storyPoints = 1;
+        subtasksUpdated = true;
+      }
+    });
+    if (subtasksUpdated) {
+      StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+    }
+
     // Apply saved theme
     document.documentElement.setAttribute('data-theme', this.settings.theme || 'dark');
   },
@@ -156,6 +168,17 @@ const AppState = {
    */
   createTask(taskData) {
     const now = new Date().toISOString();
+    const taskType = taskData.type || 'task';
+    const isSubtask = taskType === 'subtask' || (taskData.parentId && (!taskData.type || taskData.type === 'subtask'));
+    
+    let storyPoints = 0;
+    if (taskData.storyPoints !== undefined && taskData.storyPoints !== null && taskData.storyPoints !== '') {
+      storyPoints = parseInt(taskData.storyPoints, 10);
+      if (isNaN(storyPoints)) storyPoints = isSubtask ? 1 : 0;
+    } else {
+      storyPoints = isSubtask ? 1 : 0;
+    }
+
     const newTask = {
       id: Utils.generateId('task_'),
       key: taskData.key || this.getNextTaskKey(taskData.projectId),
@@ -163,7 +186,7 @@ const AppState = {
       parentId: taskData.parentId || null,
       epicId: taskData.epicId || null,
       sprintId: taskData.sprintId || null,
-      type: taskData.type || 'task',
+      type: taskType,
       title: taskData.title.trim(),
       description: taskData.description || '',
       status: taskData.status || 'todo',
@@ -173,7 +196,7 @@ const AppState = {
       startDate: taskData.startDate || null,
       estimate: parseInt(taskData.estimate, 10) || 0,
       trackedTime: parseInt(taskData.trackedTime, 10) || 0,
-      storyPoints: parseInt(taskData.storyPoints, 10) || 0,
+      storyPoints: storyPoints,
       dependencies: Array.isArray(taskData.dependencies) ? taskData.dependencies : [],
       checklist: Array.isArray(taskData.checklist) ? taskData.checklist : [],
       mergeChecklistAndSubtasks: taskData.mergeChecklistAndSubtasks !== undefined ? !!taskData.mergeChecklistAndSubtasks : false,
@@ -392,7 +415,8 @@ const AppState = {
           type: 'subtask',
           title: item.text,
           status: item.completed ? 'done' : 'todo',
-          priority: parent.priority || 'medium'
+          priority: parent.priority || 'medium',
+          storyPoints: 1
         });
         item.subtaskId = newSubtask.id;
         childSubtasks.push(newSubtask);
@@ -464,7 +488,8 @@ const AppState = {
           title: linkedSubtask.title || item.text,
           completed: linkedSubtask.status === 'done' || !!item.completed,
           isSubtask: true,
-          status: linkedSubtask.status
+          status: linkedSubtask.status,
+          storyPoints: linkedSubtask.storyPoints !== undefined && linkedSubtask.storyPoints !== null ? linkedSubtask.storyPoints : 1
         });
       } else {
         clubbed.push({
@@ -474,7 +499,8 @@ const AppState = {
           title: item.text,
           completed: !!item.completed,
           isSubtask: false,
-          status: item.completed ? 'done' : 'todo'
+          status: item.completed ? 'done' : 'todo',
+          storyPoints: 0
         });
       }
     });
@@ -490,7 +516,8 @@ const AppState = {
           title: st.title,
           completed: st.status === 'done',
           isSubtask: true,
-          status: st.status
+          status: st.status,
+          storyPoints: st.storyPoints !== undefined && st.storyPoints !== null ? st.storyPoints : 1
         });
       }
     });
@@ -531,7 +558,8 @@ const AppState = {
           projectId: parent.projectId,
           sprintId: parent.sprintId,
           type: 'subtask',
-          status: chk.completed ? 'done' : 'todo'
+          status: chk.completed ? 'done' : 'todo',
+          storyPoints: 1
         });
         count++;
       }

@@ -931,7 +931,7 @@ const DocsView = {
   filterContent() {
     const query = this.searchQuery;
     const featureBlocks = document.querySelectorAll('.docs-feature-block, .docs-feature-card, .docs-section');
-    
+
     if (!query) {
       featureBlocks.forEach(el => {
         el.style.display = '';

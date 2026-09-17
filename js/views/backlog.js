@@ -56,8 +56,8 @@ const BacklogView = {
                 <span>All Epics</span>
               </div>
               ${epics.map(ep => {
-                const count = tasks.filter(t => t.epicId === ep.id).length;
-                return `
+      const count = tasks.filter(t => t.epicId === ep.id).length;
+      return `
                   <div class="nav-item ${AppState.activeFilters.epicId === ep.id ? 'active' : ''}" onclick="AppState.activeFilters.epicId = '${ep.id}'; AppState.emit('filters:changed');" style="padding: 6px 10px; font-size: 12px; display: flex; justify-content: space-between; cursor: pointer;">
                     <span style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                       <span style="width: 8px; height: 8px; border-radius: 2px; background: ${ep.color || '#a371f7'}; flex-shrink: 0;"></span>
@@ -66,7 +66,7 @@ const BacklogView = {
                     <span class="badge-count">${count}</span>
                   </div>
                 `;
-              }).join('')}
+    }).join('')}
             </div>
           </div>
 

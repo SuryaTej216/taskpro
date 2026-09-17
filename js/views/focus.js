@@ -148,7 +148,7 @@ const FocusView = {
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerState = 'running';
     Toast.info('Focus session started! Eliminate all distractions.');
-    
+
     this.timerInterval = setInterval(() => {
       this.remainingSeconds--;
 

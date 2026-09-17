@@ -205,10 +205,10 @@ const DashboardView = {
                   </div>
                 </div>
               ` : projects.map(p => {
-                const projTasks = tasks.filter(t => t.projectId === p.id);
-                const projDone = projTasks.filter(t => t.status === 'done').length;
-                const pct = projTasks.length > 0 ? Math.round((projDone / projTasks.length) * 100) : 0;
-                return `
+      const projTasks = tasks.filter(t => t.projectId === p.id);
+      const projDone = projTasks.filter(t => t.status === 'done').length;
+      const pct = projTasks.length > 0 ? Math.round((projDone / projTasks.length) * 100) : 0;
+      return `
                   <div>
                     <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 4px;">
                       <a href="#/board?project=${p.id}" style="color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
@@ -222,7 +222,7 @@ const DashboardView = {
                     </div>
                   </div>
                 `;
-              }).join('')}
+    }).join('')}
             </div>
           </div>
 

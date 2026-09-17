@@ -43,6 +43,7 @@ const TaskModal = {
     const defaultSprint = defaultProps.sprintId || '';
     const defaultType = defaultProps.type || (defaultProps.parentId ? 'subtask' : 'task');
     const parentTask = defaultProps.parentId ? AppState.tasks.find(t => t.id === defaultProps.parentId) : null;
+    const isSubtaskDefault = defaultType === 'subtask' || !!parentTask;
 
     const modalBody = `
       <form id="create-task-form">
@@ -124,7 +125,7 @@ const TaskModal = {
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Story Points</label>
-            <input type="number" id="task-create-points" class="form-input" min="0" max="100" placeholder="e.g. 5">
+            <input type="number" id="task-create-points" class="form-input" min="0" max="100" placeholder="e.g. 5" value="${isSubtaskDefault ? '1' : ''}">
           </div>
           <div class="form-group">
             <label class="form-label">Estimated Time (minutes)</label>
@@ -176,17 +177,21 @@ const TaskModal = {
 
             const parentIdVal = document.getElementById('task-create-parent') ? document.getElementById('task-create-parent').value : null;
             const sprintIdVal = document.getElementById('task-create-sprint') ? document.getElementById('task-create-sprint').value : null;
+            const typeVal = document.getElementById('task-create-type').value;
+            const isSubtask = typeVal === 'subtask' || !!parentIdVal || !!defaultProps.parentId;
+            const pointsVal = document.getElementById('task-create-points') ? document.getElementById('task-create-points').value : '';
+            const storyPoints = pointsVal !== '' ? (parseInt(pointsVal, 10) || 0) : (isSubtask ? 1 : 0);
 
             const taskData = {
               title: document.getElementById('task-create-title').value,
               projectId: document.getElementById('task-create-project').value,
               parentId: parentIdVal || defaultProps.parentId || null,
               sprintId: sprintIdVal || defaultProps.sprintId || null,
-              type: document.getElementById('task-create-type').value,
+              type: typeVal,
               status: document.getElementById('task-create-status').value,
               priority: document.getElementById('task-create-priority').value,
               dueDate: document.getElementById('task-create-due').value ? new Date(document.getElementById('task-create-due').value).toISOString() : null,
-              storyPoints: parseInt(document.getElementById('task-create-points').value, 10) || 0,
+              storyPoints: storyPoints,
               description: document.getElementById('task-create-desc') ? document.getElementById('task-create-desc').value : '',
               labels: labelsArray,
               estimate: document.getElementById('task-create-estimate') ? parseInt(document.getElementById('task-create-estimate').value, 10) || 0 : 0
@@ -199,6 +204,16 @@ const TaskModal = {
         }
       ]
     });
+
+    const typeSelect = document.getElementById('task-create-type');
+    const pointsInput = document.getElementById('task-create-points');
+    if (typeSelect && pointsInput) {
+      typeSelect.addEventListener('change', () => {
+        if (typeSelect.value === 'subtask' && (!pointsInput.value || pointsInput.value === '0')) {
+          pointsInput.value = '1';
+        }
+      });
+    }
   },
 
   /**
@@ -352,12 +367,19 @@ const TaskModal = {
                 `).join('')}
               </div>
 
-              <!-- Add Checklist Item Bar -->
-              <div style="display: flex; gap: 8px; margin-top: 10px; align-items: center;">
-                <input type="text" id="new-checklist-input" class="form-input" placeholder="Add checklist step..." style="font-size: 12px; padding: 6px 10px; flex: 1;">
-                <button id="btn-add-checklist" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px;">
-                  <i class="fa-solid fa-plus"></i> Add Item
-                </button>
+              <!-- Add Checklist Item Bar (bulk: use {} placeholder + count) -->
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="text" id="new-checklist-input" class="form-input" placeholder="e.g. Design task {}" style="font-size: 12px; padding: 6px 10px; flex: 1;">
+                  <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                    <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
+                    <input type="number" id="new-checklist-count" class="form-input" min="1" max="50" value="1" style="width: 52px; font-size: 12px; padding: 6px 6px; text-align: center;">
+                  </div>
+                  <button id="btn-add-checklist" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px; white-space: nowrap;">
+                    <i class="fa-solid fa-plus"></i> Add
+                  </button>
+                </div>
+                <span style="font-size: 10px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk: use <code style='background:var(--bg-surface-active);padding:1px 4px;border-radius:3px;'>{}</code> as placeholder &amp; set count. E.g. "Step {}" × 3 → Step 1, Step 2, Step 3</span>
               </div>
             </div>
 
@@ -396,6 +418,7 @@ const TaskModal = {
                       </span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px;">
+                      <span class="badge" style="font-size: 9px; padding: 1px 6px; background: var(--bg-surface-active); color: var(--accent-primary); font-weight: 600;" title="Story Points">${st.storyPoints !== undefined && st.storyPoints !== null ? st.storyPoints : 1} pts</span>
                       <span class="badge badge-status-${st.status}" style="font-size: 9px; padding: 1px 5px;">${st.status}</span>
                       <button class="btn btn-ghost btn-sm subtask-item-del" data-id="${st.id}" title="Delete subtask" style="padding: 2px 6px; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
                     </div>
@@ -403,12 +426,19 @@ const TaskModal = {
                 `).join('')}
               </div>
 
-              <!-- Add Subtask Bar -->
-              <div style="display: flex; gap: 8px; margin-top: 10px; align-items: center;">
-                <input type="text" id="new-subtask-input" class="form-input" placeholder="Add child subtask..." style="font-size: 12px; padding: 6px 10px; flex: 1;">
-                <button id="btn-add-subtask" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px;">
-                  <i class="fa-solid fa-plus"></i> Add Subtask
-                </button>
+              <!-- Add Subtask Bar (bulk: use {} placeholder + count) -->
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="text" id="new-subtask-input" class="form-input" placeholder="e.g. Implement feature {}" style="font-size: 12px; padding: 6px 10px; flex: 1;">
+                  <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                    <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
+                    <input type="number" id="new-subtask-count" class="form-input" min="1" max="50" value="1" style="width: 52px; font-size: 12px; padding: 6px 6px; text-align: center;">
+                  </div>
+                  <button id="btn-add-subtask" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px; white-space: nowrap;">
+                    <i class="fa-solid fa-plus"></i> Add
+                  </button>
+                </div>
+                <span style="font-size: 10px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk: use <code style='background:var(--bg-surface-active);padding:1px 4px;border-radius:3px;'>{}</code> as placeholder &amp; set count. E.g. "Task {}" × 5 → Task 1, Task 2 … Task 5</span>
               </div>
             </div>
           ` : `
@@ -456,6 +486,7 @@ const TaskModal = {
                     <div style="display: flex; align-items: center; gap: 6px;">
                       ${item.isSubtask ? `
                         <span class="badge" style="font-size: 9px; padding: 1px 6px; background: var(--accent-primary-subtle); color: var(--accent-primary);" title="Tracked Subtask"><i class="fa-solid fa-network-wired"></i> Subtask</span>
+                        <span class="badge" style="font-size: 9px; padding: 1px 6px; background: var(--bg-surface-active); color: var(--accent-primary); font-weight: 600;" title="Story Points">${item.storyPoints !== undefined && item.storyPoints !== null ? item.storyPoints : 1} pts</span>
                         ${item.status ? `<span class="badge badge-status-${item.status}" style="font-size: 9px; padding: 1px 5px;">${item.status}</span>` : ''}
                       ` : `
                         <span class="badge" style="font-size: 9px; padding: 1px 6px; background: var(--bg-surface-active); color: var(--text-muted);" title="Checklist step"><i class="fa-regular fa-square-check"></i> Checklist</span>
@@ -467,18 +498,23 @@ const TaskModal = {
                 `).join('')}
               </div>
 
-              <!-- Merged Inline Creator Bar -->
-              <div style="display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap;">
-                <input type="text" id="merged-new-input" class="form-input" placeholder="Add item..." style="font-size: 12px; padding: 6px 10px; flex: 1; min-width: 180px;">
-                
-                <select id="merged-new-type" class="form-select" style="width: auto; padding: 4px 8px; font-size: 11px; height: 30px;">
-                  <option value="checklist">Checklist Item</option>
-                  <option value="subtask">Tracked Subtask</option>
-                </select>
-
-                <button id="merged-btn-add" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px;">
-                  <i class="fa-solid fa-plus"></i> Add
-                </button>
+              <!-- Merged Inline Creator Bar (bulk: use {} placeholder + count) -->
+              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <input type="text" id="merged-new-input" class="form-input" placeholder="e.g. Review item {}" style="font-size: 12px; padding: 6px 10px; flex: 1; min-width: 160px;">
+                  <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                    <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
+                    <input type="number" id="merged-new-count" class="form-input" min="1" max="50" value="1" style="width: 52px; font-size: 12px; padding: 6px 6px; text-align: center;">
+                  </div>
+                  <select id="merged-new-type" class="form-select" style="width: auto; padding: 4px 8px; font-size: 11px; height: 30px;">
+                    <option value="checklist">Checklist</option>
+                    <option value="subtask">Subtask</option>
+                  </select>
+                  <button id="merged-btn-add" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px; white-space: nowrap;">
+                    <i class="fa-solid fa-plus"></i> Add
+                  </button>
+                </div>
+                <span style="font-size: 10px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk: use <code style='background:var(--bg-surface-active);padding:1px 4px;border-radius:3px;'>{}</code> as placeholder &amp; set count. E.g. "Item {}" × 4 → Item 1, Item 2, Item 3, Item 4</span>
               </div>
 
               <!-- Utility Actions -->
@@ -607,7 +643,7 @@ const TaskModal = {
 
           <div class="form-group">
             <label class="form-label">Story Points</label>
-            <input type="number" id="detail-task-points" class="form-input" min="0" value="${task.storyPoints || 0}">
+            <input type="number" id="detail-task-points" class="form-input" min="0" value="${task.storyPoints !== undefined && task.storyPoints !== null ? task.storyPoints : (task.type === 'subtask' ? 1 : 0)}">
           </div>
 
           <!-- Time Tracking Widget -->
@@ -782,17 +818,23 @@ const TaskModal = {
 
     const addChkBtn = document.getElementById('btn-add-checklist');
     const newChkInput = document.getElementById('new-checklist-input');
+    const newChkCount = document.getElementById('new-checklist-count');
     const handleAddChecklist = () => {
-      const text = newChkInput ? newChkInput.value.trim() : '';
-      if (!text) return;
+      const template = newChkInput ? newChkInput.value.trim() : '';
+      if (!template) return;
+      const count = newChkCount ? parseInt(newChkCount.value, 10) || 1 : 1;
+      const items = this.generateBulkItems(template, count);
+      if (items.length === 0) return;
       const list = [...(task.checklist || [])];
-      list.push({
-        id: Utils.generateId('chk_'),
-        text,
-        completed: false
+      items.forEach(text => {
+        list.push({
+          id: Utils.generateId('chk_'),
+          text,
+          completed: false
+        });
       });
       AppState.updateTask(taskId, { checklist: list });
-      Toast.success('Checklist item added');
+      Toast.success(items.length > 1 ? `${items.length} checklist items added` : 'Checklist item added');
       const drawer = document.getElementById('task-drawer');
       const updated = AppState.tasks.find(t => t.id === taskId);
       this.renderDrawerContent(drawer, updated);
@@ -831,20 +873,28 @@ const TaskModal = {
 
     const addStBtn = document.getElementById('btn-add-subtask');
     const newStInput = document.getElementById('new-subtask-input');
+    const newStCount = document.getElementById('new-subtask-count');
     const handleAddSubtask = () => {
-      const title = newStInput ? newStInput.value.trim() : '';
-      if (!title) return;
-      const created = AppState.createTask({
-        title,
-        parentId: taskId,
-        projectId: task.projectId,
-        sprintId: task.sprintId,
-        epicId: task.epicId,
-        type: 'subtask',
-        status: 'todo',
-        priority: task.priority || 'medium'
+      const template = newStInput ? newStInput.value.trim() : '';
+      if (!template) return;
+      const count = newStCount ? parseInt(newStCount.value, 10) || 1 : 1;
+      const items = this.generateBulkItems(template, count);
+      if (items.length === 0) return;
+      let lastCreated = null;
+      items.forEach(title => {
+        lastCreated = AppState.createTask({
+          title,
+          parentId: taskId,
+          projectId: task.projectId,
+          sprintId: task.sprintId,
+          epicId: task.epicId,
+          type: 'subtask',
+          status: 'todo',
+          priority: task.priority || 'medium',
+          storyPoints: 1
+        });
       });
-      Toast.success(`Subtask ${created.key} created`);
+      Toast.success(items.length > 1 ? `${items.length} subtasks created` : `Subtask ${lastCreated.key} created`);
       const drawer = document.getElementById('task-drawer');
       const updated = AppState.tasks.find(t => t.id === taskId);
       this.renderDrawerContent(drawer, updated);
@@ -916,34 +966,43 @@ const TaskModal = {
 
     const addMergedBtn = document.getElementById('merged-btn-add');
     const newMergedInput = document.getElementById('merged-new-input');
+    const newMergedCount = document.getElementById('merged-new-count');
     const newMergedType = document.getElementById('merged-new-type');
 
     const handleAddMerged = () => {
-      const text = newMergedInput ? newMergedInput.value.trim() : '';
-      if (!text) return;
+      const template = newMergedInput ? newMergedInput.value.trim() : '';
+      if (!template) return;
+      const count = newMergedCount ? parseInt(newMergedCount.value, 10) || 1 : 1;
+      const items = this.generateBulkItems(template, count);
+      if (items.length === 0) return;
       const itemType = newMergedType ? newMergedType.value : 'checklist';
 
       if (itemType === 'subtask') {
-        const created = AppState.createTask({
-          title: text,
-          parentId: taskId,
-          projectId: task.projectId,
-          sprintId: task.sprintId,
-          epicId: task.epicId,
-          type: 'subtask',
-          status: 'todo',
-          priority: task.priority || 'medium'
+        items.forEach(title => {
+          AppState.createTask({
+            title,
+            parentId: taskId,
+            projectId: task.projectId,
+            sprintId: task.sprintId,
+            epicId: task.epicId,
+            type: 'subtask',
+            status: 'todo',
+            priority: task.priority || 'medium',
+            storyPoints: 1
+          });
         });
-        Toast.success(`Subtask ${created.key} created`);
+        Toast.success(items.length > 1 ? `${items.length} subtasks created` : 'Subtask created');
       } else {
         const list = [...(task.checklist || [])];
-        list.push({
-          id: Utils.generateId('chk_'),
-          text,
-          completed: false
+        items.forEach(text => {
+          list.push({
+            id: Utils.generateId('chk_'),
+            text,
+            completed: false
+          });
         });
         AppState.updateTask(taskId, { checklist: list });
-        Toast.success('Checklist item added');
+        Toast.success(items.length > 1 ? `${items.length} checklist items added` : 'Checklist item added');
       }
 
       newMergedInput.value = '';
@@ -1050,5 +1109,44 @@ const TaskModal = {
         }
       });
     }
+  },
+
+  /**
+   * Generates an array of item names from a template and count.
+   * If the template contains '{}', it replaces it with the number (1, 2, 3...).
+   * If count is 1, returns the template as-is (with {} removed if present).
+   * 
+   * Examples:
+   *   generateBulkItems("Design task {}", 3)  → ["Design task 1", "Design task 2", "Design task 3"]
+   *   generateBulkItems("Module {} setup", 4) → ["Module 1 setup", "Module 2 setup", "Module 3 setup", "Module 4 setup"]
+   *   generateBulkItems("Buy groceries", 1)   → ["Buy groceries"]
+   *   generateBulkItems("Task", 5)            → ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5"]
+   * 
+   * @param {string} template - The text template, optionally containing '{}'
+   * @param {number} count - Number of items to generate (1-50)
+   * @returns {string[]} Array of generated item strings
+   */
+  generateBulkItems(template, count) {
+    if (!template || !template.trim()) return [];
+    const text = template.trim();
+    const n = Math.min(50, Math.max(1, count || 1));
+
+    // If count is 1, just return the template (clean up any stray {})
+    if (n === 1) {
+      return [text.replace(/\{\}/g, '').replace(/\s{2,}/g, ' ').trim() || text];
+    }
+
+    // If template contains {}, replace with number
+    const hasPlaceholder = text.includes('{}');
+    const items = [];
+    for (let i = 1; i <= n; i++) {
+      if (hasPlaceholder) {
+        items.push(text.replace(/\{\}/g, String(i)));
+      } else {
+        // No placeholder — append number at the end
+        items.push(`${text} ${i}`);
+      }
+    }
+    return items;
   }
 };

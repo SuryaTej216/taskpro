@@ -75,9 +75,9 @@ const BoardView = {
         <!-- Kanban Columns Container -->
         <div class="board-container" id="kanban-columns-container">
           ${this.columns.map(col => {
-            const colTasks = activeTasks.filter(t => t.status === col.id);
-            const totalPoints = colTasks.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
-            return `
+      const colTasks = activeTasks.filter(t => t.status === col.id);
+      const totalPoints = colTasks.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
+      return `
               <div class="board-column" data-status="${col.id}">
                 <div class="board-column-header">
                   <div class="board-column-title">
@@ -97,7 +97,7 @@ const BoardView = {
                 </div>
               </div>
             `;
-          }).join('')}
+    }).join('')}
         </div>
 
       </div>

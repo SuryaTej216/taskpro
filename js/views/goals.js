@@ -36,10 +36,10 @@ const GoalsView = {
               </button>
             </div>
           ` : goals.map(goal => {
-            const linkedTasks = AppState.tasks.filter(t => (goal.projectIds && goal.projectIds.includes(t.projectId)));
-            const doneTasks = linkedTasks.filter(t => t.status === 'done').length;
+      const linkedTasks = AppState.tasks.filter(t => (goal.projectIds && goal.projectIds.includes(t.projectId)));
+      const doneTasks = linkedTasks.filter(t => t.status === 'done').length;
 
-            return `
+      return `
               <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-sm);">
                 <div>
                   <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px;">
@@ -79,7 +79,7 @@ const GoalsView = {
                 </div>
               </div>
             `;
-          }).join('')}
+    }).join('')}
         </div>
 
       </div>
