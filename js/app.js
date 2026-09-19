@@ -37,6 +37,12 @@ function bindTopbarControls() {
     createBtn.addEventListener('click', () => TaskModal.openCreate());
   }
 
+  // Bulk Create Button
+  const bulkCreateBtn = document.getElementById('topbar-bulk-create-btn');
+  if (bulkCreateBtn) {
+    bulkCreateBtn.addEventListener('click', () => TaskModal.openBulkCreate());
+  }
+
   // Theme Toggle Button
   const themeBtn = document.getElementById('topbar-theme-toggle');
   if (themeBtn) {

@@ -84,7 +84,11 @@ const KeyboardManager = {
     // 'C' - Create Task
     if (e.key === 'c' || e.key === 'C') {
       e.preventDefault();
-      TaskModal.openCreate();
+      if (e.shiftKey) {
+        TaskModal.openBulkCreate();
+      } else {
+        TaskModal.openCreate();
+      }
       return;
     }
 

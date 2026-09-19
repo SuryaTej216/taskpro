@@ -70,23 +70,41 @@ const TaskCard = {
       ` : ''}
 
       ${totalCount > 0 ? `
-        <div style="margin-top: 5px;">
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-bottom: 3px; gap: 6px;">
-            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              ${isMerged ? `
+        <div style="margin-top: 5px; display: flex; flex-direction: column; gap: 4px;">
+          ${isMerged ? `
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-bottom: 2px;">
                 <span><i class="fa-solid fa-layer-group" style="color: var(--accent-primary);"></i> Items ${totalDone}/${totalCount}</span>
-              ` : `
-                ${chkTotal > 0 ? `<span><i class="fa-regular fa-square-check" style="color: var(--accent-primary);"></i> ${chkDone}/${chkTotal}</span>` : ''}
-                ${stTotal > 0 ? `<span><i class="fa-solid fa-network-wired" style="color: var(--accent-primary);"></i> ${stDone}/${stTotal}</span>` : ''}
-              `}
+                <span style="color: ${isAllDone ? 'var(--accent-success)' : 'inherit'}; font-weight: 600;">${Math.round((totalDone / totalCount) * 100)}%</span>
+              </div>
+              <div class="progress-bar-container" style="height: 4px;">
+                <div class="progress-bar-fill" style="width: ${(totalDone / totalCount) * 100}%; background: ${isAllDone ? 'var(--accent-success)' : 'var(--accent-primary)'};"></div>
+              </div>
             </div>
-            <span style="color: ${isAllDone ? 'var(--accent-success)' : 'inherit'}; font-weight: 600;">
-              ${Math.round((totalDone / totalCount) * 100)}%
-            </span>
-          </div>
-          <div class="progress-bar-container" style="height: 4px;">
-            <div class="progress-bar-fill" style="width: ${(totalDone / totalCount) * 100}%; background: ${isAllDone ? 'var(--accent-success)' : 'var(--accent-primary)'};"></div>
-          </div>
+          ` : `
+            ${chkTotal > 0 ? `
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-bottom: 2px;">
+                  <span><i class="fa-regular fa-square-check" style="color: var(--accent-cyan, #4de4ef);"></i> Checklist ${chkDone}/${chkTotal}</span>
+                  <span style="color: ${chkDone === chkTotal ? 'var(--accent-success)' : 'inherit'}; font-weight: 600;">${Math.round((chkDone / chkTotal) * 100)}%</span>
+                </div>
+                <div class="progress-bar-container" style="height: 4px;">
+                  <div class="progress-bar-fill" style="width: ${(chkDone / chkTotal) * 100}%; background: ${chkDone === chkTotal ? 'var(--accent-success)' : 'var(--accent-cyan, #4de4ef)'};"></div>
+                </div>
+              </div>
+            ` : ''}
+            ${stTotal > 0 ? `
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); margin-bottom: 2px;">
+                  <span><i class="fa-solid fa-network-wired" style="color: var(--accent-purple, #b88dff);"></i> Subtasks ${stDone}/${stTotal}</span>
+                  <span style="color: ${stDone === stTotal ? 'var(--accent-success)' : 'inherit'}; font-weight: 600;">${Math.round((stDone / stTotal) * 100)}%</span>
+                </div>
+                <div class="progress-bar-container" style="height: 4px;">
+                  <div class="progress-bar-fill" style="width: ${(stDone / stTotal) * 100}%; background: ${stDone === stTotal ? 'var(--accent-success)' : 'var(--accent-purple, #b88dff)'};"></div>
+                </div>
+              </div>
+            ` : ''}
+          `}
         </div>
       ` : ''}
 

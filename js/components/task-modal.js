@@ -217,6 +217,308 @@ const TaskModal = {
   },
 
   /**
+   * Opens the Bulk Create modal for creating multiple tasks/stories/bugs at once
+   * with shared common parameters and a title template + count.
+   */
+  openBulkCreate(defaultProps = {}) {
+    if (AppState.projects.length === 0) {
+      Modal.open({
+        title: '<i class="fa-solid fa-folder-plus" style="color: var(--accent-primary);"></i> Project Required',
+        body: '<p style="font-size: 14px; color: var(--text-primary); line-height: 1.5;">You need at least one project before you can bulk create tasks.</p>',
+        size: 'sm',
+        footerButtons: [
+          { text: 'Cancel', class: 'btn-secondary', onClick: () => Modal.close() },
+          { text: 'Create First Project', class: 'btn-primary', onClick: () => { Modal.close(); ProjectsView.openCreateModal(); } }
+        ]
+      });
+      return;
+    }
+
+    const defaultProj = defaultProps.projectId || AppState.selectedProjectId || (AppState.projects[0] ? AppState.projects[0].id : '');
+    const defaultType = defaultProps.type || 'task';
+    const defaultStatus = defaultProps.status || 'todo';
+
+    const modalBody = `
+      <form id="bulk-create-form" style="display: flex; flex-direction: column; gap: 16px;">
+        
+        <div style="display: flex; gap: 6px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); padding: 4px;">
+          <button type="button" id="bulk-mode-template" class="btn btn-sm" style="flex: 1; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--accent-primary); color: #fff; border: none; cursor: pointer; transition: all 0.15s ease;">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Template + Count
+          </button>
+          <button type="button" id="bulk-mode-multiline" class="btn btn-sm" style="flex: 1; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); border: none; cursor: pointer; transition: all 0.15s ease;">
+            <i class="fa-solid fa-list-ul"></i> Multi-line (One per line)
+          </button>
+        </div>
+
+        <div id="bulk-template-section">
+          <div style="display: flex; gap: 10px; align-items: flex-end;">
+            <div style="flex: 1;">
+              <label class="form-label">Title Template <span class="required">*</span></label>
+              <input type="text" id="bulk-title-template" class="form-input" placeholder='e.g. "Design page {}" or "Setup module {}"' autofocus>
+              <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 3px;">
+                Use <code style="background: var(--bg-surface-elevated); padding: 1px 5px; border-radius: 3px; font-size: 11px;">{}</code> as a number placeholder, or it auto-appends.
+              </span>
+            </div>
+            <div style="width: 90px;">
+              <label class="form-label">Count</label>
+              <input type="number" id="bulk-count" class="form-input" min="1" max="50" value="3" style="text-align: center;">
+            </div>
+          </div>
+        </div>
+
+        <div id="bulk-multiline-section" style="display: none;">
+          <label class="form-label">Task Titles (one per line) <span class="required">*</span></label>
+          <textarea id="bulk-multiline-input" class="form-textarea" rows="6" placeholder="Enter each task title on a new line:&#10;Design homepage layout&#10;Implement user authentication&#10;Write API documentation&#10;Setup CI/CD pipeline"></textarea>
+          <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 3px;">Each non-empty line becomes a separate task.</span>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--accent-primary); margin-bottom: 10px; letter-spacing: 0.3px; text-transform: uppercase;">
+            <i class="fa-solid fa-sliders"></i> Common Parameters (applied to all)
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Project <span class="required">*</span></label>
+              <select id="bulk-project" class="form-select">
+                ${AppState.projects.map(p => `<option value="${p.id}" ${p.id === defaultProj ? 'selected' : ''}>${Utils.escapeHTML(p.name)} (${p.key})</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Issue Type</label>
+              <select id="bulk-type" class="form-select">
+                <option value="task" ${defaultType === 'task' ? 'selected' : ''}>Task</option>
+                <option value="story" ${defaultType === 'story' ? 'selected' : ''}>Story</option>
+                <option value="bug" ${defaultType === 'bug' ? 'selected' : ''}>Bug</option>
+                <option value="epic" ${defaultType === 'epic' ? 'selected' : ''}>Epic</option>
+                <option value="improvement" ${defaultType === 'improvement' ? 'selected' : ''}>Improvement</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Sprint</label>
+              <select id="bulk-sprint" class="form-select">
+                <option value="">None (Backlog Pool)</option>
+                ${AppState.sprints.map(s => `<option value="${s.id}">${Utils.escapeHTML(s.name)} [${s.status.toUpperCase()}]</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select id="bulk-status" class="form-select">
+                <option value="backlog" ${defaultStatus === 'backlog' ? 'selected' : ''}>Backlog</option>
+                <option value="todo" ${defaultStatus === 'todo' ? 'selected' : ''}>To Do</option>
+                <option value="inprogress" ${defaultStatus === 'inprogress' ? 'selected' : ''}>In Progress</option>
+                <option value="inreview" ${defaultStatus === 'inreview' ? 'selected' : ''}>In Review</option>
+                <option value="done" ${defaultStatus === 'done' ? 'selected' : ''}>Done</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Priority</label>
+              <select id="bulk-priority" class="form-select">
+                <option value="critical">Critical</option>
+                <option value="highest">Highest</option>
+                <option value="high">High</option>
+                <option value="medium" selected>Medium</option>
+                <option value="low">Low</option>
+                <option value="lowest">Lowest</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Story Points</label>
+              <input type="number" id="bulk-points" class="form-input" min="0" max="100" placeholder="e.g. 3" value="">
+            </div>
+          </div>
+
+          <details style="margin-top: 6px;">
+            <summary style="cursor: pointer; font-weight: 600; font-size: 12px; color: var(--accent-primary); margin-bottom: 8px;">
+              More Options (Labels, Due Date, Description)
+            </summary>
+            <div class="form-row" style="margin-top: 8px;">
+              <div class="form-group">
+                <label class="form-label">Labels (comma-separated)</label>
+                <input type="text" id="bulk-labels" class="form-input" placeholder="frontend, urgent, sprint-3">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Due Date</label>
+                <input type="date" id="bulk-due" class="form-input">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Shared Description</label>
+              <textarea id="bulk-description" class="form-textarea" rows="2" placeholder="Common description applied to all created items..."></textarea>
+            </div>
+          </details>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-eye"></i> Preview
+            <span id="bulk-preview-count" style="font-size: 11px; background: var(--accent-primary-subtle); color: var(--accent-primary); padding: 1px 8px; border-radius: var(--radius-full); font-weight: 700;">0 items</span>
+          </div>
+          <div id="bulk-preview-list" style="max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 8px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 12px; color: var(--text-muted); padding: 6px; text-align: center;">
+              <i class="fa-solid fa-circle-info"></i> Enter a template and count to see preview
+            </div>
+          </div>
+        </div>
+      </form>
+    `;
+
+    Modal.open({
+      title: '<i class="fa-solid fa-layer-group" style="color: var(--accent-primary);"></i> Bulk Create Tasks',
+      body: modalBody,
+      size: 'lg',
+      footerButtons: [
+        { text: 'Cancel', class: 'btn-secondary', onClick: () => Modal.close() },
+        { text: '<i class="fa-solid fa-bolt"></i> Create All', class: 'btn-primary', onClick: () => this._executeBulkCreate() }
+      ]
+    });
+
+    // Wire up mode switching
+    const modeTemplateBtn = document.getElementById('bulk-mode-template');
+    const modeMultilineBtn = document.getElementById('bulk-mode-multiline');
+    const templateSection = document.getElementById('bulk-template-section');
+    const multilineSection = document.getElementById('bulk-multiline-section');
+    let currentMode = 'template';
+
+    const setMode = (mode) => {
+      currentMode = mode;
+      if (mode === 'template') {
+        modeTemplateBtn.style.background = 'var(--accent-primary)';
+        modeTemplateBtn.style.color = '#fff';
+        modeMultilineBtn.style.background = 'transparent';
+        modeMultilineBtn.style.color = 'var(--text-secondary)';
+        templateSection.style.display = '';
+        multilineSection.style.display = 'none';
+      } else {
+        modeMultilineBtn.style.background = 'var(--accent-primary)';
+        modeMultilineBtn.style.color = '#fff';
+        modeTemplateBtn.style.background = 'transparent';
+        modeTemplateBtn.style.color = 'var(--text-secondary)';
+        templateSection.style.display = 'none';
+        multilineSection.style.display = '';
+      }
+      updatePreview();
+    };
+
+    modeTemplateBtn.addEventListener('click', () => setMode('template'));
+    modeMultilineBtn.addEventListener('click', () => setMode('multiline'));
+
+    // Live preview
+    const templateInput = document.getElementById('bulk-title-template');
+    const countInput = document.getElementById('bulk-count');
+    const multilineInput = document.getElementById('bulk-multiline-input');
+    const previewList = document.getElementById('bulk-preview-list');
+    const previewCount = document.getElementById('bulk-preview-count');
+    const typeSelect = document.getElementById('bulk-type');
+
+    const getTypeIcon = (type) => {
+      const icons = {
+        task: '<i class="fa-solid fa-check-square" style="color: #4da3ff;"></i>',
+        story: '<i class="fa-solid fa-book-open" style="color: #10b981;"></i>',
+        bug: '<i class="fa-solid fa-bug" style="color: #ff6b6b;"></i>',
+        epic: '<i class="fa-solid fa-bolt" style="color: #e879f9;"></i>',
+        improvement: '<i class="fa-solid fa-arrow-up-right-dots" style="color: #f0b429;"></i>'
+      };
+      return icons[type] || icons.task;
+    };
+
+    const updatePreview = () => {
+      let items = [];
+      if (currentMode === 'template') {
+        const tmpl = templateInput ? templateInput.value.trim() : '';
+        const cnt = countInput ? parseInt(countInput.value, 10) || 1 : 1;
+        if (tmpl) items = this.generateBulkItems(tmpl, cnt);
+      } else {
+        const txt = multilineInput ? multilineInput.value : '';
+        items = txt.split('\n').map(l => l.trim()).filter(Boolean);
+      }
+
+      const tp = typeSelect ? typeSelect.value : 'task';
+      const icon = getTypeIcon(tp);
+      previewCount.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
+
+      if (items.length === 0) {
+        previewList.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); padding: 6px; text-align: center;"><i class="fa-solid fa-circle-info"></i> ' + (currentMode === 'template' ? 'Enter a template and count to see preview' : 'Enter task titles (one per line)') + '</div>';
+        return;
+      }
+
+      previewList.innerHTML = items.slice(0, 50).map((title, i) => `
+        <div style="display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: var(--bg-surface); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 12px;">
+          ${icon}
+          <span style="color: var(--text-muted); font-weight: 700; min-width: 20px;">${i + 1}.</span>
+          <span style="color: var(--text-primary); font-weight: 500;">${Utils.escapeHTML(title)}</span>
+        </div>
+      `).join('');
+    };
+
+    if (templateInput) templateInput.addEventListener('input', updatePreview);
+    if (countInput) countInput.addEventListener('input', updatePreview);
+    if (multilineInput) multilineInput.addEventListener('input', updatePreview);
+    if (typeSelect) typeSelect.addEventListener('change', updatePreview);
+
+    this._bulkCurrentMode = () => currentMode;
+  },
+
+  /**
+   * Executes the bulk creation from the Bulk Create modal
+   * @private
+   */
+  _executeBulkCreate() {
+    const currentMode = this._bulkCurrentMode ? this._bulkCurrentMode() : 'template';
+    let titles = [];
+
+    if (currentMode === 'template') {
+      const templateEl = document.getElementById('bulk-title-template');
+      const countEl = document.getElementById('bulk-count');
+      const template = templateEl ? templateEl.value.trim() : '';
+      const count = countEl ? parseInt(countEl.value, 10) || 1 : 1;
+      if (!template) { Toast.warning('Please enter a title template.'); return; }
+      titles = this.generateBulkItems(template, count);
+    } else {
+      const textEl = document.getElementById('bulk-multiline-input');
+      const text = textEl ? textEl.value : '';
+      titles = text.split('\n').map(l => l.trim()).filter(Boolean);
+      if (titles.length === 0) { Toast.warning('Please enter at least one task title.'); return; }
+    }
+
+    if (titles.length === 0) { Toast.warning('No tasks to create.'); return; }
+
+    const projectId = document.getElementById('bulk-project')?.value || (AppState.projects[0] ? AppState.projects[0].id : '');
+    const type = document.getElementById('bulk-type')?.value || 'task';
+    const sprintId = document.getElementById('bulk-sprint')?.value || null;
+    const status = document.getElementById('bulk-status')?.value || 'todo';
+    const priority = document.getElementById('bulk-priority')?.value || 'medium';
+    const pointsEl = document.getElementById('bulk-points');
+    const pointsVal = pointsEl ? pointsEl.value : '';
+    const storyPoints = pointsVal !== '' ? (parseInt(pointsVal, 10) || 0) : 0;
+    const rawLabels = document.getElementById('bulk-labels')?.value || '';
+    const labels = rawLabels.split(',').map(l => l.trim().toLowerCase()).filter(Boolean);
+    const dueEl = document.getElementById('bulk-due');
+    const dueDate = dueEl && dueEl.value ? new Date(dueEl.value).toISOString() : null;
+    const descEl = document.getElementById('bulk-description');
+    const description = descEl ? descEl.value : '';
+
+    const created = [];
+    titles.forEach(title => {
+      const task = AppState.createTask({
+        title, projectId, type, sprintId, status, priority,
+        storyPoints, labels: [...labels], dueDate, description
+      });
+      created.push(task);
+    });
+
+    Modal.close();
+    Toast.success(`${created.length} ${type}${created.length !== 1 ? 's' : ''} created successfully!`);
+    if (window.Router && Router.renderCurrentRoute) Router.renderCurrentRoute();
+  },
+
+  /**
    * Opens the full Jira-style Task Detail Slide-over Panel
    * @param {string} taskId 
    */

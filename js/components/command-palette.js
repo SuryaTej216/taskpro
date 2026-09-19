@@ -81,6 +81,7 @@ const CommandPalette = {
     // 2. Action Commands
     const actionCommands = [
       { id: 'act_new_task', title: 'Create New Task', icon: 'fa-plus', kbd: 'C', category: 'Actions', action: () => TaskModal.openCreate() },
+      { id: 'act_bulk_create', title: 'Bulk Create Tasks', icon: 'fa-layer-group', kbd: 'Shift+C', category: 'Actions', action: () => TaskModal.openBulkCreate() },
       { id: 'act_theme', title: 'Toggle Dark / Light Theme', icon: 'fa-circle-half-stroke', kbd: 'T', category: 'Actions', action: () => ThemeManager.toggle() },
       { id: 'act_export_json', title: 'Export Full Backup (JSON)', icon: 'fa-download', category: 'Actions', action: () => SettingsView.downloadBackup() },
       { id: 'act_export_csv', title: 'Export Tasks to CSV', icon: 'fa-file-csv', category: 'Actions', action: () => SettingsView.downloadCSV() },

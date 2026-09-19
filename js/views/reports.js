@@ -365,7 +365,7 @@ const ReportsView = {
 
   renderStatusDonutSVG(counts, total) {
     if (total === 0) return '<div style="display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; color: var(--text-muted); font-size: 12px;">No data</div>';
-    
+
     // Calculate strokeDasharray segments on circle of radius 40 (circumference = 251.2)
     const C = 251.2;
     let accumulated = 0;
@@ -431,7 +431,7 @@ const ReportsView = {
     for (let i = 5; i >= 0; i--) {
       const weekEnd = new Date(now.getTime() - i * 7 * 86400000);
       const weekStart = new Date(weekEnd.getTime() - 7 * 86400000);
-      
+
       const weekTasks = completedTasks.filter(t => {
         const d = new Date(t.completedAt);
         return d >= weekStart && d < weekEnd;
@@ -605,7 +605,7 @@ const ReportsView = {
 
     const points = [];
     let cumulative = 0;
-    
+
     // Group by day
     const dayMap = {};
     completedTasks.forEach(t => {

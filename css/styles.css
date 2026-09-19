@@ -499,3 +499,9 @@ ol {
   align-items: center;
   gap: 10px;
 }
+
+.view-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
