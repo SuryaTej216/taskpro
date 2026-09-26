@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 
 <head>
   <meta charset="UTF-8">
@@ -21,9 +21,9 @@
     crossorigin="anonymous" referrerpolicy="no-referrer" />
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/styles.css?v=malachite1">
+  <link rel="stylesheet" href="css/components.css?v=ads_theme_v8">
+  <link rel="stylesheet" href="css/responsive.css?v=malachite3">
 </head>
 
 <body>
@@ -41,7 +41,10 @@
           <div class="brand-icon">
             <i class="fa-solid fa-cube"></i>
           </div>
-          <span>TaskForge</span>
+          <div class="brand-text-wrap">
+            <span class="brand-title">TaskForge</span>
+            <span class="brand-badge">PRO</span>
+          </div>
         </div>
         <button id="sidebar-toggle-btn" class="sidebar-collapse-btn" title="Toggle Sidebar (Ctrl+B)">
           <i class="fa-solid fa-angles-left"></i>
@@ -50,86 +53,108 @@
 
       <div class="sidebar-content">
         <!-- Main Navigation Group -->
-        <div class="nav-group-title">Overview</div>
-        <a href="#/dashboard" class="nav-item" data-view="dashboard" title="Dashboard">
+        <div class="nav-group-header">
+          <span class="nav-group-title">Overview</span>
+        </div>
+        <a href="#/dashboard" class="nav-item" data-view="dashboard" data-tooltip="Dashboard" title="Dashboard">
           <i class="fa-solid fa-chart-pie"></i>
-          <span>Dashboard</span>
+          <span class="nav-item-label">Dashboard</span>
         </a>
-        <a href="#/my-work" class="nav-item" data-view="my-work" title="My Work">
+        <a href="#/my-work" class="nav-item" data-view="my-work" data-tooltip="My Work" title="My Work">
           <i class="fa-solid fa-briefcase"></i>
-          <span>My Work</span>
+          <span class="nav-item-label">My Work</span>
           <span class="badge-count" id="sidebar-mywork-count">0</span>
-        </a>
-        <a href="#/focus" class="nav-item" data-view="focus" title="Focus Mode (Pomodoro)">
-          <i class="fa-solid fa-bullseye"></i>
-          <span>Focus Mode</span>
         </a>
 
         <!-- Project Views Group -->
-        <div class="nav-group-title">Project Views</div>
-        <a href="#/projects" class="nav-item" data-view="projects" title="Projects">
+        <div class="nav-group-header">
+          <span class="nav-group-title">Project Views</span>
+        </div>
+        <a href="#/projects" class="nav-item" data-view="projects" data-tooltip="Projects" title="Projects">
           <i class="fa-solid fa-folder-tree"></i>
-          <span>Projects</span>
+          <span class="nav-item-label">Projects</span>
           <span class="badge-count" id="sidebar-projects-count">3</span>
         </a>
-        <a href="#/board" class="nav-item" data-view="board" title="Kanban Board">
+        <a href="#/board" class="nav-item" data-view="board" data-tooltip="Kanban Board" title="Kanban Board">
           <i class="fa-solid fa-table-columns"></i>
-          <span>Board</span>
+          <span class="nav-item-label">Board</span>
         </a>
-        <a href="#/backlog" class="nav-item" data-view="backlog" title="Backlog & Sprints">
+        <a href="#/backlog" class="nav-item" data-view="backlog" data-tooltip="Backlog & Sprints"
+          title="Backlog & Sprints">
           <i class="fa-solid fa-layer-group"></i>
-          <span>Backlog</span>
+          <span class="nav-item-label">Backlog</span>
         </a>
-        <a href="#/timeline" class="nav-item" data-view="timeline" title="Timeline & Gantt">
+        <a href="#/timeline" class="nav-item" data-view="timeline" data-tooltip="Timeline & Gantt"
+          title="Timeline & Gantt">
           <i class="fa-solid fa-chart-gantt"></i>
-          <span>Timeline</span>
+          <span class="nav-item-label">Timeline</span>
         </a>
-        <a href="#/calendar" class="nav-item" data-view="calendar" title="Calendar">
+        <a href="#/calendar" class="nav-item" data-view="calendar" data-tooltip="Calendar" title="Calendar">
           <i class="fa-regular fa-calendar-days"></i>
-          <span>Calendar</span>
+          <span class="nav-item-label">Calendar</span>
         </a>
-        <a href="#/list" class="nav-item" data-view="list" title="List View & Multi-select">
+        <a href="#/list" class="nav-item" data-view="list" data-tooltip="List View" title="List View & Multi-select">
           <i class="fa-solid fa-list-check"></i>
-          <span>List</span>
-        </a>
-
-        <!-- Insights & Management -->
-        <div class="nav-group-title">Insights</div>
-        <a href="#/reports" class="nav-item" data-view="reports" title="Reports & Analytics">
-          <i class="fa-solid fa-chart-line"></i>
-          <span>Reports</span>
-        </a>
-        <a href="#/goals" class="nav-item" data-view="goals" title="Strategic Goals">
-          <i class="fa-solid fa-flag-checkered"></i>
-          <span>Goals</span>
-        </a>
-        <a href="#/settings" class="nav-item" data-view="settings" title="Settings">
-          <i class="fa-solid fa-gear"></i>
-          <span>Settings</span>
-        </a>
-        <a href="#/docs" class="nav-item" data-view="docs" title="Documentation & App Guide">
-          <i class="fa-solid fa-book-open"></i>
-          <span>Documentation</span>
+          <span class="nav-item-label">List</span>
         </a>
 
         <!-- Active Projects Shortcut Section -->
-        <div class="nav-group-title" style="margin-top: 8px;">Active Projects</div>
+        <div class="nav-group-header">
+          <span class="nav-group-title">Active Projects</span>
+          <button id="sidebar-add-project-btn" class="sidebar-group-action-btn" title="Create New Project">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </div>
         <div id="sidebar-projects-list">
           <!-- Dynamically populated -->
         </div>
+
+        <!-- Insights & Management -->
+        <div class="nav-group-header">
+          <span class="nav-group-title">Insights</span>
+        </div>
+        <a href="#/reports" class="nav-item" data-view="reports" data-tooltip="Reports & Analytics"
+          title="Reports & Analytics">
+          <i class="fa-solid fa-chart-line"></i>
+          <span class="nav-item-label">Reports</span>
+        </a>
+        <a href="#/goals" class="nav-item" data-view="goals" data-tooltip="Strategic Goals" title="Strategic Goals">
+          <i class="fa-solid fa-flag-checkered"></i>
+          <span class="nav-item-label">Goals</span>
+        </a>
+        <a href="#/settings" class="nav-item" data-view="settings" data-tooltip="Settings" title="Settings">
+          <i class="fa-solid fa-gear"></i>
+          <span class="nav-item-label">Settings</span>
+        </a>
+        <a href="#/docs" class="nav-item" data-view="docs" data-tooltip="Documentation"
+          title="Documentation & App Guide">
+          <i class="fa-solid fa-book-open"></i>
+          <span class="nav-item-label">Documentation</span>
+        </a>
       </div>
 
       <div class="sidebar-footer">
-        <button id="btn-shortcuts-helper" class="btn btn-ghost btn-sm" title="Keyboard Shortcuts (?)">
-          <i class="fa-regular fa-keyboard"></i>
-          <span>Shortcuts</span>
-        </button>
-        <button id="btn-quick-undo" class="btn btn-ghost btn-sm" title="Undo (Ctrl+Z)">
-          <i class="fa-solid fa-rotate-left"></i>
-        </button>
-        <button id="btn-quick-redo" class="btn btn-ghost btn-sm" title="Redo (Ctrl+Y)">
-          <i class="fa-solid fa-rotate-right"></i>
-        </button>
+        <div class="sidebar-status-bar" title="Browser Local Storage Connected">
+          <span class="status-pulse-dot"></span>
+          <span class="status-text">LocalDB Connected</span>
+        </div>
+        <div class="sidebar-footer-actions">
+          <button id="btn-shortcuts-helper" class="btn btn-ghost btn-sm sidebar-footer-btn"
+            title="Keyboard Shortcuts (?)" data-tooltip="Shortcuts (?)">
+            <i class="fa-regular fa-keyboard"></i>
+            <span>Shortcuts</span>
+          </button>
+          <div class="sidebar-undo-redo-group">
+            <button id="btn-quick-undo" class="btn btn-ghost btn-sm sidebar-footer-btn" title="Undo (Ctrl+Z)"
+              data-tooltip="Undo (Ctrl+Z)">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <button id="btn-quick-redo" class="btn btn-ghost btn-sm sidebar-footer-btn" title="Redo (Ctrl+Y)"
+              data-tooltip="Redo (Ctrl+Y)">
+              <i class="fa-solid fa-rotate-right"></i>
+            </button>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -146,14 +171,14 @@
 
           <!-- Project Context Switcher -->
           <div id="topbar-project-picker" class="project-selector-dropdown" title="Select Project Filter">
-            <i class="fa-solid fa-diagram-project" style="color: var(--accent-primary);"></i>
+            <i class="fa-solid fa-diagram-project" style="color: #579DFF;"></i>
             <span id="current-project-label">All Projects</span>
-            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: var(--text-muted);"></i>
+            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #9FB2C8;"></i>
           </div>
 
           <!-- Global Search / Command Bar Trigger -->
           <div id="topbar-search-trigger" class="global-search-trigger" title="Search or execute commands (Ctrl+K)">
-            <i class="fa-solid fa-magnifying-glass"></i>
+            <i class="fa-solid fa-magnifying-glass" style="color: #9FB2C8;"></i>
             <span>Search tasks, projects, tags...</span>
             <span class="search-kbd-shortcut">Ctrl K</span>
           </div>
@@ -164,12 +189,12 @@
           <button id="topbar-create-task-btn" class="btn btn-primary" title="Create Task (C)">
             <i class="fa-solid fa-plus"></i>
             <span>Create</span>
-            <kbd style="font-size: 10px; opacity: 0.8; margin-left: 2px;">C</kbd>
+            <kbd class="topbar-btn-kbd">C</kbd>
           </button>
 
           <!-- Bulk Create Tasks Button -->
           <button id="topbar-bulk-create-btn" class="btn btn-secondary" title="Bulk Create Tasks (Shift+C)"
-            style="gap: 6px;">
+            style="gap: 0.375rem;">
             <i class="fa-solid fa-layer-group"></i>
             <span>Bulk Create</span>
           </button>
@@ -181,14 +206,14 @@
           </button>
 
           <!-- Theme Toggle -->
-          <button id="topbar-theme-toggle" class="btn-icon" title="Toggle Dark/Light Mode">
+          <button id="topbar-theme-toggle" class="btn-icon" title="Toggle Dark/Light Mode (T)">
             <i class="fa-solid fa-moon"></i>
           </button>
 
           <!-- User Avatar Menu -->
-          <div class="user-avatar-btn"
-            style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #388bfd, #2ea043); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px; cursor: pointer;"
-            title="Profile & Preferences">
+          <div id="topbar-user-avatar-btn" class="user-avatar-btn"
+            style="width: 2rem; height: 2rem; border-radius: 50%; background: #579DFF; display: flex; align-items: center; justify-content: center; color: #1C2B42; font-weight: 700; font-size: 0.75rem; cursor: pointer; user-select: none;"
+            title="Profile & Quick Links">
             ST
           </div>
         </div>
@@ -198,6 +223,11 @@
       <section id="view-container" role="region" aria-live="polite">
         <!-- Views are rendered dynamically here by router.js -->
       </section>
+
+      <!-- Floating Scroll to Top Action Button -->
+      <button id="scroll-to-top-btn" class="scroll-to-top-btn" title="Scroll to Top" aria-label="Scroll to Top">
+        <i class="fa-solid fa-arrow-up"></i>
+      </button>
 
     </main>
 
@@ -244,25 +274,51 @@
   </div>
 
   <!-- Notifications Dropdown Popover -->
-  <div id="notifications-popover"
-    style="display: none; position: fixed; top: 62px; right: 80px; width: 340px; max-height: 460px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay); z-index: 1000; flex-direction: column; overflow: hidden;">
+  <div id="notifications-popover" class="topbar-dropdown-popover"
+    style="display: none; position: fixed; width: 340px; max-height: 460px; background: var(--surface-overlay); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-overlay); z-index: 1000; flex-direction: column; overflow: hidden;">
     <div
-      style="padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between;">
-      <span style="font-weight: 600; font-size: 13px;">Notifications</span>
-      <div style="display: flex; gap: 8px;">
-        <button id="btn-mark-all-read" class="btn btn-ghost btn-sm" style="font-size: 11px;">Mark all read</button>
-        <button id="btn-clear-notifications" class="btn btn-ghost btn-sm" style="font-size: 11px;">Clear</button>
+      style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+      <span style="font-weight: 653; font-size: 0.875rem;">Notifications</span>
+      <div style="display: flex; gap: 0.5rem;">
+        <button id="btn-mark-all-read" class="btn btn-ghost btn-sm" style="font-size: 0.6875rem;">Mark all read</button>
+        <button id="btn-clear-notifications" class="btn btn-ghost btn-sm" style="font-size: 0.6875rem;">Clear</button>
       </div>
     </div>
-    <div id="notifications-list" style="overflow-y: auto; max-height: 380px; padding: 6px;">
+    <div id="notifications-list" style="overflow-y: auto; max-height: 380px; padding: 0.375rem;">
       <!-- Populated dynamically -->
     </div>
   </div>
 
   <!-- Project Selector Dropdown Popover -->
-  <div id="project-picker-popover"
-    style="display: none; position: fixed; top: 62px; left: 240px; width: 240px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); z-index: 1000; padding: 6px;">
+  <div id="project-picker-popover" class="topbar-dropdown-popover"
+    style="display: none; position: fixed; width: 240px; background: var(--surface-overlay); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay); z-index: 1000; padding: 0.375rem;">
     <!-- Populated dynamically -->
+  </div>
+
+  <!-- User Profile Dropdown Popover -->
+  <div id="user-profile-popover" class="topbar-dropdown-popover"
+    style="display: none; position: fixed; width: 240px; background: var(--surface-overlay); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay); z-index: 1000; padding: 0.5rem;">
+    <div style="padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); margin-bottom: 0.375rem;">
+      <div style="font-weight: 653; font-size: 0.875rem; color: var(--text-primary);">Surya Tej</div>
+      <div style="font-size: 0.75rem; color: var(--text-secondary);">Product Owner & Admin</div>
+    </div>
+    <div class="dropdown-menu-item" id="user-menu-settings">
+      <i class="fa-solid fa-gear" style="color: var(--icon-subtle);"></i>
+      <span>Settings</span>
+    </div>
+    <div class="dropdown-menu-item" id="user-menu-shortcuts">
+      <i class="fa-regular fa-keyboard" style="color: var(--icon-subtle);"></i>
+      <span>Keyboard Shortcuts</span>
+    </div>
+    <div class="dropdown-menu-item" id="user-menu-docs">
+      <i class="fa-solid fa-book-open" style="color: var(--icon-subtle);"></i>
+      <span>Documentation</span>
+    </div>
+    <div class="dropdown-divider"></div>
+    <div class="dropdown-menu-item" id="user-menu-theme">
+      <i class="fa-solid fa-circle-half-stroke" style="color: var(--icon-subtle);"></i>
+      <span>Toggle Theme</span>
+    </div>
   </div>
 
   <!-- Custom Right-Click Context Menu -->
@@ -315,10 +371,13 @@
   <!-- Toast Notification Viewport -->
   <div id="toast-container" aria-live="assertive"></div>
 
+  <!-- Sidebar Floating Tooltip (for collapsed rail) -->
+  <div id="sidebar-floating-tooltip" class="sidebar-floating-tooltip"></div>
+
   <!-- Core Scripts -->
   <script src="js/utils.js"></script>
   <script src="js/storage.js"></script>
-  <script src="js/state.js"></script>
+  <script src="js/state.js?v=datagrid_clarity_v5"></script>
   <script src="js/automation.js"></script>
   <script src="js/notifications.js"></script>
   <script src="js/search.js"></script>
@@ -342,10 +401,9 @@
   <script src="js/views/backlog.js"></script>
   <script src="js/views/timeline.js"></script>
   <script src="js/views/calendar.js"></script>
-  <script src="js/views/list.js"></script>
+  <script src="js/views/list.js?v=ads_theme_v8"></script>
   <script src="js/views/reports.js"></script>
   <script src="js/views/goals.js"></script>
-  <script src="js/views/focus.js"></script>
   <script src="js/views/settings.js"></script>
   <script src="js/views/docs.js"></script>
 

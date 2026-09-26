@@ -49,9 +49,6 @@ const DashboardView = {
             <button id="dash-btn-create" class="btn btn-primary">
               <i class="fa-solid fa-plus"></i> New Task
             </button>
-            <a href="#/focus" class="btn btn-secondary">
-              <i class="fa-solid fa-bullseye" style="color: var(--accent-danger);"></i> Start Focus Mode
-            </a>
           </div>
         </div>
 
@@ -129,11 +126,8 @@ const DashboardView = {
 
               <div style="display: flex; gap: 8px;">
                 <button class="btn btn-primary btn-sm" onclick="TaskModal.openDetail('${recommended.task.id}')" style="flex: 1;">
-                  <i class="fa-solid fa-arrow-right"></i> Work on This Now
+                  <i class="fa-solid fa-arrow-right"></i> Open Task Details
                 </button>
-                <a href="#/focus?task=${recommended.task.id}" class="btn btn-secondary btn-sm" title="Focus Mode">
-                  <i class="fa-solid fa-bullseye"></i>
-                </a>
               </div>
             ` : `
               <div class="empty-state" style="padding: 20px;">

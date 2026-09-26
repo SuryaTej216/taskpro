@@ -72,9 +72,11 @@ const BoardView = {
           `).join('')}
         </div>
 
-        <!-- Kanban Columns Container -->
-        <div class="board-container" id="kanban-columns-container">
-          ${this.columns.map(col => {
+        <!-- Board Wrapper with Floating Scroll Controls -->
+        <div class="board-wrapper">
+          <!-- Kanban Columns Container -->
+          <div class="board-container" id="kanban-columns-container">
+            ${this.columns.map(col => {
       const colTasks = activeTasks.filter(t => t.status === col.id);
       const totalPoints = colTasks.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
       return `
@@ -98,6 +100,15 @@ const BoardView = {
               </div>
             `;
     }).join('')}
+          </div>
+
+          <!-- Floating Horizontal Scroll Navigation Buttons -->
+          <button id="board-scroll-left" class="board-scroll-arrow left" title="Scroll Left (or mouse wheel)">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <button id="board-scroll-right" class="board-scroll-arrow right" title="Scroll Right (or mouse wheel)">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
         </div>
 
       </div>
@@ -194,6 +205,87 @@ const BoardView = {
         const val = e.target.value;
         AppState.activeFilters.priority = val ? [val] : [];
         this.render(container);
+      });
+    }
+
+    // 8. Advanced Horizontal Scroll UI/UX (Floating arrows, smart wheel, drag-to-pan)
+    const boardContainer = container.querySelector('#kanban-columns-container');
+    const scrollLeftBtn = container.querySelector('#board-scroll-left');
+    const scrollRightBtn = container.querySelector('#board-scroll-right');
+
+    if (boardContainer) {
+      const updateScrollArrows = () => {
+        if (!scrollLeftBtn || !scrollRightBtn) return;
+        const maxScroll = boardContainer.scrollWidth - boardContainer.clientWidth;
+        if (maxScroll <= 10) {
+          scrollLeftBtn.classList.remove('visible');
+          scrollRightBtn.classList.remove('visible');
+          return;
+        }
+        scrollLeftBtn.classList.toggle('visible', boardContainer.scrollLeft > 20);
+        scrollRightBtn.classList.toggle('visible', boardContainer.scrollLeft < maxScroll - 20);
+      };
+
+      boardContainer.addEventListener('scroll', updateScrollArrows, { passive: true });
+      window.addEventListener('resize', updateScrollArrows, { passive: true });
+      setTimeout(updateScrollArrows, 80);
+
+      // Arrow navigation clicks
+      if (scrollLeftBtn) {
+        scrollLeftBtn.addEventListener('click', () => {
+          boardContainer.scrollBy({ left: -320, behavior: 'smooth' });
+        });
+      }
+      if (scrollRightBtn) {
+        scrollRightBtn.addEventListener('click', () => {
+          boardContainer.scrollBy({ left: 320, behavior: 'smooth' });
+        });
+      }
+
+      // Smart mouse wheel horizontal scroll
+      boardContainer.addEventListener('wheel', (e) => {
+        const colBody = e.target.closest('.board-column-body');
+        if (colBody) {
+          const atTop = colBody.scrollTop <= 0 && e.deltaY < 0;
+          const atBottom = (colBody.scrollHeight - colBody.scrollTop) <= (colBody.clientHeight + 1) && e.deltaY > 0;
+          if (!atTop && !atBottom && !e.shiftKey) {
+            return; // Normal vertical scrolling inside column body
+          }
+        }
+        if (e.deltaY !== 0 && !e.deltaX) {
+          e.preventDefault();
+          boardContainer.scrollLeft += e.deltaY * 1.2;
+          updateScrollArrows();
+        }
+      }, { passive: false });
+
+      // Grab-and-Pan UX (click and drag empty canvas to scroll)
+      let isPanning = false;
+      let startX = 0;
+      let initialScroll = 0;
+
+      boardContainer.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.task-card') || e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+        isPanning = true;
+        boardContainer.classList.add('is-panning');
+        startX = e.pageX - boardContainer.offsetLeft;
+        initialScroll = boardContainer.scrollLeft;
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isPanning) {
+          isPanning = false;
+          boardContainer.classList.remove('is-panning');
+        }
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        e.preventDefault();
+        const x = e.pageX - boardContainer.offsetLeft;
+        const walk = (x - startX) * 1.5;
+        boardContainer.scrollLeft = initialScroll - walk;
+        updateScrollArrows();
       });
     }
   }

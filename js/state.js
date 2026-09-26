@@ -68,6 +68,17 @@ const AppState = {
         subtasksUpdated = true;
       }
     });
+    // Ensure WEB-2 has type 'improvement' so user immediately sees vibrant improvement badge on row 2
+    const web2Task = this.tasks.find(t => t.key === 'WEB-2');
+    if (web2Task && web2Task.type !== 'improvement') {
+      web2Task.type = 'improvement';
+      subtasksUpdated = true;
+    }
+    const web6Task = this.tasks.find(t => t.key === 'WEB-6');
+    if (web6Task && web6Task.type !== 'improvement') {
+      web6Task.type = 'improvement';
+      subtasksUpdated = true;
+    }
     if (subtasksUpdated) {
       StorageService.set(StorageService.KEYS.TASKS, this.tasks);
     }
@@ -170,7 +181,7 @@ const AppState = {
     const now = new Date().toISOString();
     const taskType = taskData.type || 'task';
     const isSubtask = taskType === 'subtask' || (taskData.parentId && (!taskData.type || taskData.type === 'subtask'));
-    
+
     let storyPoints = 0;
     if (taskData.storyPoints !== undefined && taskData.storyPoints !== null && taskData.storyPoints !== '') {
       storyPoints = parseInt(taskData.storyPoints, 10);
@@ -210,7 +221,7 @@ const AppState = {
     StorageService.set(StorageService.KEYS.TASKS, this.tasks);
 
     this.addActivityLog(newTask.id, 'created', `Created task ${newTask.key}`);
-    
+
     // Automation trigger for subtask
     if (newTask.parentId && window.Automations) {
       Automations.updateParentProgress(newTask.parentId);
@@ -332,6 +343,130 @@ const AppState = {
     } else {
       performDelete();
     }
+  },
+
+  /**
+   * Performs an atomic bulk update across multiple tasks with a single undo action and event emit
+   * @param {Array<string>} taskIds
+   * @param {Object} updates
+   * @returns {number} Count of updated tasks
+   */
+  bulkUpdateTasks(taskIds, updates) {
+    if (!Array.isArray(taskIds) || taskIds.length === 0) return 0;
+    const idSet = new Set(taskIds);
+    const now = new Date().toISOString();
+    const previousStates = [];
+    let updatedCount = 0;
+
+    this.tasks = this.tasks.map(t => {
+      if (!idSet.has(t.id)) return t;
+      previousStates.push({ ...t });
+      updatedCount++;
+
+      const updated = { ...t, ...updates, updatedAt: now };
+
+      // Handle status completion timestamp
+      if (updates.status && updates.status === 'done' && t.status !== 'done') {
+        updated.completedAt = now;
+      } else if (updates.status && updates.status !== 'done' && t.status === 'done') {
+        updated.completedAt = null;
+      }
+
+      return updated;
+    });
+
+    if (updatedCount > 0) {
+      StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+
+      if (updates.status === 'done' && this.settings.soundEffects) {
+        Utils.playSound('success');
+      }
+
+      // Record single undo action for the entire bulk update
+      this.recordUndoAction(
+        `Bulk update ${updatedCount} task(s)`,
+        () => {
+          const prevMap = new Map(previousStates.map(p => [p.id, p]));
+          this.tasks = this.tasks.map(t => prevMap.has(t.id) ? prevMap.get(t.id) : t);
+          StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+          this.emit('tasks:changed', { action: 'bulk_undo' });
+        },
+        () => this.bulkUpdateTasks(taskIds, updates)
+      );
+
+      this.emit('tasks:changed', { action: 'bulk_update', count: updatedCount });
+    }
+
+    return updatedCount;
+  },
+
+  /**
+   * Performs an atomic bulk delete across multiple tasks and their subtasks
+   * @param {Array<string>} taskIds
+   * @param {boolean} recordUndo
+   * @returns {number} Count of deleted tasks
+   */
+  bulkDeleteTasks(taskIds, recordUndo = true) {
+    if (!Array.isArray(taskIds) || taskIds.length === 0) return 0;
+    const parentIdSet = new Set(taskIds);
+
+    // Also collect any child subtasks belonging to these tasks
+    const childSubtasks = this.tasks.filter(t => t.parentId && parentIdSet.has(t.parentId));
+    const allToDeleteIds = new Set([...taskIds, ...childSubtasks.map(c => c.id)]);
+
+    const deletedTasks = this.tasks.filter(t => allToDeleteIds.has(t.id));
+    if (deletedTasks.length === 0) return 0;
+
+    this.tasks = this.tasks.filter(t => !allToDeleteIds.has(t.id));
+    StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+
+    if (recordUndo) {
+      this.recordUndoAction(
+        `Bulk delete ${deletedTasks.length} task(s)`,
+        () => {
+          this.tasks.push(...deletedTasks);
+          StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+          this.emit('tasks:changed', { action: 'restore' });
+        },
+        () => this.bulkDeleteTasks(taskIds, false)
+      );
+    }
+
+    this.emit('tasks:changed', { action: 'bulk_delete', count: deletedTasks.length });
+    return deletedTasks.length;
+  },
+
+  /**
+   * Bulk duplicates multiple tasks at once
+   * @param {Array<string>} taskIds
+   * @returns {Array<Object>} Created copies
+   */
+  bulkDuplicateTasks(taskIds) {
+    if (!Array.isArray(taskIds) || taskIds.length === 0) return [];
+    const idSet = new Set(taskIds);
+    const originals = this.tasks.filter(t => idSet.has(t.id));
+    if (originals.length === 0) return [];
+
+    const copies = [];
+    originals.forEach(original => {
+      const dupData = {
+        projectId: original.projectId,
+        type: original.type,
+        title: `${original.title} (Copy)`,
+        description: original.description || '',
+        status: 'todo',
+        priority: original.priority,
+        labels: [...(original.labels || [])],
+        checklist: original.checklist ? original.checklist.map(c => ({ id: Utils.generateId('chk_'), text: c.text, completed: false })) : [],
+        estimate: original.estimate,
+        storyPoints: original.storyPoints
+      };
+      const copy = this.createTask(dupData);
+      if (copy) copies.push(copy);
+    });
+
+    Toast.success(`Duplicated ${copies.length} task(s).`);
+    return copies;
   },
 
   /**

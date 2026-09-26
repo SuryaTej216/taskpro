@@ -227,7 +227,8 @@ const ThemeManager = {
     // Update theme toggle icon
     const toggleBtn = document.getElementById('topbar-theme-toggle');
     if (toggleBtn) {
-      toggleBtn.innerHTML = theme === 'dark' ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
+      toggleBtn.innerHTML = theme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+      toggleBtn.title = theme === 'dark' ? 'Switch to Light Mode (T)' : 'Switch to Dark Mode (T)';
     }
 
     if (AppState.currentView === 'settings') {

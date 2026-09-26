@@ -35,9 +35,6 @@ const ContextMenu = {
       <div class="context-menu-item" id="ctx-sync">
         <i class="fa-solid fa-arrows-rotate"></i> Sync Checklist & Subtasks
       </div>
-      <div class="context-menu-item" id="ctx-focus">
-        <i class="fa-solid fa-bullseye"></i> Focus Mode
-      </div>
       <div class="context-menu-item" id="ctx-duplicate">
         <i class="fa-regular fa-copy"></i> Duplicate
       </div>
@@ -112,9 +109,6 @@ const ContextMenu = {
       });
     }
 
-    document.getElementById('ctx-focus').addEventListener('click', () => {
-      window.location.hash = `#/focus?task=${task.id}`;
-    });
 
     document.getElementById('ctx-duplicate').addEventListener('click', () => {
       AppState.duplicateTask(task.id);

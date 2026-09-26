@@ -46,7 +46,23 @@ function bindTopbarControls() {
   // Theme Toggle Button
   const themeBtn = document.getElementById('topbar-theme-toggle');
   if (themeBtn) {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    themeBtn.innerHTML = currentTheme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    themeBtn.title = currentTheme === 'dark' ? 'Switch to Light Mode (T)' : 'Switch to Dark Mode (T)';
     themeBtn.addEventListener('click', () => ThemeManager.toggle());
+  }
+
+  // Floating Scroll to Top button for #view-container
+  const scrollToTopBtn = document.getElementById('scroll-to-top-btn');
+  const viewContainer = document.getElementById('view-container');
+  if (scrollToTopBtn && viewContainer) {
+    viewContainer.addEventListener('scroll', () => {
+      scrollToTopBtn.classList.toggle('visible', viewContainer.scrollTop > 220);
+    }, { passive: true });
+
+    scrollToTopBtn.addEventListener('click', () => {
+      viewContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }
 
   // Project Context Picker Popover
@@ -59,17 +75,63 @@ function bindTopbarControls() {
       if (isOpen) {
         pickerPopover.style.display = 'none';
       } else {
+        closeAllTopbarPopovers();
         renderProjectPickerPopover(pickerPopover);
+        const rect = pickerTrigger.getBoundingClientRect();
+        pickerPopover.style.top = `${rect.bottom + 6}px`;
+        pickerPopover.style.left = `${Math.max(12, rect.left)}px`;
         pickerPopover.style.display = 'block';
       }
     });
+  }
 
-    document.addEventListener('click', (e) => {
-      if (!pickerPopover.contains(e.target) && e.target !== pickerTrigger) {
-        pickerPopover.style.display = 'none';
+  // User Avatar Profile Popover
+  const avatarBtn = document.getElementById('topbar-user-avatar-btn');
+  const userProfilePopover = document.getElementById('user-profile-popover');
+  if (avatarBtn && userProfilePopover) {
+    avatarBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = userProfilePopover.style.display === 'block';
+      if (isOpen) {
+        userProfilePopover.style.display = 'none';
+      } else {
+        closeAllTopbarPopovers();
+        const rect = avatarBtn.getBoundingClientRect();
+        userProfilePopover.style.top = `${rect.bottom + 6}px`;
+        const rightOffset = window.innerWidth - rect.right;
+        userProfilePopover.style.right = `${Math.max(12, rightOffset - 10)}px`;
+        userProfilePopover.style.left = 'auto';
+        userProfilePopover.style.display = 'block';
       }
     });
+
+    document.getElementById('user-menu-settings')?.addEventListener('click', () => {
+      userProfilePopover.style.display = 'none';
+      Router.navigate('#/settings');
+    });
+    document.getElementById('user-menu-shortcuts')?.addEventListener('click', () => {
+      userProfilePopover.style.display = 'none';
+      KeyboardManager.showShortcutCheatSheet();
+    });
+    document.getElementById('user-menu-docs')?.addEventListener('click', () => {
+      userProfilePopover.style.display = 'none';
+      Router.navigate('#/docs');
+    });
+    document.getElementById('user-menu-theme')?.addEventListener('click', () => {
+      userProfilePopover.style.display = 'none';
+      ThemeManager.toggle();
+    });
   }
+
+  // Global click outside listener to close all popovers
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#project-picker-popover') && !e.target.closest('#topbar-project-picker')) {
+      if (pickerPopover) pickerPopover.style.display = 'none';
+    }
+    if (!e.target.closest('#user-profile-popover') && !e.target.closest('#topbar-user-avatar-btn')) {
+      if (userProfilePopover) userProfilePopover.style.display = 'none';
+    }
+  });
 
   // Sidebar shortcut helper button
   const shortcutsBtn = document.getElementById('btn-shortcuts-helper');
@@ -88,24 +150,34 @@ function bindTopbarControls() {
   }
 }
 
+function closeAllTopbarPopovers() {
+  const picker = document.getElementById('project-picker-popover');
+  const notif = document.getElementById('notifications-popover');
+  const user = document.getElementById('user-profile-popover');
+  if (picker) picker.style.display = 'none';
+  if (notif) notif.style.display = 'none';
+  if (user) user.style.display = 'none';
+}
+
 function renderProjectPickerPopover(popover) {
   popover.innerHTML = `
-    <div style="font-weight: 600; font-size: 11px; text-transform: uppercase; color: var(--text-muted); padding: 4px 8px;">
+    <div style="font-weight: 700; font-size: 11px; text-transform: uppercase; color: var(--text-muted); padding: 6px 8px; letter-spacing: 0.04em;">
       Filter by Project
     </div>
-    <div class="nav-item ${!AppState.selectedProjectId ? 'active' : ''}" data-id="" style="padding: 6px 10px; font-size: 12px; cursor: pointer;">
-      <i class="fa-solid fa-asterisk"></i>
+    <div class="dropdown-menu-item ${!AppState.selectedProjectId ? 'active' : ''}" data-id="">
+      <i class="fa-solid fa-layer-group" style="font-size: 12px; color: ${!AppState.selectedProjectId ? 'var(--text-brand)' : 'var(--icon-subtle)'};"></i>
       <span>All Projects</span>
     </div>
+    <div class="dropdown-divider"></div>
     ${AppState.projects.map(p => `
-      <div class="nav-item ${AppState.selectedProjectId === p.id ? 'active' : ''}" data-id="${p.id}" style="padding: 6px 10px; font-size: 12px; cursor: pointer;">
-        <span style="width: 8px; height: 8px; border-radius: 50%; background: ${p.color || '#388bfd'};"></span>
+      <div class="dropdown-menu-item ${AppState.selectedProjectId === p.id ? 'active' : ''}" data-id="${p.id}">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: ${p.color || '#388bfd'}; flex-shrink: 0;"></span>
         <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHTML(p.name)}</span>
       </div>
     `).join('')}
   `;
 
-  popover.querySelectorAll('.nav-item').forEach(item => {
+  popover.querySelectorAll('.dropdown-menu-item').forEach(item => {
     item.addEventListener('click', () => {
       const id = item.dataset.id || null;
       AppState.selectedProjectId = id;

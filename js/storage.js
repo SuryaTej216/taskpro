@@ -525,10 +525,10 @@ const StorageService = {
       if (merge) {
         const existingTasks = this.get(this.KEYS.TASKS, []);
         const existingProjects = this.get(this.KEYS.PROJECTS, []);
-        
+
         const taskMap = new Map(existingTasks.map(t => [t.id, t]));
         data.tasks.forEach(t => taskMap.set(t.id, t));
-        
+
         const projMap = new Map(existingProjects.map(p => [p.id, p]));
         data.projects.forEach(p => projMap.set(p.id, p));
 

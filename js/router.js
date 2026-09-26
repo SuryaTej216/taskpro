@@ -15,7 +15,6 @@ const Router = {
       list: typeof ListView !== 'undefined' ? ListView : null,
       reports: typeof ReportsView !== 'undefined' ? ReportsView : null,
       goals: typeof GoalsView !== 'undefined' ? GoalsView : null,
-      focus: typeof FocusView !== 'undefined' ? FocusView : null,
       settings: typeof SettingsView !== 'undefined' ? SettingsView : null,
       docs: typeof DocsView !== 'undefined' ? DocsView : null
     };

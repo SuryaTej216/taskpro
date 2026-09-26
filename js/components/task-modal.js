@@ -117,16 +117,24 @@ const TaskModal = {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Due Date</label>
-            <input type="date" id="task-create-due" class="form-input">
+            <label class="form-label">Story Points</label>
+            <input type="number" id="task-create-points" class="form-input" min="0" max="100" placeholder="e.g. 5" value="${isSubtaskDefault ? '1' : ''}">
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Story Points</label>
-            <input type="number" id="task-create-points" class="form-input" min="0" max="100" placeholder="e.g. 5" value="${isSubtaskDefault ? '1' : ''}">
+            <label class="form-label">Start Date</label>
+            <input type="date" id="task-create-start" class="form-input" value="${defaultProps.startDate ? Utils.toDateInputValue(defaultProps.startDate) : ''}">
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Due Date</label>
+            <input type="date" id="task-create-due" class="form-input" value="${defaultProps.dueDate ? Utils.toDateInputValue(defaultProps.dueDate) : ''}">
+          </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label class="form-label">Estimated Time (minutes)</label>
             <input type="number" id="task-create-estimate" class="form-input" min="0" placeholder="120">
@@ -190,7 +198,8 @@ const TaskModal = {
               type: typeVal,
               status: document.getElementById('task-create-status').value,
               priority: document.getElementById('task-create-priority').value,
-              dueDate: document.getElementById('task-create-due').value ? new Date(document.getElementById('task-create-due').value).toISOString() : null,
+              startDate: document.getElementById('task-create-start')?.value ? new Date(document.getElementById('task-create-start').value).toISOString() : null,
+              dueDate: document.getElementById('task-create-due')?.value ? new Date(document.getElementById('task-create-due').value).toISOString() : null,
               storyPoints: storyPoints,
               description: document.getElementById('task-create-desc') ? document.getElementById('task-create-desc').value : '',
               labels: labelsArray,
@@ -420,7 +429,7 @@ const TaskModal = {
     const getTypeIcon = (type) => {
       const icons = {
         task: '<i class="fa-solid fa-check-square" style="color: #4da3ff;"></i>',
-        story: '<i class="fa-solid fa-book-open" style="color: #10b981;"></i>',
+        story: '<i class="fa-solid fa-book-open" style="color: #0BDA51;"></i>',
         bug: '<i class="fa-solid fa-bug" style="color: #ff6b6b;"></i>',
         epic: '<i class="fa-solid fa-bolt" style="color: #e879f9;"></i>',
         improvement: '<i class="fa-solid fa-arrow-up-right-dots" style="color: #f0b429;"></i>'
@@ -577,20 +586,17 @@ const TaskModal = {
 
     drawer.innerHTML = `
       <!-- Drawer Header -->
-      <div style="padding: 14px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; background: var(--bg-surface-elevated);">
+      <div class="drawer-header">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span class="type-icon type-${task.type}" title="${task.type}"><i class="fa-solid fa-cube"></i></span>
-          <span style="font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: var(--text-primary);">${task.key}</span>
-          <span style="color: var(--text-muted); font-size: 13px;">in ${Utils.escapeHTML(project.name)}</span>
+          <span style="font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: #FFFFFF;">${task.key}</span>
+          <span style="color: #94A3B8; font-size: 13px;">in ${Utils.escapeHTML(project.name)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button id="drawer-btn-focus" class="btn btn-secondary btn-sm" title="Open in Focus Mode">
-            <i class="fa-solid fa-bullseye" style="color: var(--accent-danger);"></i> Focus
-          </button>
           <button id="drawer-btn-duplicate" class="btn btn-ghost btn-sm" title="Duplicate Task">
             <i class="fa-regular fa-copy"></i>
           </button>
-          <button id="drawer-btn-delete" class="btn btn-ghost btn-sm" style="color: var(--accent-danger);" title="Delete Task">
+          <button id="drawer-btn-delete" class="btn btn-ghost btn-sm" style="color: #F87171;" title="Delete Task">
             <i class="fa-regular fa-trash-can"></i>
           </button>
           <button id="drawer-btn-close" class="btn-icon" title="Close (Esc)">
@@ -939,6 +945,11 @@ const TaskModal = {
           </div>
 
           <div class="form-group">
+            <label class="form-label">Start Date</label>
+            <input type="date" id="detail-task-start" class="form-input" value="${Utils.toDateInputValue(task.startDate)}">
+          </div>
+
+          <div class="form-group">
             <label class="form-label">Due Date</label>
             <input type="date" id="detail-task-due" class="form-input" value="${Utils.toDateInputValue(task.dueDate)}">
           </div>
@@ -1006,12 +1017,6 @@ const TaskModal = {
       AppState.deleteTask(taskId, true, true);
     });
 
-    // Focus button
-    document.getElementById('drawer-btn-focus').addEventListener('click', () => {
-      this.closeDetail();
-      window.location.hash = `#/focus?task=${taskId}`;
-    });
-
     // Parent Task link navigation
     const parentLink = document.getElementById('drawer-parent-task-link');
     if (parentLink && task.parentId) {
@@ -1047,6 +1052,13 @@ const TaskModal = {
     document.getElementById('detail-task-project').addEventListener('change', (e) => {
       AppState.updateTask(taskId, { projectId: e.target.value });
     });
+    const startEl = document.getElementById('detail-task-start');
+    if (startEl) {
+      startEl.addEventListener('change', (e) => {
+        const val = e.target.value ? new Date(e.target.value).toISOString() : null;
+        AppState.updateTask(taskId, { startDate: val });
+      });
+    }
     document.getElementById('detail-task-due').addEventListener('change', (e) => {
       const val = e.target.value ? new Date(e.target.value).toISOString() : null;
       AppState.updateTask(taskId, { dueDate: val });

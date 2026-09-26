@@ -39,6 +39,21 @@ const KeyboardManager = {
         contextMenu.style.display = 'none';
         return;
       }
+      const pickerPopover = document.getElementById('project-picker-popover');
+      if (pickerPopover && pickerPopover.style.display === 'block') {
+        pickerPopover.style.display = 'none';
+        return;
+      }
+      const notifPopover = document.getElementById('notifications-popover');
+      if (notifPopover && notifPopover.style.display === 'flex') {
+        notifPopover.style.display = 'none';
+        return;
+      }
+      const userProfilePopover = document.getElementById('user-profile-popover');
+      if (userProfilePopover && userProfilePopover.style.display === 'block') {
+        userProfilePopover.style.display = 'none';
+        return;
+      }
       return;
     }
 

@@ -7,6 +7,7 @@ const Sidebar = {
   toggleBtn: null,
   mobileToggleBtn: null,
   backdropEl: null,
+  tooltipEl: null,
   isCollapsed: false,
 
   init() {
@@ -14,6 +15,7 @@ const Sidebar = {
     this.toggleBtn = document.getElementById('sidebar-toggle-btn');
     this.mobileToggleBtn = document.getElementById('mobile-sidebar-toggle');
     this.backdropEl = document.getElementById('sidebar-mobile-backdrop');
+    this.tooltipEl = document.getElementById('sidebar-floating-tooltip');
 
     // Desktop collapse toggle
     if (this.toggleBtn) {
@@ -29,11 +31,31 @@ const Sidebar = {
       this.backdropEl.addEventListener('click', () => this.closeMobile());
     }
 
+    // Add project quick action button in sidebar
+    const addProjectBtn = document.getElementById('sidebar-add-project-btn');
+    if (addProjectBtn) {
+      addProjectBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof ProjectsView !== 'undefined' && ProjectsView.openCreateModal) {
+          ProjectsView.openCreateModal();
+        } else {
+          Router.navigate('#/projects');
+        }
+      });
+    }
+
+    // Floating Tooltips for Collapsed Sidebar
+    this.setupFloatingTooltips();
+
     this.renderProjectShortcuts();
     this.updateCounters();
 
     // Listen to data mutations
-    AppState.subscribe('tasks:changed', () => this.updateCounters());
+    AppState.subscribe('tasks:changed', () => {
+      this.updateCounters();
+      this.renderProjectShortcuts();
+    });
+
     AppState.subscribe('projects:changed', () => {
       this.renderProjectShortcuts();
       this.updateCounters();
@@ -48,7 +70,11 @@ const Sidebar = {
       this.toggleBtn.innerHTML = this.isCollapsed 
         ? '<i class="fa-solid fa-angles-right"></i>' 
         : '<i class="fa-solid fa-angles-left"></i>';
+      this.toggleBtn.title = this.isCollapsed
+        ? 'Expand Sidebar (Ctrl+B)'
+        : 'Collapse Sidebar (Ctrl+B)';
     }
+    this.hideTooltip();
   },
 
   openMobile() {
@@ -81,18 +107,22 @@ const Sidebar = {
   },
 
   /**
-   * Renders active project shortcuts in the sidebar
+   * Renders active project shortcuts in the sidebar with live task counters
    */
   renderProjectShortcuts() {
     const container = document.getElementById('sidebar-projects-list');
     if (!container) return;
 
-    container.innerHTML = AppState.projects.slice(0, 5).map(p => `
-      <a href="#/board?project=${p.id}" class="nav-item" title="${Utils.escapeHTML(p.name)}" style="padding: 6px 12px; font-size: 13px;">
-        <span style="width: 8px; height: 8px; border-radius: 50%; background: ${p.color || '#388bfd'}; flex-shrink: 0;"></span>
-        <span style="overflow: hidden; text-overflow: ellipsis;">${Utils.escapeHTML(p.name)}</span>
-      </a>
-    `).join('');
+    container.innerHTML = AppState.projects.slice(0, 6).map(p => {
+      const activeTasksCount = AppState.tasks.filter(t => t.projectId === p.id && t.status !== 'done' && t.status !== 'cancelled').length;
+      return `
+        <a href="#/board?project=${p.id}" class="nav-item project-nav-item" data-tooltip="${Utils.escapeHTML(p.name)}" title="${Utils.escapeHTML(p.name)}">
+          <span class="nav-project-dot" style="background-color: ${p.color || '#579DFF'};"></span>
+          <span class="nav-item-label">${Utils.escapeHTML(p.name)}</span>
+          ${activeTasksCount > 0 ? `<span class="badge-count project-active-badge">${activeTasksCount}</span>` : ''}
+        </a>
+      `;
+    }).join('');
   },
 
   /**
@@ -109,6 +139,45 @@ const Sidebar = {
 
     if (projectsCountEl) {
       projectsCountEl.textContent = AppState.projects.length;
+    }
+  },
+
+  /**
+   * Sets up instant floating tooltips when the sidebar is collapsed
+   */
+  setupFloatingTooltips() {
+    if (!this.sidebarEl) return;
+
+    this.sidebarEl.addEventListener('mouseenter', (e) => {
+      const target = e.target.closest('[data-tooltip]');
+      if (target && this.isCollapsed) {
+        this.showTooltip(target);
+      }
+    }, true);
+
+    this.sidebarEl.addEventListener('mouseleave', (e) => {
+      const target = e.target.closest('[data-tooltip]');
+      if (target) {
+        this.hideTooltip();
+      }
+    }, true);
+  },
+
+  showTooltip(el) {
+    if (!this.tooltipEl || !this.isCollapsed) return;
+    const text = el.getAttribute('data-tooltip') || el.getAttribute('title');
+    if (!text) return;
+
+    this.tooltipEl.textContent = text;
+    const rect = el.getBoundingClientRect();
+    this.tooltipEl.style.top = `${rect.top + rect.height / 2}px`;
+    this.tooltipEl.style.left = `${rect.right + 10}px`;
+    this.tooltipEl.classList.add('visible');
+  },
+
+  hideTooltip() {
+    if (this.tooltipEl) {
+      this.tooltipEl.classList.remove('visible');
     }
   }
 };

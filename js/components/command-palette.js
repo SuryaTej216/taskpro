@@ -73,7 +73,6 @@ const CommandPalette = {
       { id: 'nav_list', title: 'Go to List View', icon: 'fa-list-check', category: 'Navigation', action: () => Router.navigate('list') },
       { id: 'nav_rep', title: 'Go to Reports & Analytics', icon: 'fa-chart-line', category: 'Navigation', action: () => Router.navigate('reports') },
       { id: 'nav_goals', title: 'Go to Goals', icon: 'fa-flag-checkered', category: 'Navigation', action: () => Router.navigate('goals') },
-      { id: 'nav_focus', title: 'Go to Focus Mode (Pomodoro)', icon: 'fa-bullseye', category: 'Navigation', action: () => Router.navigate('focus') },
       { id: 'nav_settings', title: 'Go to Settings', icon: 'fa-gear', category: 'Navigation', action: () => Router.navigate('settings') },
       { id: 'nav_docs', title: 'Go to Documentation & Guide', icon: 'fa-book-open', category: 'Navigation', action: () => Router.navigate('docs') }
     ];

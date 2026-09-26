@@ -92,8 +92,7 @@ const DocsView = {
               <div class="docs-toc-sublinks">
                 <a href="#doc-view-dashboard" class="docs-toc-sublink">1. Dashboard</a>
                 <a href="#doc-view-mywork" class="docs-toc-sublink">2. My Work</a>
-                <a href="#doc-view-focus" class="docs-toc-sublink">3. Focus Mode</a>
-                <a href="#doc-view-projects" class="docs-toc-sublink">4. Projects & Portfolio</a>
+                <a href="#doc-view-projects" class="docs-toc-sublink">3. Projects & Portfolio</a>
                 <a href="#doc-view-board" class="docs-toc-sublink">5. Kanban Board</a>
                 <a href="#doc-view-backlog" class="docs-toc-sublink">6. Backlog & Sprints</a>
                 <a href="#doc-view-timeline" class="docs-toc-sublink">7. Timeline / Gantt</a>
@@ -341,35 +340,6 @@ const DocsView = {
                 </div>
               </div>
 
-              <!-- 3.3 Focus Mode (Pomodoro) -->
-              <div id="doc-view-focus" class="docs-feature-block">
-                <div class="docs-feature-header">
-                  <div class="docs-feature-title">
-                    <i class="fa-solid fa-bullseye" style="color: var(--accent-danger);"></i>
-                    <h3>3. Focus Mode (Pomodoro Timer)</h3>
-                  </div>
-                  <button class="btn btn-secondary btn-sm" onclick="Router.navigate('focus')">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Focus Mode
-                  </button>
-                </div>
-                <p class="docs-paragraph">
-                  A distraction-free, full-screen Pomodoro timer integrated directly into your task backlog.
-                </p>
-                <div class="docs-bullet-list">
-                  <div class="docs-bullet-item">
-                    <strong>25/5 Interval Cycles:</strong> 25-minute concentrated work sessions paired with 5-minute restorative intervals.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Task Binding:</strong> Attach any open backlog task directly to the current timer session. Completing the timer updates your task history.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Synthesized Web Audio Bells:</strong> Melodic dual-frequency chimes synthesized using native HTML5 AudioContext, signaling transitions even in background tabs.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Productivity Streak & Minutes Logged:</strong> Automatically tallies daily focused sessions and cumulative focus minutes.
-                  </div>
-                </div>
-              </div>
 
               <!-- 3.4 Projects & Portfolio -->
               <div id="doc-view-projects" class="docs-feature-block">

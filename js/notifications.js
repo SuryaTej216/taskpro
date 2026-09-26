@@ -18,12 +18,27 @@ const Notifications = {
       bellBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const isOpen = popover.style.display === 'flex';
-        popover.style.display = isOpen ? 'none' : 'flex';
-        if (!isOpen) this.render();
+        if (isOpen) {
+          popover.style.display = 'none';
+        } else {
+          // Close other popovers
+          const picker = document.getElementById('project-picker-popover');
+          if (picker) picker.style.display = 'none';
+          const userProfile = document.getElementById('user-profile-popover');
+          if (userProfile) userProfile.style.display = 'none';
+
+          const rect = bellBtn.getBoundingClientRect();
+          popover.style.top = `${rect.bottom + 6}px`;
+          const rightOffset = window.innerWidth - rect.right;
+          popover.style.right = `${Math.max(12, rightOffset - 40)}px`;
+          popover.style.left = 'auto';
+          popover.style.display = 'flex';
+          this.render();
+        }
       });
 
       document.addEventListener('click', (e) => {
-        if (!popover.contains(e.target) && e.target !== bellBtn) {
+        if (!popover.contains(e.target) && !bellBtn.contains(e.target)) {
           popover.style.display = 'none';
         }
       });

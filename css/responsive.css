@@ -1,29 +1,42 @@
-/* TaskForge - Responsive Styles */
+/* TaskForge — Atlassian Design System Responsive Styles */
 
 /* Large screens (1440px+) */
 @media (min-width: 1440px) {
   .view-page {
-    padding: 28px 40px;
+    padding: 2rem 3rem;
   }
 }
 
-/* Tablets and below (max-width: 1024px) */
+/* Tablets (max-width: 1024px) */
 @media (max-width: 1024px) {
   :root {
-    --sidebar-width: 220px;
+    --sidebar-width: 200px;
   }
 
   .view-page {
-    padding: 20px 24px;
+    padding: 1.25rem 1.5rem;
   }
 
   .board-column {
     width: 280px;
     min-width: 280px;
   }
+
+  .datagrid-toolbar-row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .datagrid-search-box {
+    flex: 1 1 210px;
+  }
+
+  .datagrid-btn-reset {
+    margin-left: auto;
+  }
 }
 
-/* Mobile & Small Tablets (max-width: 768px) */
+/* Mobile & small tablets (max-width: 768px) */
 @media (max-width: 768px) {
   #app-shell {
     flex-direction: column;
@@ -44,12 +57,10 @@
     left: 0;
   }
 
-  /* Backdrop for mobile sidebar */
   .sidebar-mobile-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(2px);
+    background: var(--blanket);
     z-index: 1100;
     display: none;
   }
@@ -59,15 +70,29 @@
   }
 
   #topbar {
-    padding: 0 14px;
+    padding: 0 0.75rem;
+    gap: 0.5rem;
   }
 
   .mobile-menu-trigger {
     display: inline-flex !important;
   }
 
+  #topbar-bulk-create-btn {
+    display: none;
+  }
+
+  #topbar-create-task-btn span,
+  #topbar-create-task-btn kbd {
+    display: none;
+  }
+
+  #topbar-create-task-btn {
+    padding: 0.375rem 0.625rem;
+  }
+
   .global-search-trigger {
-    max-width: 200px;
+    max-width: 180px;
   }
 
   .search-kbd-shortcut {
@@ -75,35 +100,96 @@
   }
 
   .view-page {
-    padding: 16px;
+    padding: 1rem;
   }
 
   .view-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 0.75rem;
   }
 
   .view-actions {
     width: 100%;
     overflow-x: auto;
-    padding-bottom: 4px;
+    padding-bottom: 0.25rem;
   }
 
-  /* Drawer spans full width on mobile */
+  .datagrid-view-container > .view-header {
+    gap: 0.75rem;
+  }
+
+  .datagrid-view-container .view-actions {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+
+  .datagrid-view-container .view-title-group h1 {
+    font-size: 1.25rem;
+  }
+
+  .datagrid-filter-console {
+    padding: 9px;
+  }
+
+  .datagrid-toolbar-row {
+    gap: 8px;
+  }
+
+  .datagrid-search-box {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .datagrid-view-container .view-actions .datagrid-search-box {
+    flex: 0 1 200px;
+    width: 200px;
+    min-width: 140px;
+  }
+
+  .datagrid-toolbar-separator {
+    display: none;
+  }
+
+  .datagrid-quick-filters {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .datagrid-filter-chip {
+    flex: 0 0 auto;
+  }
+
+  .datagrid-scroll-wrapper {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .datagrid-table {
+    min-width: 960px !important;
+  }
+
+  .datagrid-footer-left,
+  .datagrid-footer-right {
+    width: 100%;
+  }
+
+  .datagrid-footer-right > div:last-child {
+    white-space: normal;
+  }
+
   .drawer-panel {
     width: 100vw;
   }
 
-  /* Modals full width on mobile */
   .modal-container {
     max-width: 100%;
-    margin: 10px;
+    margin: 0.75rem;
   }
 
-  /* Kanban board swipe smoothly */
   .board-container {
-    gap: 12px;
+    gap: 0.75rem;
   }
 
   .board-column {
@@ -111,16 +197,15 @@
     min-width: 85vw;
   }
 
-  /* List Table on mobile */
   .table-responsive-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
 
   #toast-container {
-    left: 16px;
-    right: 16px;
-    bottom: 16px;
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
   }
 
   .toast {
@@ -129,17 +214,49 @@
   }
 }
 
-/* Extra small mobile (< 480px) */
+/* Extra small mobile (<480px) */
 @media (max-width: 480px) {
   .global-search-trigger span {
     display: none;
   }
-  
+
   .topbar-left {
-    gap: 8px;
+    gap: 0.5rem;
   }
-  
+
+  .datagrid-view-container {
+    padding: 0.875rem 0.75rem 5rem;
+  }
+
+  .datagrid-view-container .view-title-group p {
+    font-size: 11.5px;
+  }
+
+  .datagrid-view-container .view-actions .btn {
+    min-height: 32px;
+  }
+
+  .datagrid-footer {
+    align-items: flex-start;
+  }
+
+  .datagrid-footer-left {
+    gap: 8px 12px;
+  }
+
+  .bulk-operations-bar {
+    bottom: 10px;
+    width: calc(100% - 20px);
+    max-width: none;
+    justify-content: flex-start;
+    border-radius: 11px;
+  }
+
   .project-selector-dropdown span {
     display: none;
+  }
+
+  .view-title-group h1 {
+    font-size: 1.25rem;
   }
 }
