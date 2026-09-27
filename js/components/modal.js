@@ -66,9 +66,16 @@ const Modal = {
 
     this.overlay.classList.add('active');
     this.isOpen = true;
+
+    if (typeof DropdownUI !== 'undefined') {
+      DropdownUI.initAll(this.container);
+    }
   },
 
   close() {
+    if (typeof DropdownUI !== 'undefined') {
+      DropdownUI.close();
+    }
     if (!this.overlay) return;
     this.overlay.classList.remove('active');
     this.isOpen = false;

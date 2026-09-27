@@ -160,24 +160,34 @@ function closeAllTopbarPopovers() {
 }
 
 function renderProjectPickerPopover(popover) {
+  popover.className = 'topbar-dropdown-popover tf-dropdown-menu';
   popover.innerHTML = `
-    <div style="font-weight: 700; font-size: 11px; text-transform: uppercase; color: var(--text-muted); padding: 6px 8px; letter-spacing: 0.04em;">
-      Filter by Project
+    <div class="tf-dropdown-header">Filter by Project</div>
+    <div class="tf-dropdown-items" style="max-height: 280px;">
+      <button type="button" class="tf-dropdown-item ${!AppState.selectedProjectId ? 'is-selected' : ''}" data-id="">
+        <span class="tf-dropdown-item-left">
+          <i class="fa-solid fa-layer-group tf-dropdown-item-icon" style="color: ${!AppState.selectedProjectId ? 'var(--accent-primary)' : 'var(--text-muted)'};"></i>
+          <span class="tf-dropdown-item-label">All Projects</span>
+        </span>
+        ${!AppState.selectedProjectId ? '<i class="fa-solid fa-check tf-dropdown-item-check"></i>' : ''}
+      </button>
+      <div class="tf-dropdown-divider"></div>
+      ${AppState.projects.map(p => {
+        const isSelected = AppState.selectedProjectId === p.id;
+        return `
+          <button type="button" class="tf-dropdown-item ${isSelected ? 'is-selected' : ''}" data-id="${p.id}">
+            <span class="tf-dropdown-item-left">
+              <span class="tf-dropdown-color-dot" style="background: ${p.color || '#388bfd'};"></span>
+              <span class="tf-dropdown-item-label">${Utils.escapeHTML(p.name)}</span>
+            </span>
+            ${isSelected ? '<i class="fa-solid fa-check tf-dropdown-item-check"></i>' : ''}
+          </button>
+        `;
+      }).join('')}
     </div>
-    <div class="dropdown-menu-item ${!AppState.selectedProjectId ? 'active' : ''}" data-id="">
-      <i class="fa-solid fa-layer-group" style="font-size: 12px; color: ${!AppState.selectedProjectId ? 'var(--text-brand)' : 'var(--icon-subtle)'};"></i>
-      <span>All Projects</span>
-    </div>
-    <div class="dropdown-divider"></div>
-    ${AppState.projects.map(p => `
-      <div class="dropdown-menu-item ${AppState.selectedProjectId === p.id ? 'active' : ''}" data-id="${p.id}">
-        <span style="width: 8px; height: 8px; border-radius: 50%; background: ${p.color || '#388bfd'}; flex-shrink: 0;"></span>
-        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHTML(p.name)}</span>
-      </div>
-    `).join('')}
   `;
 
-  popover.querySelectorAll('.dropdown-menu-item').forEach(item => {
+  popover.querySelectorAll('.tf-dropdown-item').forEach(item => {
     item.addEventListener('click', () => {
       const id = item.dataset.id || null;
       AppState.selectedProjectId = id;

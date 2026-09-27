@@ -546,6 +546,9 @@ const TaskModal = {
   },
 
   closeDetail() {
+    if (typeof DropdownUI !== 'undefined') {
+      DropdownUI.close();
+    }
     const overlay = document.getElementById('task-drawer-overlay');
     if (overlay) overlay.classList.remove('active');
     this.isOpen = false;
@@ -1422,6 +1425,10 @@ const TaskModal = {
           if (this.activeTimerInterval) clearInterval(this.activeTimerInterval);
         }
       });
+    }
+
+    if (typeof DropdownUI !== 'undefined') {
+      DropdownUI.initAll(drawer);
     }
   },
 

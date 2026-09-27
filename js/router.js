@@ -73,6 +73,9 @@ const Router = {
     const view = this.getRouteView(AppState.currentView);
     if (view && typeof view.render === 'function') {
       view.render(container);
+      if (typeof DropdownUI !== 'undefined') {
+        DropdownUI.initAll(container);
+      }
     }
   },
 

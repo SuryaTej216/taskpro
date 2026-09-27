@@ -16,182 +16,81 @@
  * Interactive DataGrid Floating Dropdown Component
  */
 const DataGridDropdown = {
-  activeTrigger: null,
-  activeTaskId: null,
-  activeType: null,
-  menuEl: null,
-
-  init() {
-    if (this.menuEl) return;
-    this.menuEl = document.createElement('div');
-    this.menuEl.id = 'datagrid-floating-menu';
-    this.menuEl.className = 'datagrid-floating-menu';
-    this.menuEl.setAttribute('role', 'menu');
-    document.body.appendChild(this.menuEl);
-
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.datagrid-dropdown-btn') && !e.target.closest('#datagrid-floating-menu')) {
-        this.close();
-      }
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') this.close();
-    });
-
-    window.addEventListener('scroll', () => {
-      if (this.menuEl && this.menuEl.classList.contains('visible')) {
-        this.close();
-      }
-    }, true);
-  },
-
   toggle(triggerBtn, type, taskId, currentValue) {
-    this.init();
-    if (this.activeTrigger === triggerBtn && this.menuEl.classList.contains('visible')) {
-      this.close();
-      return;
+    if (typeof DropdownUI !== 'undefined') {
+      if (DropdownUI.activeTrigger === triggerBtn && DropdownUI.isOpen()) {
+        DropdownUI.close();
+        return;
+      }
     }
     this.open(triggerBtn, type, taskId, currentValue);
   },
 
   open(triggerBtn, type, taskId, currentValue) {
-    this.init();
-    this.close();
+    if (typeof DropdownUI === 'undefined') return;
 
-    this.activeTrigger = triggerBtn;
-    this.activeTaskId = taskId;
-    this.activeType = type;
+    let title = '';
+    let items = [];
 
-    triggerBtn.classList.add('dropdown-open');
-
-    let itemsHTML = '';
     if (type === 'status') {
-      const options = [
-        { value: 'backlog', label: 'Backlog', icon: 'fa-solid fa-inbox', colorClass: 'menu-color-backlog' },
-        { value: 'todo', label: 'To Do', icon: 'fa-regular fa-circle', colorClass: 'menu-color-todo' },
-        { value: 'inprogress', label: 'In Progress', icon: 'fa-solid fa-spinner', colorClass: 'menu-color-inprogress' },
-        { value: 'inreview', label: 'In Review', icon: 'fa-solid fa-eye', colorClass: 'menu-color-inreview' },
-        { value: 'done', label: 'Done', icon: 'fa-solid fa-circle-check', colorClass: 'menu-color-done' }
+      title = 'Change Status';
+      items = [
+        { value: 'backlog', label: 'Backlog', icon: 'fa-solid fa-inbox', iconColor: '#64748B' },
+        { value: 'todo', label: 'To Do', icon: 'fa-regular fa-circle', iconColor: '#2563EB' },
+        { value: 'inprogress', label: 'In Progress', icon: 'fa-solid fa-spinner', iconColor: '#EA580C' },
+        { value: 'inreview', label: 'In Review', icon: 'fa-solid fa-eye', iconColor: '#9333EA' },
+        { value: 'done', label: 'Done', icon: 'fa-solid fa-circle-check', iconColor: '#059669' }
       ];
-      itemsHTML = `
-        <div class="menu-header" role="presentation">Change Status</div>
-        <div class="menu-items" role="group">
-          ${options.map(opt => `
-            <button type="button" role="menuitem" class="menu-item ${opt.value === currentValue ? 'is-active' : ''}" data-val="${opt.value}">
-              <span class="menu-item-left">
-                <i class="${opt.icon} ${opt.colorClass} menu-item-icon"></i>
-                <span class="menu-item-label">${opt.label}</span>
-              </span>
-              ${opt.value === currentValue ? '<i class="fa-solid fa-check menu-item-check"></i>' : ''}
-            </button>
-          `).join('')}
-        </div>
-      `;
     } else if (type === 'priority') {
-      const options = [
-        { value: 'critical', label: 'Critical', icon: 'fa-solid fa-angles-up', colorClass: 'menu-color-critical' },
-        { value: 'highest', label: 'Highest', icon: 'fa-solid fa-angle-up', colorClass: 'menu-color-highest' },
-        { value: 'high', label: 'High', icon: 'fa-solid fa-angle-up', colorClass: 'menu-color-high' },
-        { value: 'medium', label: 'Medium', icon: 'fa-solid fa-minus', colorClass: 'menu-color-medium' },
-        { value: 'low', label: 'Low', icon: 'fa-solid fa-angle-down', colorClass: 'menu-color-low' },
-        { value: 'lowest', label: 'Lowest', icon: 'fa-solid fa-angles-down', colorClass: 'menu-color-lowest' }
+      title = 'Change Priority';
+      items = [
+        { value: 'critical', label: 'Critical', icon: 'fa-solid fa-angles-up', iconColor: '#DC2626' },
+        { value: 'highest', label: 'Highest', icon: 'fa-solid fa-angle-up', iconColor: '#EA580C' },
+        { value: 'high', label: 'High', icon: 'fa-solid fa-angle-up', iconColor: '#D97706' },
+        { value: 'medium', label: 'Medium', icon: 'fa-solid fa-minus', iconColor: '#EAB308' },
+        { value: 'low', label: 'Low', icon: 'fa-solid fa-angle-down', iconColor: '#3B82F6' },
+        { value: 'lowest', label: 'Lowest', icon: 'fa-solid fa-angles-down', iconColor: '#94A3B8' }
       ];
-      itemsHTML = `
-        <div class="menu-header" role="presentation">Change Priority</div>
-        <div class="menu-items" role="group">
-          ${options.map(opt => `
-            <button type="button" role="menuitem" class="menu-item ${opt.value === currentValue ? 'is-active' : ''}" data-val="${opt.value}">
-              <span class="menu-item-left">
-                <i class="${opt.icon} ${opt.colorClass} menu-item-icon"></i>
-                <span class="menu-item-label">${opt.label}</span>
-              </span>
-              ${opt.value === currentValue ? '<i class="fa-solid fa-check menu-item-check"></i>' : ''}
-            </button>
-          `).join('')}
-        </div>
-      `;
     } else if (type === 'actions') {
-      itemsHTML = `
-        <div class="menu-header" role="presentation">Task Actions</div>
-        <div class="menu-items" role="group">
-          <button type="button" role="menuitem" class="menu-item" data-command="edit">
-            <span class="menu-item-left"><i class="fa-solid fa-pen-to-square menu-item-icon"></i><span class="menu-item-label">Edit task</span></span>
-          </button>
-          <button type="button" role="menuitem" class="menu-item" data-command="duplicate">
-            <span class="menu-item-left"><i class="fa-regular fa-copy menu-item-icon"></i><span class="menu-item-label">Duplicate</span></span>
-          </button>
-          <button type="button" role="menuitem" class="menu-item menu-item-danger" data-command="delete">
-            <span class="menu-item-left"><i class="fa-regular fa-trash-can menu-item-icon"></i><span class="menu-item-label">Delete task</span></span>
-          </button>
-        </div>
-      `;
+      title = 'Task Actions';
+      items = [
+        { value: 'edit', label: 'Edit task', icon: 'fa-solid fa-pen-to-square' },
+        { value: 'duplicate', label: 'Duplicate', icon: 'fa-regular fa-copy' },
+        { value: 'delete', label: 'Delete task', icon: 'fa-regular fa-trash-can', isDanger: true }
+      ];
     }
 
-    this.menuEl.innerHTML = itemsHTML;
-    this.menuEl.setAttribute('aria-label', type === 'actions' ? 'Task actions' : `Change ${type}`);
-
-    // Attach click listeners to options
-    this.menuEl.querySelectorAll('.menu-item').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const newVal = btn.dataset.val;
-        if (this.activeType === 'actions') {
-          const command = btn.dataset.command;
-          const taskId = this.activeTaskId;
-          this.close();
-          if (command === 'edit') TaskModal.openDetail(taskId);
-          if (command === 'duplicate') AppState.duplicateTask(taskId);
-          if (command === 'delete') AppState.deleteTask(taskId, true, true);
+    DropdownUI.openMenu({
+      trigger: triggerBtn,
+      title,
+      items,
+      currentValue,
+      searchable: false,
+      onSelect: (newVal) => {
+        if (type === 'actions') {
+          if (newVal === 'edit') TaskModal.openDetail(taskId);
+          if (newVal === 'duplicate') AppState.duplicateTask(taskId);
+          if (newVal === 'delete') AppState.deleteTask(taskId, true, true);
           return;
         }
 
-        const task = AppState.tasks.find(t => t.id === this.activeTaskId);
+        const task = AppState.tasks.find(t => t.id === taskId);
         if (task && newVal) {
-          if (this.activeType === 'status') {
-            AppState.updateTask(this.activeTaskId, { status: newVal });
-          } else if (this.activeType === 'priority') {
-            AppState.updateTask(this.activeTaskId, { priority: newVal });
+          if (type === 'status') {
+            AppState.updateTask(taskId, { status: newVal });
+          } else if (type === 'priority') {
+            AppState.updateTask(taskId, { priority: newVal });
           }
         }
-        this.close();
-        const container = document.getElementById('main-content');
+        const container = document.getElementById('view-container') || document.getElementById('main-content');
         if (container) ListView.render(container);
-      });
+      }
     });
-
-    // Position popover
-    const rect = triggerBtn.getBoundingClientRect();
-    const menuWidth = 148;
-    const menuHeight = type === 'status' ? 180 : type === 'priority' ? 210 : 150;
-
-    let top = rect.bottom + 4;
-    if (rect.bottom + menuHeight > window.innerHeight && rect.top > menuHeight) {
-      top = rect.top - menuHeight - 4;
-    }
-    let left = rect.left;
-    if (left + menuWidth > window.innerWidth - 10) {
-      left = window.innerWidth - menuWidth - 10;
-    }
-
-    this.menuEl.style.top = `${Math.round(top)}px`;
-    this.menuEl.style.left = `${Math.round(left)}px`;
-    this.menuEl.style.width = `${menuWidth}px`;
-    this.menuEl.classList.add('visible');
   },
 
   close() {
-    if (this.activeTrigger) {
-      this.activeTrigger.classList.remove('dropdown-open');
-      if (this.activeTrigger.dataset.action === 'toggle-actions-menu') {
-        this.activeTrigger.setAttribute('aria-expanded', 'false');
-      }
-      this.activeTrigger = null;
-    }
-    this.activeTaskId = null;
-    this.activeType = null;
-    if (this.menuEl) {
-      this.menuEl.classList.remove('visible');
+    if (typeof DropdownUI !== 'undefined') {
+      DropdownUI.close();
     }
   }
 };
@@ -890,6 +789,10 @@ const ListView = {
           }
         }
       });
+    }
+
+    if (typeof DropdownUI !== 'undefined') {
+      DropdownUI.initAll(container);
     }
   }
 };
