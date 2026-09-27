@@ -101,14 +101,79 @@
 
 .btn-danger {
   background: linear-gradient(135deg, var(--accent-danger), #AE2E24);
-  color: var(--text-inverse);
-  border-color: transparent;
-  box-shadow: 0 2px 12px rgba(201, 55, 44, 0.25);
+  color: #FFFFFF !important;
+  border: 1px solid rgba(174, 46, 36, 0.4);
+  box-shadow: 0 2px 10px rgba(201, 55, 44, 0.28), 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .btn-danger:hover:not(:disabled) {
-  box-shadow: 0 4px 20px rgba(201, 55, 44, 0.4);
+  background: linear-gradient(135deg, #E2483D, #B82A1F) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(226, 72, 61, 0.7) !important;
+  box-shadow: 0 4px 18px rgba(201, 55, 44, 0.45), 0 2px 4px rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-1.5px);
+  filter: brightness(1.03);
+}
+
+.btn-danger:active:not(:disabled) {
+  background: linear-gradient(135deg, #AE2E24, #8F1D18) !important;
+  color: #FFFFFF !important;
+  border-color: #8F1D18 !important;
+  box-shadow: 0 1px 3px rgba(174, 46, 36, 0.35) !important;
+  transform: translateY(0);
+  filter: none;
+}
+
+.btn-danger:focus-visible {
+  outline: 2px solid var(--accent-danger) !important;
+  outline-offset: 2px !important;
+}
+
+[data-theme="dark"] .btn-danger {
+  background: linear-gradient(135deg, #E2483D, #AE2E24);
+  color: #FFFFFF !important;
+  border: 1px solid rgba(248, 116, 98, 0.35);
+  box-shadow: 0 2px 10px rgba(226, 72, 61, 0.3);
+}
+
+[data-theme="dark"] .btn-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #F87462, #C9372C) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(248, 116, 98, 0.7) !important;
+  box-shadow: 0 4px 20px rgba(248, 116, 98, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-1.5px);
+}
+
+[data-theme="dark"] .btn-danger:active:not(:disabled) {
+  background: linear-gradient(135deg, #C9372C, #8F1D18) !important;
+  color: #FFFFFF !important;
+  border-color: #8F1D18 !important;
+  transform: translateY(0);
+}
+
+/* Danger Ghost Buttons & Red Action Icons across app */
+.btn-ghost.btn-danger,
+.btn-ghost[style*="accent-danger"],
+.btn-ghost[style*="#F87171"] {
+  color: var(--accent-danger) !important;
+  border-color: transparent !important;
+}
+
+.btn-ghost.btn-danger:hover:not(:disabled),
+.btn-ghost[style*="accent-danger"]:hover:not(:disabled),
+.btn-ghost[style*="#F87171"]:hover:not(:disabled) {
+  background-color: var(--accent-danger-subtle) !important;
+  color: var(--text-danger) !important;
+  border-color: var(--border-danger) !important;
+  box-shadow: 0 2px 6px rgba(201, 55, 44, 0.15) !important;
   transform: translateY(-1px);
+}
+
+.btn-ghost.btn-danger:active:not(:disabled),
+.btn-ghost[style*="accent-danger"]:active:not(:disabled),
+.btn-ghost[style*="#F87171"]:active:not(:disabled) {
+  background-color: rgba(201, 55, 44, 0.18) !important;
+  transform: translateY(0);
 }
 
 .btn-sm {
@@ -3159,9 +3224,9 @@
 
 .datagrid-table th.col-status,
 .datagrid-table td.col-status {
-  width: 122px;
-  min-width: 122px;
-  max-width: 122px;
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
   padding-left: 4px;
   padding-right: 4px;
   white-space: nowrap;
@@ -4346,9 +4411,9 @@
 
 .datagrid-table th.col-status,
 .datagrid-table td.col-status {
-  width: 112px;
-  min-width: 112px;
-  max-width: 112px;
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
   text-align: center;
 }
 
@@ -4462,9 +4527,9 @@
 }
 
 .datagrid-table .datagrid-dropdown-btn.cell-status-btn {
-  width: 100px;
-  min-width: 100px;
-  max-width: 100px;
+  width: 118px;
+  min-width: 118px;
+  max-width: 118px;
 }
 
 .datagrid-table .datagrid-dropdown-btn.cell-prio-btn {
