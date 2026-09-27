@@ -26,8 +26,11 @@ const ContextMenu = {
     const isInSprint = !!task.sprintId;
 
     this.menuEl.innerHTML = `
+      <div class="context-menu-item" id="ctx-edit">
+        <i class="fa-solid fa-pen-to-square"></i> Edit Task
+      </div>
       <div class="context-menu-item" id="ctx-open">
-        <i class="fa-regular fa-folder-open"></i> Open Task
+        <i class="fa-regular fa-folder-open"></i> Open Details
       </div>
       <div class="context-menu-item" id="ctx-subtask">
         <i class="fa-solid fa-network-wired"></i> Add Subtask
@@ -74,7 +77,15 @@ const ContextMenu = {
     this.menuEl.style.top = `${posY}px`;
 
     // Bind listeners
-    document.getElementById('ctx-open').addEventListener('click', () => {
+    document.getElementById('ctx-edit')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.close();
+      TaskModal.openDetail(task.id);
+    });
+
+    document.getElementById('ctx-open')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.close();
       TaskModal.openDetail(task.id);
     });
 

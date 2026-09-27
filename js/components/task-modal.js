@@ -657,8 +657,10 @@ const TaskModal = {
               </div>
 
               <!-- Checklist Progress Bar -->
-              <div class="progress-bar-container" style="margin-bottom: 12px; height: 5px;">
-                <div class="progress-bar-fill" style="width: ${chkPct}%; background: ${chkPct === 100 && totalChecklist > 0 ? 'var(--accent-success)' : 'var(--accent-primary)'};"></div>
+              <div class="drawer-progress-container is-checklist" style="margin-bottom: 14px;">
+                <div class="task-card-progress-track">
+                  <div class="task-card-progress-fill is-checklist ${chkPct === 100 && totalChecklist > 0 ? 'is-complete' : ''}" style="width: ${chkPct}%;"></div>
+                </div>
               </div>
 
               <!-- Checklist Items List -->
@@ -711,8 +713,10 @@ const TaskModal = {
               </div>
 
               <!-- Subtasks Progress Bar -->
-              <div class="progress-bar-container" style="margin-bottom: 12px; height: 5px;">
-                <div class="progress-bar-fill" style="width: ${stPct}%; background: ${stPct === 100 && totalSubtasks > 0 ? 'var(--accent-success)' : 'var(--accent-primary)'};"></div>
+              <div class="drawer-progress-container is-subtask" style="margin-bottom: 14px;">
+                <div class="task-card-progress-track">
+                  <div class="task-card-progress-fill is-subtask ${stPct === 100 && totalSubtasks > 0 ? 'is-complete' : ''}" style="width: ${stPct}%;"></div>
+                </div>
               </div>
 
               <!-- Subtasks List -->
@@ -770,8 +774,10 @@ const TaskModal = {
               </div>
 
               <!-- Progress Bar -->
-              <div class="progress-bar-container" style="margin-bottom: 12px; height: 5px;">
-                <div class="progress-bar-fill" style="width: ${mergedPct}%; background: ${mergedPct === 100 && totalMerged > 0 ? 'var(--accent-success)' : 'var(--accent-primary)'};"></div>
+              <div class="drawer-progress-container is-merged" style="margin-bottom: 14px;">
+                <div class="task-card-progress-track">
+                  <div class="task-card-progress-fill is-merged ${mergedPct === 100 && totalMerged > 0 ? 'is-complete' : ''}" style="width: ${mergedPct}%;"></div>
+                </div>
               </div>
 
               <!-- Merged Items List -->
@@ -1004,9 +1010,23 @@ const TaskModal = {
    */
   attachDrawerListeners(task) {
     const taskId = task.id;
+    const drawer = document.getElementById('task-drawer');
+    const overlay = document.getElementById('task-drawer-overlay');
+
+    if (overlay && !overlay._tfBackdropBound) {
+      overlay._tfBackdropBound = true;
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          this.closeDetail();
+        }
+      });
+    }
 
     // Close button
-    document.getElementById('drawer-btn-close').addEventListener('click', () => this.closeDetail());
+    const closeBtn = document.getElementById('drawer-btn-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.closeDetail());
+    }
 
     // Duplicate button
     document.getElementById('drawer-btn-duplicate').addEventListener('click', () => {
@@ -1427,7 +1447,7 @@ const TaskModal = {
       });
     }
 
-    if (typeof DropdownUI !== 'undefined') {
+    if (typeof DropdownUI !== 'undefined' && drawer) {
       DropdownUI.initAll(drawer);
     }
   },

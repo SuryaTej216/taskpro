@@ -197,6 +197,11 @@
     min-width: 85vw;
   }
 
+  .board-column.is-collapsed {
+    width: 44px !important;
+    min-width: 44px !important;
+  }
+
   .table-responsive-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
