@@ -6257,6 +6257,298 @@
   color: var(--text-primary);
 }
 
+/* Bulk Date Picker Quick Button in Floating Bar */
+.bulk-btn-calendar {
+  height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 11.5px !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-default) !important;
+  background-color: var(--surface-sunken) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.bulk-btn-calendar:hover {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-bold) !important;
+  color: var(--accent-primary) !important;
+  transform: translateY(-1px);
+}
+
+/* In-Cell Date Dropdown Button for Data Grid */
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn {
+  display: inline-flex;
+  height: 26px;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  width: 112px;
+  min-width: 112px;
+  max-width: 112px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  box-sizing: border-box;
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn:hover {
+  border-color: var(--border-bold);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.1);
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn .btn-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn .btn-icon {
+  font-size: 9.5px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn .btn-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn .btn-chevron {
+  font-size: 7px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-empty {
+  border-style: dashed;
+  border-color: var(--border-default);
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-empty:hover {
+  border-style: solid;
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-empty:hover .btn-icon {
+  color: var(--accent-primary);
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-overdue {
+  background: #FEF2F2;
+  border-color: #FCA5A5;
+  color: #DC2626;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.15);
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-overdue .btn-icon {
+  color: #DC2626;
+}
+
+[data-theme="dark"] .datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-overdue {
+  background: rgba(239, 68, 68, 0.22);
+  color: #FCA5A5;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+[data-theme="dark"] .datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-overdue .btn-icon {
+  color: #FCA5A5;
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-today {
+  background: #FFFBEB;
+  border-color: #FCD34D;
+  color: #D97706;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(217, 119, 6, 0.12);
+}
+
+.datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-today .btn-icon {
+  color: #D97706;
+}
+
+[data-theme="dark"] .datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-today {
+  background: rgba(245, 158, 11, 0.22);
+  color: #FCD34D;
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+[data-theme="dark"] .datagrid-table .datagrid-dropdown-btn.cell-date-btn.cell-date-today .btn-icon {
+  color: #FCD34D;
+}
+
+/* Bulk Due Date Modal Styles */
+.bulk-duedate-modal-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.bulk-modal-tasks-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 10px;
+  margin-bottom: 14px;
+}
+
+.bulk-modal-tasks-preview .preview-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.preview-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.preview-task-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 7px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary);
+  max-width: 140px;
+}
+
+.preview-task-chip strong {
+  color: var(--accent-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+}
+
+.preview-task-chip .chip-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+
+.preview-chip-more {
+  background: var(--border-subtle);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.bulk-presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bulk-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  padding: 5px 9px !important;
+  border-radius: var(--radius-md, 6px) !important;
+  transition: all var(--transition-fast) !important;
+  border: 1px solid var(--border-default) !important;
+  background: var(--surface-sunken) !important;
+  color: var(--text-primary) !important;
+  cursor: pointer;
+}
+
+.bulk-preset-btn:hover {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-bold) !important;
+  transform: translateY(-1px);
+}
+
+.bulk-preset-btn.bulk-preset-active {
+  background: rgba(37, 99, 235, 0.12) !important;
+  border-color: var(--accent-primary) !important;
+  color: var(--accent-primary) !important;
+  font-weight: 700 !important;
+}
+
+.bulk-modal-clear-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px dashed rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-md, 6px);
+  margin-top: 6px;
+}
+
+.bulk-modal-clear-banner .clear-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bulk-modal-clear-banner .clear-banner-text strong {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.bulk-modal-clear-banner .clear-banner-text span {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.btn-outline-danger {
+  background: transparent !important;
+  color: #DC2626 !important;
+  border: 1px solid rgba(220, 38, 38, 0.4) !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: var(--radius-md, 6px) !important;
+  transition: all var(--transition-fast) !important;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.btn-outline-danger:hover {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  border-color: #DC2626 !important;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3) !important;
+}
+
 /* =====================================================================
    DATA GRID & BULK OPERATIONS — compact, consistent workspace polish
    ===================================================================== */

@@ -51,10 +51,22 @@ const DataGridDropdown = {
         { value: 'low', label: 'Low', icon: 'fa-solid fa-angle-down', iconColor: '#3B82F6' },
         { value: 'lowest', label: 'Lowest', icon: 'fa-solid fa-angles-down', iconColor: '#94A3B8' }
       ];
+    } else if (type === 'dueDate') {
+      title = 'Change Due Date';
+      items = [
+        { value: 'today', label: 'Today', icon: 'fa-solid fa-calendar-day', iconColor: '#3B82F6' },
+        { value: 'tomorrow', label: 'Tomorrow', icon: 'fa-solid fa-sun', iconColor: '#F59E0B' },
+        { value: 'this_week', label: 'This Friday', icon: 'fa-solid fa-calendar-week', iconColor: '#10B981' },
+        { value: 'next_week', label: 'Next Monday', icon: 'fa-solid fa-calendar-plus', iconColor: '#8B5CF6' },
+        { value: 'in_2_weeks', label: 'In 2 Weeks', icon: 'fa-solid fa-calendar-days', iconColor: '#06B6D4' },
+        { value: 'custom', label: 'Pick Date...', icon: 'fa-regular fa-calendar-check', iconColor: '#EC4899' },
+        { value: 'clear', label: 'Clear Due Date', icon: 'fa-regular fa-calendar-xmark', iconColor: '#EF4444', isDanger: true }
+      ];
     } else if (type === 'actions') {
       title = 'Task Actions';
       items = [
         { value: 'edit', label: 'Edit task', icon: 'fa-solid fa-pen-to-square' },
+        { value: 'dueDate', label: 'Change due date...', icon: 'fa-regular fa-calendar' },
         { value: 'duplicate', label: 'Duplicate', icon: 'fa-regular fa-copy' },
         { value: 'delete', label: 'Delete task', icon: 'fa-regular fa-trash-can', isDanger: true }
       ];
@@ -67,10 +79,31 @@ const DataGridDropdown = {
       currentValue,
       searchable: false,
       onSelect: (newVal) => {
+        const container = document.getElementById('view-container') || document.getElementById('main-content');
         if (type === 'actions') {
           if (newVal === 'edit') TaskModal.openDetail(taskId);
+          if (newVal === 'dueDate') ListView.openBulkDueDateModal([taskId], container);
           if (newVal === 'duplicate') AppState.duplicateTask(taskId);
           if (newVal === 'delete') AppState.deleteTask(taskId, true, true);
+          return;
+        }
+
+        if (type === 'dueDate') {
+          if (newVal === 'custom') {
+            ListView.openBulkDueDateModal([taskId], container);
+            return;
+          }
+          if (newVal === 'clear') {
+            AppState.updateTask(taskId, { dueDate: null });
+            Toast.info('Cleared due date.');
+          } else {
+            const iso = ListView.calculateTargetDate(newVal);
+            if (iso) {
+              AppState.updateTask(taskId, { dueDate: iso });
+              Toast.success(`Due date set to ${Utils.formatDate(iso)}.`);
+            }
+          }
+          if (container) ListView.render(container);
           return;
         }
 
@@ -82,7 +115,6 @@ const DataGridDropdown = {
             AppState.updateTask(taskId, { priority: newVal });
           }
         }
-        const container = document.getElementById('view-container') || document.getElementById('main-content');
         if (container) ListView.render(container);
       }
     });
@@ -179,6 +211,77 @@ const ListView = {
         <span class="btn-inner">
           <i class="${config.icon} btn-icon"></i>
           <span class="btn-label">${config.label}</span>
+        </span>
+        <i class="fa-solid fa-chevron-down btn-chevron"></i>
+      </button>
+    `;
+  },
+
+  /**
+   * Calculates ISO date string for standard presets (midday local to prevent timezone date flips)
+   */
+  calculateTargetDate(preset) {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+
+    if (preset === 'today') {
+      return d.toISOString();
+    }
+    if (preset === 'tomorrow') {
+      d.setDate(d.getDate() + 1);
+      return d.toISOString();
+    }
+    if (preset === 'this_week') {
+      const day = d.getDay();
+      const diff = (5 - day + 7) % 7 || 7;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString();
+    }
+    if (preset === 'next_week') {
+      const day = d.getDay();
+      const diff = ((1 - day + 7) % 7) || 7;
+      d.setDate(d.getDate() + diff);
+      return d.toISOString();
+    }
+    if (preset === 'in_2_weeks') {
+      d.setDate(d.getDate() + 14);
+      return d.toISOString();
+    }
+    return null;
+  },
+
+  /**
+   * Generates interactive due date badge button for data grid table cells
+   */
+  getDueDateBadgeHTML(task) {
+    const isOverdue = Utils.isOverdue(task.dueDate, task.status);
+    const isToday = Utils.isDueToday(task.dueDate);
+
+    let dateDisplay = 'Set date';
+    let dateClass = 'cell-date-empty';
+    let dateIcon = 'fa-regular fa-calendar-plus';
+
+    if (task.dueDate) {
+      if (isOverdue) {
+        dateDisplay = Utils.formatDate(task.dueDate);
+        dateClass = 'cell-date-overdue datagrid-date-overdue';
+        dateIcon = 'fa-solid fa-triangle-exclamation';
+      } else if (isToday) {
+        dateDisplay = 'Today';
+        dateClass = 'cell-date-today datagrid-date-today';
+        dateIcon = 'fa-solid fa-calendar-day';
+      } else {
+        dateDisplay = Utils.formatDate(task.dueDate);
+        dateClass = 'cell-date-set';
+        dateIcon = 'fa-regular fa-calendar';
+      }
+    }
+
+    return `
+      <button type="button" class="datagrid-dropdown-btn cell-date-btn ${dateClass}" data-action="toggle-date-menu" data-id="${task.id}" data-current="${task.dueDate || ''}" title="Change due date (${dateDisplay})">
+        <span class="btn-inner">
+          <i class="${dateIcon} btn-icon"></i>
+          <span class="btn-label">${dateDisplay}</span>
         </span>
         <i class="fa-solid fa-chevron-down btn-chevron"></i>
       </button>
@@ -418,9 +521,7 @@ const ListView = {
                         ${this.getPriorityBadgeHTML(t.priority, t.id)}
                       </td>
                       <td class="col-date">
-                        <span class="datagrid-date-badge ${dateClass}">
-                          ${dateDisplay}
-                        </span>
+                        ${this.getDueDateBadgeHTML(t)}
                       </td>
                       <td class="col-pts">
                         <span class="datagrid-points-pill" title="Story Points">${t.storyPoints || 0}</span>
@@ -521,6 +622,23 @@ const ListView = {
                 <option value="${s.id}">${Utils.escapeHTML(s.name)} [${s.status.toUpperCase()}]</option>
               `).join('')}
             </select>
+
+            <!-- Bulk Due Date Selector -->
+            <select id="bulk-duedate-select" class="bulk-select" title="Change Due Date">
+              <option value="">Due Date...</option>
+              <option value="today">Today</option>
+              <option value="tomorrow">Tomorrow</option>
+              <option value="this_week">This Friday</option>
+              <option value="next_week">Next Monday</option>
+              <option value="in_2_weeks">In 2 Weeks</option>
+              <option value="custom">Pick Date...</option>
+              <option value="clear">Clear Due Date</option>
+            </select>
+
+            <!-- Bulk Date Picker Modal Button -->
+            <button id="btn-bulk-datepicker" class="btn btn-secondary btn-sm bulk-btn-calendar" title="Pick custom deadline on calendar">
+              <i class="fa-regular fa-calendar-days"></i>
+            </button>
 
             <div class="bulk-divider"></div>
 
@@ -658,6 +776,16 @@ const ListView = {
       });
     });
 
+    // In-Cell Due Date Dropdown Trigger
+    container.querySelectorAll('.datagrid-dropdown-btn[data-action="toggle-date-menu"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const taskId = btn.dataset.id;
+        const current = btn.dataset.current;
+        DataGridDropdown.toggle(btn, 'dueDate', taskId, current);
+      });
+    });
+
     // Compact per-row action menu
     container.querySelectorAll('.datagrid-dropdown-btn[data-action="toggle-actions-menu"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -723,6 +851,50 @@ const ListView = {
           Toast.success(`Assigned ${ids.length} task(s) to ${sprintId ? 'sprint' : 'backlog pool'}.`);
           this.selectedTaskIds.clear();
           this.render(container);
+        });
+      }
+
+      // Bulk Due Date Select
+      const bulkDueDate = bulkToolbar.querySelector('#bulk-duedate-select');
+      if (bulkDueDate) {
+        bulkDueDate.addEventListener('change', (e) => {
+          const val = e.target.value;
+          e.target.value = '';
+          bulkDueDate.selectedIndex = 0;
+          if (!val) return;
+          const ids = Array.from(this.selectedTaskIds);
+          if (ids.length === 0) return;
+
+          if (val === 'custom') {
+            this.openBulkDueDateModal(ids, container);
+            return;
+          }
+
+          if (val === 'clear') {
+            AppState.bulkUpdateTasks(ids, { dueDate: null });
+            Toast.info(`Cleared due date for ${ids.length} task(s).`);
+            this.selectedTaskIds.clear();
+            this.render(container);
+            return;
+          }
+
+          const isoStr = this.calculateTargetDate(val);
+          if (isoStr) {
+            AppState.bulkUpdateTasks(ids, { dueDate: isoStr });
+            Toast.success(`Set due date to ${Utils.formatDate(isoStr)} for ${ids.length} task(s). 📅`);
+            this.selectedTaskIds.clear();
+            this.render(container);
+          }
+        });
+      }
+
+      // Bulk Date Picker Modal Button
+      const bulkDatePickerBtn = bulkToolbar.querySelector('#btn-bulk-datepicker');
+      if (bulkDatePickerBtn) {
+        bulkDatePickerBtn.addEventListener('click', () => {
+          const ids = Array.from(this.selectedTaskIds);
+          if (ids.length === 0) return;
+          this.openBulkDueDateModal(ids, container);
         });
       }
 
@@ -793,6 +965,173 @@ const ListView = {
 
     if (typeof DropdownUI !== 'undefined') {
       DropdownUI.initAll(container);
+    }
+  },
+
+  /**
+   * Opens the Bulk Due Date modal with quick presets, calendar picker, and clear option
+   * @param {string[]} taskIds 
+   * @param {HTMLElement} container 
+   */
+  openBulkDueDateModal(taskIds, container) {
+    if (!taskIds || taskIds.length === 0) return;
+    const count = taskIds.length;
+
+    // Calculate preset dates (midday local prevents date boundary flips)
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const friday = new Date(today);
+    const dayOfWeek = friday.getDay();
+    const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7;
+    friday.setDate(friday.getDate() + daysUntilFriday);
+
+    const nextMonday = new Date(today);
+    const daysUntilNextMon = ((1 - dayOfWeek + 7) % 7) || 7;
+    nextMonday.setDate(nextMonday.getDate() + daysUntilNextMon);
+
+    const in2Weeks = new Date(today);
+    in2Weeks.setDate(in2Weeks.getDate() + 14);
+
+    const tasks = taskIds.map(id => AppState.tasks.find(t => t.id === id)).filter(Boolean);
+
+    // Default input date: today (or common date if all selected share the same date)
+    const existingDates = tasks.map(t => t.dueDate ? Utils.toDateInputValue(t.dueDate) : '').filter(Boolean);
+    const initialDateVal = (existingDates.length > 0 && existingDates.every(d => d === existingDates[0]))
+      ? existingDates[0]
+      : Utils.toDateInputValue(today);
+
+    const modalBody = `
+      <div class="bulk-duedate-modal-content">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.5;">
+          Select a deadline for <strong>${count}</strong> selected task${count > 1 ? 's' : ''}. Choose a quick preset, pick an exact calendar date, or remove deadlines.
+        </p>
+
+        <!-- Selected Tasks Chips Preview -->
+        <div class="bulk-modal-tasks-preview">
+          <span class="preview-label"><i class="fa-solid fa-list-check"></i> Selected:</span>
+          <div class="preview-chips-container">
+            ${tasks.slice(0, 8).map(t => `
+              <span class="preview-task-chip" title="${Utils.escapeHTML(t.title)}">
+                <strong>${t.key}</strong> <span class="chip-title">${Utils.escapeHTML(t.title.length > 20 ? t.title.substring(0, 18) + '...' : t.title)}</span>
+              </span>
+            `).join('')}
+            ${tasks.length > 8 ? `<span class="preview-task-chip preview-chip-more">+${tasks.length - 8} more</span>` : ''}
+          </div>
+        </div>
+
+        <!-- Quick Presets -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label" style="font-weight: 600; font-size: 12px; margin-bottom: 8px;">
+            <i class="fa-solid fa-bolt" style="color: var(--accent-warning, #F59E0B);"></i> Quick Presets
+          </label>
+          <div class="bulk-presets-row">
+            <button type="button" class="btn btn-secondary btn-sm bulk-preset-btn" data-date="${Utils.toDateInputValue(today)}">
+              <i class="fa-solid fa-calendar-day" style="color: #3B82F6;"></i> Today
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm bulk-preset-btn" data-date="${Utils.toDateInputValue(tomorrow)}">
+              <i class="fa-solid fa-sun" style="color: #F59E0B;"></i> Tomorrow
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm bulk-preset-btn" data-date="${Utils.toDateInputValue(friday)}">
+              <i class="fa-solid fa-calendar-week" style="color: #10B981;"></i> Friday
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm bulk-preset-btn" data-date="${Utils.toDateInputValue(nextMonday)}">
+              <i class="fa-solid fa-calendar-plus" style="color: #8B5CF6;"></i> Next Mon
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm bulk-preset-btn" data-date="${Utils.toDateInputValue(in2Weeks)}">
+              <i class="fa-solid fa-calendar-days" style="color: #06B6D4;"></i> +2 Wks
+            </button>
+          </div>
+        </div>
+
+        <!-- Exact Date Picker Input -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label" for="bulk-modal-date-input" style="font-weight: 600; font-size: 12px; margin-bottom: 6px;">
+            <i class="fa-regular fa-calendar" style="color: var(--accent-primary);"></i> Target Due Date
+          </label>
+          <div class="date-input-wrapper" style="position: relative;">
+            <input type="date" id="bulk-modal-date-input" class="form-input" value="${initialDateVal}" style="width: 100%; height: 38px; font-size: 14px; font-weight: 500;">
+          </div>
+        </div>
+
+        <!-- Quick Clear Due Date Option -->
+        <div class="bulk-modal-clear-banner">
+          <div class="clear-banner-text">
+            <strong>Need open-ended tasks?</strong>
+            <span>Clear due date from all selected tasks with one click.</span>
+          </div>
+          <button type="button" id="btn-modal-clear-duedate" class="btn btn-sm btn-outline-danger">
+            <i class="fa-regular fa-calendar-xmark"></i> Clear Due Date
+          </button>
+        </div>
+      </div>
+    `;
+
+    Modal.open({
+      title: `<i class="fa-regular fa-calendar-check" style="color: var(--accent-primary);"></i> Set Due Date for ${count} Task${count > 1 ? 's' : ''}`,
+      body: modalBody,
+      size: 'md',
+      footerButtons: [
+        {
+          text: 'Cancel',
+          class: 'btn-secondary',
+          onClick: () => Modal.close()
+        },
+        {
+          text: `<i class="fa-solid fa-check"></i> Apply Due Date`,
+          class: 'btn-primary',
+          onClick: () => {
+            const dateInput = document.getElementById('bulk-modal-date-input');
+            const val = dateInput ? dateInput.value : '';
+            if (!val) {
+              Toast.warning('Please select a valid date or click "Clear Due Date".');
+              return;
+            }
+            const [y, m, d] = val.split('-').map(Number);
+            const dateObj = new Date(y, m - 1, d, 12, 0, 0, 0);
+            const isoStr = dateObj.toISOString();
+
+            AppState.bulkUpdateTasks(taskIds, { dueDate: isoStr });
+            Toast.success(`Set due date to ${Utils.formatDate(isoStr)} for ${count} task(s). 📅`);
+            this.selectedTaskIds.clear();
+            Modal.close();
+            const viewCont = container || document.getElementById('view-container') || document.getElementById('main-content');
+            if (viewCont) this.render(viewCont);
+          }
+        }
+      ]
+    });
+
+    // Wire up preset buttons
+    const modalEl = document.getElementById('global-modal-body');
+    if (modalEl) {
+      modalEl.querySelectorAll('.bulk-preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const dateVal = btn.dataset.date;
+          const dateInput = document.getElementById('bulk-modal-date-input');
+          if (dateInput && dateVal) {
+            dateInput.value = dateVal;
+            modalEl.querySelectorAll('.bulk-preset-btn').forEach(b => b.classList.remove('bulk-preset-active'));
+            btn.classList.add('bulk-preset-active');
+          }
+        });
+      });
+
+      // Wire up clear due date button in modal
+      const clearBtn = modalEl.querySelector('#btn-modal-clear-duedate');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          AppState.bulkUpdateTasks(taskIds, { dueDate: null });
+          Toast.info(`Cleared due date for ${count} task(s).`);
+          this.selectedTaskIds.clear();
+          Modal.close();
+          const viewCont = container || document.getElementById('view-container') || document.getElementById('main-content');
+          if (viewCont) this.render(viewCont);
+        });
+      }
     }
   }
 };

@@ -113,6 +113,7 @@ const DropdownUI = {
     const isProject = selectId.includes('project') || selectId.includes('proj');
     const isEpic = selectId.includes('epic');
     const isRecurring = selectId.includes('recurring');
+    const isDueDate = selectId.includes('due') || selectId.includes('date');
 
     // 1. Statuses
     if (isStatus || ['backlog', 'todo', 'inprogress', 'inreview', 'done', 'blocked', 'cancelled'].includes(val)) {
@@ -273,6 +274,27 @@ const DropdownUI = {
         taskKey: keyMatch[1],
         label: keyMatch[2] || keyMatch[1]
       };
+    }
+
+    // 10. Due Dates
+    if (isDueDate || ['today', 'tomorrow', 'this_week', 'next_week', 'in_2_weeks', 'custom', 'clear'].includes(val)) {
+      const dateMap = {
+        '': { icon: 'fa-regular fa-calendar', color: 'var(--text-muted)', label: cleanLabel || 'Due Date...' },
+        today: { icon: 'fa-solid fa-calendar-day', color: '#3B82F6', label: 'Today' },
+        tomorrow: { icon: 'fa-solid fa-sun', color: '#F59E0B', label: 'Tomorrow' },
+        this_week: { icon: 'fa-solid fa-calendar-week', color: '#10B981', label: 'This Friday' },
+        next_week: { icon: 'fa-solid fa-calendar-plus', color: '#8B5CF6', label: 'Next Monday' },
+        in_2_weeks: { icon: 'fa-solid fa-calendar-days', color: '#06B6D4', label: 'In 2 Weeks' },
+        custom: { icon: 'fa-regular fa-calendar-check', color: '#EC4899', label: 'Pick Date...' },
+        clear: { icon: 'fa-regular fa-calendar-xmark', color: '#EF4444', label: 'Clear Due Date' }
+      };
+      if (dateMap[val]) {
+        return {
+          icon: dateMap[val].icon,
+          iconColor: dateMap[val].color,
+          label: cleanLabel || dateMap[val].label
+        };
+      }
     }
 
     // Generic fallback
@@ -441,8 +463,9 @@ const DropdownUI = {
       items,
       currentValue: selectEl.value,
       onSelect: (selectedVal) => {
-        if (selectEl.value !== selectedVal) {
-          selectEl.value = selectedVal;
+        const changed = selectEl.value !== selectedVal;
+        selectEl.value = selectedVal;
+        if (changed || (selectEl.id && selectEl.id.includes('bulk'))) {
           selectEl.dispatchEvent(new Event('change', { bubbles: true }));
           selectEl.dispatchEvent(new Event('input', { bubbles: true }));
         }
