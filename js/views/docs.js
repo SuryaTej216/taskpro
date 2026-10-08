@@ -27,7 +27,7 @@ const DocsView = {
             <!-- Quick Feature Highlight Strip -->
             <div class="docs-stats-ribbon">
               <div class="docs-stat-item">
-                <span class="stat-number">12</span>
+                <span class="stat-number">6</span>
                 <span class="stat-label">Productivity Views</span>
               </div>
               <div class="docs-stat-divider"></div>
@@ -91,16 +91,11 @@ const DocsView = {
               </a>
               <div class="docs-toc-sublinks">
                 <a href="#doc-view-dashboard" class="docs-toc-sublink">1. Dashboard</a>
-                <a href="#doc-view-mywork" class="docs-toc-sublink">2. My Work</a>
-                <a href="#doc-view-projects" class="docs-toc-sublink">3. Projects & Portfolio</a>
-                <a href="#doc-view-board" class="docs-toc-sublink">5. Kanban Board</a>
-                <a href="#doc-view-backlog" class="docs-toc-sublink">6. Backlog & Sprints</a>
-                <a href="#doc-view-timeline" class="docs-toc-sublink">7. Timeline / Gantt</a>
-                <a href="#doc-view-calendar" class="docs-toc-sublink">8. Calendar</a>
-                <a href="#doc-view-list" class="docs-toc-sublink">9. List & Bulk Actions</a>
-                <a href="#doc-view-reports" class="docs-toc-sublink">10. Reports & Analytics</a>
-                <a href="#doc-view-goals" class="docs-toc-sublink">11. Strategic Goals</a>
-                <a href="#doc-view-settings" class="docs-toc-sublink">12. Settings & Backup</a>
+                <a href="#doc-view-projects" class="docs-toc-sublink">2. Projects & Portfolio</a>
+                <a href="#doc-view-board" class="docs-toc-sublink">3. Kanban Board</a>
+                <a href="#doc-view-backlog" class="docs-toc-sublink">4. Sprint Planning</a>
+                <a href="#doc-view-list" class="docs-toc-sublink">5. List & Bulk Actions</a>
+                <a href="#doc-view-settings" class="docs-toc-sublink">6. Settings & Backup</a>
               </div>
               <a href="#doc-commands" class="docs-toc-link ${this.activeSection === 'commands' ? 'active' : ''}" data-target="doc-commands">
                 <i class="fa-solid fa-terminal"></i> Command Palette & Search
@@ -171,7 +166,7 @@ const DocsView = {
                 <div class="docs-feature-card">
                   <div class="docs-card-icon" style="color: var(--accent-warning);"><i class="fa-solid fa-route"></i></div>
                   <h3>Hash Single-Page Router</h3>
-                  <p>Clean hash routing (<code>#/board</code>, <code>#/focus</code>, <code>#/timeline</code>) with deep project context switching and dynamic browser history integration.</p>
+                  <p>Clean hash routing (<code>#/tasks</code>, <code>#/projects</code>, <code>#/dashboard</code>) with deep project context switching and dynamic browser history integration.</p>
                 </div>
                 <div class="docs-feature-card">
                   <div class="docs-card-icon" style="color: var(--status-done);"><i class="fa-solid fa-chart-pie"></i></div>
@@ -310,43 +305,12 @@ const DocsView = {
                 </div>
               </div>
 
-              <!-- 3.2 My Work -->
-              <div id="doc-view-mywork" class="docs-feature-block">
-                <div class="docs-feature-header">
-                  <div class="docs-feature-title">
-                    <i class="fa-solid fa-briefcase" style="color: #388bfd;"></i>
-                    <h3>2. My Work</h3>
-                  </div>
-                  <button class="btn btn-secondary btn-sm" onclick="Router.navigate('my-work')">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open My Work
-                  </button>
-                </div>
-                <p class="docs-paragraph">
-                  A focused personal agenda organized by urgency timeframes. Designed to eliminate decision fatigue when beginning your work day.
-                </p>
-                <div class="docs-bullet-list">
-                  <div class="docs-bullet-item">
-                    <strong>Overdue Section:</strong> Bold red alerts highlighting past-due tasks that require immediate attention or rescheduling.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Today's Deliverables:</strong> All tasks committed with today's target deadline with quick status progression buttons.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Upcoming 7 Days:</strong> A forward-looking 7-day rolling horizon preventing deadline surprises.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Recent Wins:</strong> Celebrates your completed tasks from the past 7 days with completion timestamps and total accomplished points.
-                  </div>
-                </div>
-              </div>
-
-
-              <!-- 3.4 Projects & Portfolio -->
+              <!-- 2. Projects & Portfolio -->
               <div id="doc-view-projects" class="docs-feature-block">
                 <div class="docs-feature-header">
                   <div class="docs-feature-title">
                     <i class="fa-solid fa-folder-tree" style="color: var(--accent-cyan);"></i>
-                    <h3>4. Projects & Portfolio</h3>
+                    <h3>2. Projects & Portfolio</h3>
                   </div>
                   <button class="btn btn-secondary btn-sm" onclick="Router.navigate('projects')">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Projects
@@ -363,17 +327,17 @@ const DocsView = {
                     <strong>Portfolio Progress Meter:</strong> Dynamic completion meters calculating done vs remaining story points and task counts.
                   </div>
                   <div class="docs-bullet-item">
-                    <strong>Global Project Scope Filtering:</strong> Clicking into any project scopes all other views (Board, Backlog, Calendar, Timeline) to that specific project context.
+                    <strong>Global Project Scope Filtering:</strong> Clicking into any project scopes all other views (Board, Sprint Planning, Calendar, Timeline) to that specific project context.
                   </div>
                 </div>
               </div>
 
-              <!-- 3.5 Kanban Board -->
+              <!-- 3. Kanban Board -->
               <div id="doc-view-board" class="docs-feature-block">
                 <div class="docs-feature-header">
                   <div class="docs-feature-title">
                     <i class="fa-solid fa-table-columns" style="color: #58a6ff;"></i>
-                    <h3>5. Kanban Board</h3>
+                    <h3>3. Kanban Board</h3>
                   </div>
                   <button class="btn btn-secondary btn-sm" onclick="Router.navigate('board')">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Kanban Board
@@ -398,93 +362,39 @@ const DocsView = {
                 </div>
               </div>
 
-              <!-- 3.6 Backlog & Sprints -->
+              <!-- 4. Sprint Planning -->
               <div id="doc-view-backlog" class="docs-feature-block">
                 <div class="docs-feature-header">
                   <div class="docs-feature-title">
                     <i class="fa-solid fa-layer-group" style="color: var(--accent-purple);"></i>
-                    <h3>6. Backlog & Sprints</h3>
+                    <h3>4. Sprint Planning</h3>
                   </div>
                   <button class="btn btn-secondary btn-sm" onclick="Router.navigate('backlog')">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Backlog
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Sprint Planning
                   </button>
                 </div>
                 <p class="docs-paragraph">
-                  Full Scrum sprint planning engine. Create active and planned sprints, groom your backlog, assign story estimates, and manage epics.
+                  Full Scrum sprint planning engine. Create, start, and complete sprints with drag-and-drop task assignment, progress tracking, and velocity metrics.
                 </p>
                 <div class="docs-bullet-list">
                   <div class="docs-bullet-item">
-                    <strong>Sprint Lifecycle Management:</strong> Plan upcoming sprints with dates and goals, start sprints with one click, and complete active sprints with rollups.
+                    <strong>Sprint Lifecycle Management:</strong> Plan upcoming sprints with dates and goals, start sprints with one click, and complete active sprints with automatic rollover.
                   </div>
                   <div class="docs-bullet-item">
-                    <strong>Drag-to-Sprint Planning:</strong> Drag unassigned backlog tasks into any active or planned sprint container. Story point totals automatically recalculate.
+                    <strong>Drag-to-Sprint Planning:</strong> Drag tasks between sprint containers to reassign them. Story point totals automatically recalculate.
                   </div>
                   <div class="docs-bullet-item">
-                    <strong>Side-by-Side Epics Drawer:</strong> Filter and categorize tasks into major epic initiatives with custom color chips.
+                    <strong>Sprint Overview Stats:</strong> Real-time stats bar showing total sprints, tasks in sprints, unassigned tasks, and velocity metrics at a glance.
                   </div>
                 </div>
               </div>
 
-              <!-- 3.7 Timeline & Gantt -->
-              <div id="doc-view-timeline" class="docs-feature-block">
-                <div class="docs-feature-header">
-                  <div class="docs-feature-title">
-                    <i class="fa-solid fa-chart-gantt" style="color: var(--accent-warning);"></i>
-                    <h3>7. Timeline & Gantt View</h3>
-                  </div>
-                  <button class="btn btn-secondary btn-sm" onclick="Router.navigate('timeline')">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Timeline
-                  </button>
-                </div>
-                <p class="docs-paragraph">
-                  Visual chronological roadmap showing schedule spans, milestones, and task duration overlaps.
-                </p>
-                <div class="docs-bullet-list">
-                  <div class="docs-bullet-item">
-                    <strong>Zoom Resolution Controls:</strong> Toggle effortlessly between Day, Week, and Month zoom scales.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Duration Bars:</strong> Color-coded bars mapped precisely to task start and due dates.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Today Marker:</strong> Vertical indicator bar highlighting the current date relative to your milestones.
-                  </div>
-                </div>
-              </div>
-
-              <!-- 3.8 Calendar -->
-              <div id="doc-view-calendar" class="docs-feature-block">
-                <div class="docs-feature-header">
-                  <div class="docs-feature-title">
-                    <i class="fa-regular fa-calendar-days" style="color: var(--accent-primary);"></i>
-                    <h3>8. Calendar</h3>
-                  </div>
-                  <button class="btn btn-secondary btn-sm" onclick="Router.navigate('calendar')">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Calendar
-                  </button>
-                </div>
-                <p class="docs-paragraph">
-                  Monthly and weekly grid view of all scheduled commitments and task deadlines.
-                </p>
-                <div class="docs-bullet-list">
-                  <div class="docs-bullet-item">
-                    <strong>Month & Week Views:</strong> Easily switch between high-level monthly scheduling and granular weekly calendars.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Quick Schedule:</strong> Click any day cell to instantly schedule a new task on that date, or click an existing task chip to view details.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Status Dot Indicators:</strong> Tasks are styled according to priority and completion state for instant visual parsing.
-                  </div>
-                </div>
-              </div>
-
-              <!-- 3.9 List View -->
+              <!-- 5. List View -->
               <div id="doc-view-list" class="docs-feature-block">
                 <div class="docs-feature-header">
                   <div class="docs-feature-title">
                     <i class="fa-solid fa-list-check" style="color: var(--accent-success);"></i>
-                    <h3>9. List View & Bulk Actions</h3>
+                    <h3>5. List View & Bulk Actions</h3>
                   </div>
                   <button class="btn btn-secondary btn-sm" onclick="Router.navigate('list')">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Open List View
@@ -506,66 +416,12 @@ const DocsView = {
                 </div>
               </div>
 
-              <!-- 3.10 Reports & Analytics -->
-              <div id="doc-view-reports" class="docs-feature-block">
-                <div class="docs-feature-header">
-                  <div class="docs-feature-title">
-                    <i class="fa-solid fa-chart-line" style="color: var(--accent-purple);"></i>
-                    <h3>10. Reports & Analytics</h3>
-                  </div>
-                  <button class="btn btn-secondary btn-sm" onclick="Router.navigate('reports')">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Reports
-                  </button>
-                </div>
-                <p class="docs-paragraph">
-                  Objective productivity analytics rendered with zero-dependency, lightweight vector SVG charts.
-                </p>
-                <div class="docs-bullet-list">
-                  <div class="docs-bullet-item">
-                    <strong>Sprint Burndown Chart:</strong> Visualizes ideal linear burn vs. actual remaining story points throughout the sprint timeframe.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Status Distribution Donut:</strong> Visual breakdown of tasks across backlog, in-flight, review, and done states.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Sprint Velocity History:</strong> Historical bar graph comparing committed vs. completed velocity points across completed sprints.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Lead & Cycle Time Metrics:</strong> Accurately measures average turnaround days from task inception to resolution.
-                  </div>
-                </div>
-              </div>
-
-              <!-- 3.11 Goals & OKRs -->
-              <div id="doc-view-goals" class="docs-feature-block">
-                <div class="docs-feature-header">
-                  <div class="docs-feature-title">
-                    <i class="fa-solid fa-flag-checkered" style="color: #ff7b72;"></i>
-                    <h3>11. Strategic Goals (OKRs)</h3>
-                  </div>
-                  <button class="btn btn-secondary btn-sm" onclick="Router.navigate('goals')">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Goals
-                  </button>
-                </div>
-                <p class="docs-paragraph">
-                  Connect daily tactical execution to high-level strategic objectives.
-                </p>
-                <div class="docs-bullet-list">
-                  <div class="docs-bullet-item">
-                    <strong>Target Progress Rollups:</strong> Link strategic goals to projects. As tasks under linked projects are finished, goal progress bars auto-advance.
-                  </div>
-                  <div class="docs-bullet-item">
-                    <strong>Target Due Dates & Categories:</strong> Classify goals by Company, Engineering, Career, or Personal categories.
-                  </div>
-                </div>
-              </div>
-
-              <!-- 3.12 Settings & Data Management -->
+              <!-- 6. Settings & Data Management -->
               <div id="doc-view-settings" class="docs-feature-block">
                 <div class="docs-feature-header">
                   <div class="docs-feature-title">
                     <i class="fa-solid fa-gear" style="color: var(--text-secondary);"></i>
-                    <h3>12. Settings & Data Portability</h3>
+                    <h3>6. Settings & Data Portability</h3>
                   </div>
                   <button class="btn btn-secondary btn-sm" onclick="Router.navigate('settings')">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Settings

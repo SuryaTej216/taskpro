@@ -64,15 +64,11 @@ const CommandPalette = {
     // 1. Navigation Commands
     const navCommands = [
       { id: 'nav_dash', title: 'Go to Dashboard', icon: 'fa-chart-pie', category: 'Navigation', action: () => Router.navigate('dashboard') },
-      { id: 'nav_mywork', title: 'Go to My Work', icon: 'fa-briefcase', category: 'Navigation', action: () => Router.navigate('my-work') },
-      { id: 'nav_board', title: 'Go to Kanban Board', icon: 'fa-table-columns', category: 'Navigation', action: () => Router.navigate('board') },
+      { id: 'nav_tasks', title: 'Go to Tasks (Board & List)', icon: 'fa-table-columns', category: 'Navigation', action: () => Router.navigate('tasks') },
+      { id: 'nav_board', title: 'Go to Tasks: Board View', icon: 'fa-table-columns', category: 'Navigation', action: () => { if (typeof TasksView !== 'undefined') TasksView.setMode('board'); Router.navigate('tasks'); } },
+      { id: 'nav_list', title: 'Go to Tasks: List View', icon: 'fa-list-check', category: 'Navigation', action: () => { if (typeof TasksView !== 'undefined') TasksView.setMode('list'); Router.navigate('tasks'); } },
       { id: 'nav_backlog', title: 'Go to Backlog & Sprints', icon: 'fa-layer-group', category: 'Navigation', action: () => Router.navigate('backlog') },
       { id: 'nav_projects', title: 'Go to Projects', icon: 'fa-folder-tree', category: 'Navigation', action: () => Router.navigate('projects') },
-      { id: 'nav_timeline', title: 'Go to Timeline / Gantt', icon: 'fa-chart-gantt', category: 'Navigation', action: () => Router.navigate('timeline') },
-      { id: 'nav_cal', title: 'Go to Calendar', icon: 'fa-calendar-days', category: 'Navigation', action: () => Router.navigate('calendar') },
-      { id: 'nav_list', title: 'Go to List View', icon: 'fa-list-check', category: 'Navigation', action: () => Router.navigate('list') },
-      { id: 'nav_rep', title: 'Go to Reports & Analytics', icon: 'fa-chart-line', category: 'Navigation', action: () => Router.navigate('reports') },
-      { id: 'nav_goals', title: 'Go to Goals', icon: 'fa-flag-checkered', category: 'Navigation', action: () => Router.navigate('goals') },
       { id: 'nav_settings', title: 'Go to Settings', icon: 'fa-gear', category: 'Navigation', action: () => Router.navigate('settings') },
       { id: 'nav_docs', title: 'Go to Documentation & Guide', icon: 'fa-book-open', category: 'Navigation', action: () => Router.navigate('docs') }
     ];

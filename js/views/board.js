@@ -56,7 +56,34 @@ const BoardView = {
     return count;
   },
 
+  clearAllFilters(container) {
+    this.searchQuery = '';
+    this.selectedType = '';
+    this.selectedPriority = '';
+    this.activeQuickFilter = 'all';
+    AppState.selectedProjectId = null;
+    AppState.activeFilters.sprintId = null;
+    AppState.activeFilters.type = [];
+    AppState.activeFilters.priority = [];
+    if (window.Router && typeof Router.updateTopbarProjectPicker === 'function') {
+      Router.updateTopbarProjectPicker();
+    }
+    if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+      TasksView.syncStateFromView(this);
+    }
+    this.render(container);
+  },
+
   render(container) {
+    // 0. Sync with TasksView shared state if available
+    if (typeof TasksView !== 'undefined' && TasksView.state) {
+      this.searchQuery = TasksView.state.searchQuery ?? this.searchQuery;
+      this.selectedType = TasksView.state.selectedType ?? this.selectedType;
+      this.selectedPriority = TasksView.state.selectedPriority ?? this.selectedPriority;
+      this.activeQuickFilter = TasksView.state.activeQuickFilter ?? this.activeQuickFilter;
+      this.filtersMinimized = TasksView.state.filtersMinimized ?? this.filtersMinimized;
+    }
+
     // 1. Base tasks pool (exclude cancelled)
     let activeTasks = AppState.tasks.filter(t => t.status !== 'cancelled');
 
@@ -147,7 +174,7 @@ const BoardView = {
           <div class="view-title-group">
             <h1>
               <i class="fa-solid fa-table-columns" style="color: var(--accent-primary);"></i>
-              <span>${selectedProject ? Utils.escapeHTML(selectedProject.name) : 'All Projects'} Board</span>
+              <span>${selectedProject ? Utils.escapeHTML(selectedProject.name) : 'All Projects'} Tasks</span>
               ${activeSprint ? `
                 <span class="board-sprint-badge" title="Active Sprint: ${Utils.escapeHTML(activeSprint.name)}">
                   <i class="fa-solid fa-person-running"></i>
@@ -155,10 +182,13 @@ const BoardView = {
                 </span>
               ` : ''}
             </h1>
-            <p>Drag and drop cards across lifecycle states to update workflow progress.</p>
+            <p>Manage, track, and update workflow progress across your team.</p>
           </div>
 
           <div class="view-actions">
+            <!-- View Mode Switcher (Board vs List) -->
+            ${typeof TasksView !== 'undefined' ? TasksView.renderSwitcherHTML() : ''}
+
             <!-- Compact Search -->
             <div class="board-search-field-compact">
               <i class="fa-solid fa-magnifying-glass search-field-icon"></i>
@@ -389,7 +419,7 @@ const BoardView = {
         ` : ''}
 
         <!-- Board Wrapper with Smooth Horizontal Drag-to-Pan and Chevrons -->
-        <div class="board-wrapper">
+        <div class="board-wrapper tasks-view-content-fade">
           
           <!-- Floating Scroll Navigation Chevrons -->
           <button type="button" class="board-scroll-arrow left" id="board-scroll-left" title="Scroll board left" aria-label="Scroll left">
@@ -882,6 +912,11 @@ const BoardView = {
         boardContainer.scrollLeft = initialScroll - walk;
         updateScrollArrows();
       });
+    }
+
+    // Bind TasksView switcher if embedded
+    if (typeof TasksView !== 'undefined' && typeof TasksView.bindSwitcherEvents === 'function') {
+      TasksView.bindSwitcherEvents(container);
     }
   },
 

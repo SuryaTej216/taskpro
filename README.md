@@ -40,7 +40,7 @@ TaskPro1/
     ├── state.js                    # Reactive AppState, mutation methods, event bus, undo/redo
     ├── automation.js               # Local workflow automations, recurring tasks, goal rollups
     ├── notifications.js            # In-app notification center & alerts
-    ├── router.js                   # Hash-based SPA router with deep links (#/board, etc.)
+    ├── router.js                   # Hash-based SPA router with deep links (#/tasks, etc.)
     ├── search.js                   # Query syntax parser (project:, priority:, status:, etc.)
     ├── filters.js                  # Multi-attribute filter builder & saved custom views
     ├── keyboard.js                 # Global keyboard shortcut manager
@@ -54,16 +54,11 @@ TaskPro1/
     │   └── context-menu.js         # Right-click context menu on tasks
     ├── views/
     │   ├── dashboard.js            # Summary KPIs, Smart Work Queue, Daily Focus top 3
-    │   ├── my-work.js              # Agenda: Today, Upcoming 7 Days, Overdue, Wins
     │   ├── projects.js             # Project gallery, creation, and portfolio tracking
+    │   ├── tasks.js                # Unified Tasks controller with Board/List view switcher
     │   ├── board.js                # Interactive Kanban board with drag-and-drop columns
     │   ├── backlog.js              # Sprints (Active, Planned), Backlog pool, Epics panel
-    │   ├── timeline.js             # Gantt timeline view with Day/Week/Month zoom
-    │   ├── calendar.js             # Month/Week calendar with click-to-schedule
     │   ├── list.js                 # High-density sortable data grid with bulk operations
-    │   ├── reports.js              # Pure JS SVG charts (Burndown, Donut, Velocity, Cycle Time)
-    │   ├── goals.js                # Strategic Goals / OKRs with automated rollups
-    │   ├── focus.js                # Pomodoro Focus Mode with audio alerts and session logging
     │   └── settings.js             # Theme switcher, JSON/CSV exports, backup restore
     └── app.js                      # Application bootstrap and lifecycle coordinator
 ```

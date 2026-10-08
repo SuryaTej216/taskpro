@@ -21,9 +21,9 @@
     crossorigin="anonymous" referrerpolicy="no-referrer" />
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/styles.css?v=board_v17">
-  <link rel="stylesheet" href="css/components.css?v=board_v17">
-  <link rel="stylesheet" href="css/responsive.css?v=board_v17">
+  <link rel="stylesheet" href="css/styles.css?v=switch_steady_v3">
+  <link rel="stylesheet" href="css/components.css?v=switch_steady_v3">
+  <link rel="stylesheet" href="css/responsive.css?v=switch_steady_v3">
 </head>
 
 <body>
@@ -60,11 +60,6 @@
           <i class="fa-solid fa-chart-pie"></i>
           <span class="nav-item-label">Dashboard</span>
         </a>
-        <a href="#/my-work" class="nav-item" data-view="my-work" data-tooltip="My Work" title="My Work">
-          <i class="fa-solid fa-briefcase"></i>
-          <span class="nav-item-label">My Work</span>
-          <span class="badge-count" id="sidebar-mywork-count">0</span>
-        </a>
 
         <!-- Project Views Group -->
         <div class="nav-group-header">
@@ -75,27 +70,14 @@
           <span class="nav-item-label">Projects</span>
           <span class="badge-count" id="sidebar-projects-count">3</span>
         </a>
-        <a href="#/board" class="nav-item" data-view="board" data-tooltip="Kanban Board" title="Kanban Board">
+        <a href="#/tasks" class="nav-item" data-view="tasks" data-tooltip="Tasks (Board & List)" title="Tasks (Board & List)">
           <i class="fa-solid fa-table-columns"></i>
-          <span class="nav-item-label">Board</span>
+          <span class="nav-item-label">Tasks</span>
         </a>
-        <a href="#/backlog" class="nav-item" data-view="backlog" data-tooltip="Backlog & Sprints"
-          title="Backlog & Sprints">
+        <a href="#/backlog" class="nav-item" data-view="backlog" data-tooltip="Sprint Planning"
+          title="Sprint Planning">
           <i class="fa-solid fa-layer-group"></i>
-          <span class="nav-item-label">Backlog</span>
-        </a>
-        <a href="#/timeline" class="nav-item" data-view="timeline" data-tooltip="Timeline & Gantt"
-          title="Timeline & Gantt">
-          <i class="fa-solid fa-chart-gantt"></i>
-          <span class="nav-item-label">Timeline</span>
-        </a>
-        <a href="#/calendar" class="nav-item" data-view="calendar" data-tooltip="Calendar" title="Calendar">
-          <i class="fa-regular fa-calendar-days"></i>
-          <span class="nav-item-label">Calendar</span>
-        </a>
-        <a href="#/list" class="nav-item" data-view="list" data-tooltip="List View" title="List View & Multi-select">
-          <i class="fa-solid fa-list-check"></i>
-          <span class="nav-item-label">List</span>
+          <span class="nav-item-label">Sprint Planning</span>
         </a>
 
         <!-- Active Projects Shortcut Section -->
@@ -113,15 +95,6 @@
         <div class="nav-group-header">
           <span class="nav-group-title">Insights</span>
         </div>
-        <a href="#/reports" class="nav-item" data-view="reports" data-tooltip="Reports & Analytics"
-          title="Reports & Analytics">
-          <i class="fa-solid fa-chart-line"></i>
-          <span class="nav-item-label">Reports</span>
-        </a>
-        <a href="#/goals" class="nav-item" data-view="goals" data-tooltip="Strategic Goals" title="Strategic Goals">
-          <i class="fa-solid fa-flag-checkered"></i>
-          <span class="nav-item-label">Goals</span>
-        </a>
         <a href="#/settings" class="nav-item" data-view="settings" data-tooltip="Settings" title="Settings">
           <i class="fa-solid fa-gear"></i>
           <span class="nav-item-label">Settings</span>
@@ -405,17 +378,14 @@
   <script src="js/components/command-palette.js"></script>
 
   <!-- View Scripts -->
-  <script src="js/views/dashboard.js"></script>
-  <script src="js/views/my-work.js"></script>
+  <script src="js/views/dashboard.js?v=dash_pro_v8"></script>
   <script src="js/views/projects.js"></script>
-  <script src="js/views/board.js?v=board_v17"></script>
+  <script src="js/views/tasks.js?v=switch_steady_v3"></script>
+  <script src="js/views/board.js?v=switch_steady_v3"></script>
   <script src="js/views/backlog.js"></script>
-  <script src="js/views/timeline.js"></script>
-  <script src="js/views/calendar.js"></script>
-  <script src="js/views/list.js?v=bulk_duedate_v1"></script>
-  <script src="js/views/reports.js"></script>
-  <script src="js/views/goals.js"></script>
+  <script src="js/views/list.js?v=switch_steady_v3"></script>
   <script src="js/views/settings.js"></script>
+  <script src="js/views/focus.js"></script>
   <script src="js/views/docs.js"></script>
 
   <!-- Router & Application Bootstrap -->

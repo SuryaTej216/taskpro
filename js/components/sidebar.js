@@ -92,8 +92,9 @@ const Sidebar = {
    * @param {string} viewName 
    */
   setActiveView(viewName) {
+    const normalized = (viewName === 'board' || viewName === 'list') ? 'tasks' : viewName;
     document.querySelectorAll('#sidebar .nav-item').forEach(item => {
-      if (item.dataset.view === viewName) {
+      if (item.dataset.view === viewName || item.dataset.view === normalized) {
         item.classList.add('active');
       } else {
         item.classList.remove('active');
@@ -116,7 +117,7 @@ const Sidebar = {
     container.innerHTML = AppState.projects.slice(0, 6).map(p => {
       const activeTasksCount = AppState.tasks.filter(t => t.projectId === p.id && t.status !== 'done' && t.status !== 'cancelled').length;
       return `
-        <a href="#/board?project=${p.id}" class="nav-item project-nav-item" data-tooltip="${Utils.escapeHTML(p.name)}" title="${Utils.escapeHTML(p.name)}">
+        <a href="#/tasks?project=${p.id}" class="nav-item project-nav-item" data-tooltip="${Utils.escapeHTML(p.name)}" title="${Utils.escapeHTML(p.name)}">
           <span class="nav-project-dot" style="background-color: ${p.color || '#579DFF'};"></span>
           <span class="nav-item-label">${Utils.escapeHTML(p.name)}</span>
           ${activeTasksCount > 0 ? `<span class="badge-count project-active-badge">${activeTasksCount}</span>` : ''}
@@ -126,17 +127,10 @@ const Sidebar = {
   },
 
   /**
-   * Updates sidebar badge counts (My Work, Projects)
+   * Updates sidebar badge counts (Projects)
    */
   updateCounters() {
-    const myWorkCountEl = document.getElementById('sidebar-mywork-count');
     const projectsCountEl = document.getElementById('sidebar-projects-count');
-
-    if (myWorkCountEl) {
-      const activeMyWork = AppState.tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
-      myWorkCountEl.textContent = activeMyWork;
-    }
-
     if (projectsCountEl) {
       projectsCountEl.textContent = AppState.projects.length;
     }

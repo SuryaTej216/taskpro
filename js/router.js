@@ -4,18 +4,30 @@
 
 const Router = {
   getRouteView(viewName) {
+    if (viewName === 'board') {
+      if (typeof TasksView !== 'undefined') {
+        TasksView.currentMode = 'board';
+        return TasksView;
+      }
+      return typeof BoardView !== 'undefined' ? BoardView : null;
+    }
+    if (viewName === 'list') {
+      if (typeof TasksView !== 'undefined') {
+        TasksView.currentMode = 'list';
+        return TasksView;
+      }
+      return typeof ListView !== 'undefined' ? ListView : null;
+    }
+
     const routes = {
       dashboard: typeof DashboardView !== 'undefined' ? DashboardView : null,
-      'my-work': typeof MyWorkView !== 'undefined' ? MyWorkView : null,
       projects: typeof ProjectsView !== 'undefined' ? ProjectsView : null,
-      board: typeof BoardView !== 'undefined' ? BoardView : null,
+      tasks: typeof TasksView !== 'undefined' ? TasksView : null,
+      board: typeof TasksView !== 'undefined' ? TasksView : (typeof BoardView !== 'undefined' ? BoardView : null),
       backlog: typeof BacklogView !== 'undefined' ? BacklogView : null,
-      timeline: typeof TimelineView !== 'undefined' ? TimelineView : null,
-      calendar: typeof CalendarView !== 'undefined' ? CalendarView : null,
-      list: typeof ListView !== 'undefined' ? ListView : null,
-      reports: typeof ReportsView !== 'undefined' ? ReportsView : null,
-      goals: typeof GoalsView !== 'undefined' ? GoalsView : null,
+      list: typeof TasksView !== 'undefined' ? TasksView : (typeof ListView !== 'undefined' ? ListView : null),
       settings: typeof SettingsView !== 'undefined' ? SettingsView : null,
+      focus: typeof FocusView !== 'undefined' ? FocusView : null,
       docs: typeof DocsView !== 'undefined' ? DocsView : null
     };
     return routes[viewName] || routes['dashboard'];
@@ -49,11 +61,18 @@ const Router = {
     const [path, queryString] = rawHash.split('?');
     const viewName = path || 'dashboard';
 
-    // Parse query params (e.g., project=xxx, task=yyy)
+    // Parse query params (e.g., project=xxx, mode=list)
     const params = new URLSearchParams(queryString || '');
     const projectParam = params.get('project');
     if (projectParam) {
       AppState.selectedProjectId = projectParam;
+    }
+
+    const modeParam = params.get('mode');
+    if (modeParam && (modeParam === 'board' || modeParam === 'list')) {
+      if (typeof TasksView !== 'undefined') {
+        TasksView.currentMode = modeParam;
+      }
     }
 
     AppState.currentView = viewName;

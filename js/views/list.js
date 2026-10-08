@@ -133,6 +133,53 @@ const ListView = {
   sortField: 'key',
   sortAsc: true,
   searchQuery: '',
+  selectedType: '',
+  selectedPriority: '',
+  activeQuickFilter: 'all',
+  filtersMinimized: true,
+  density: 'comfortable',
+
+  hasAnyActiveFilters() {
+    return !!(
+      (this.searchQuery && this.searchQuery.trim()) ||
+      this.selectedType ||
+      this.selectedPriority ||
+      (AppState.activeFilters.type && AppState.activeFilters.type.length > 0) ||
+      (AppState.activeFilters.priority && AppState.activeFilters.priority.length > 0) ||
+      AppState.activeFilters.sprintId ||
+      AppState.selectedProjectId ||
+      (this.activeQuickFilter && this.activeQuickFilter !== 'all')
+    );
+  },
+
+  getActiveFilterCount() {
+    let count = 0;
+    if (this.activeQuickFilter && this.activeQuickFilter !== 'all') count++;
+    if (this.searchQuery && this.searchQuery.trim()) count++;
+    if (this.selectedType || (AppState.activeFilters.type && AppState.activeFilters.type.length > 0)) count++;
+    if (this.selectedPriority || (AppState.activeFilters.priority && AppState.activeFilters.priority.length > 0)) count++;
+    if (AppState.activeFilters.sprintId) count++;
+    if (AppState.selectedProjectId) count++;
+    return count;
+  },
+
+  clearAllFilters(container) {
+    this.searchQuery = '';
+    this.selectedType = '';
+    this.selectedPriority = '';
+    this.activeQuickFilter = 'all';
+    AppState.selectedProjectId = null;
+    AppState.activeFilters.sprintId = null;
+    AppState.activeFilters.type = [];
+    AppState.activeFilters.priority = [];
+    if (window.Router && typeof Router.updateTopbarProjectPicker === 'function') {
+      Router.updateTopbarProjectPicker();
+    }
+    if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+      TasksView.syncStateFromView(this);
+    }
+    this.render(container);
+  },
 
   /**
    * Generates vibrant Atlassian Design System issue lozenges with icons & light text
@@ -292,21 +339,70 @@ const ListView = {
     // 0. Close any open floating dropdown
     DataGridDropdown.close();
 
+    // 0b. Sync with TasksView shared state if available
+    if (typeof TasksView !== 'undefined' && TasksView.state) {
+      this.searchQuery = TasksView.state.searchQuery ?? this.searchQuery;
+      this.selectedType = TasksView.state.selectedType ?? this.selectedType;
+      this.selectedPriority = TasksView.state.selectedPriority ?? this.selectedPriority;
+      this.activeQuickFilter = TasksView.state.activeQuickFilter ?? this.activeQuickFilter;
+      this.filtersMinimized = TasksView.state.filtersMinimized ?? this.filtersMinimized;
+    }
+
     // 1. Clean ghost IDs
     const validTaskIdSet = new Set(AppState.tasks.map(t => t.id));
     this.selectedTaskIds = new Set([...this.selectedTaskIds].filter(id => validTaskIdSet.has(id)));
 
     // 2. Base tasks pool (exclude cancelled)
     const allTasks = AppState.tasks.filter(t => t.status !== 'cancelled');
+    let tasks = allTasks;
 
     // 3. Project filter
-    let tasks = allTasks;
     if (AppState.selectedProjectId) {
       tasks = tasks.filter(t => t.projectId === AppState.selectedProjectId);
     }
 
-    // Search
-    if (this.searchQuery.trim()) {
+    // 4. Sprint filter
+    if (AppState.activeFilters.sprintId) {
+      tasks = tasks.filter(t => t.sprintId === AppState.activeFilters.sprintId);
+    }
+
+    // 5. Issue Type filter
+    const activeType = this.selectedType || (AppState.activeFilters.type && AppState.activeFilters.type[0]) || '';
+    if (activeType) {
+      tasks = tasks.filter(t => t.type === activeType);
+    }
+
+    // 6. Priority filter
+    const activePriority = this.selectedPriority || (AppState.activeFilters.priority && AppState.activeFilters.priority[0]) || '';
+    if (activePriority) {
+      tasks = tasks.filter(t => t.priority === activePriority);
+    }
+
+    // 7. Quick filter chips & stage segment filters
+    if (this.activeQuickFilter === 'inprogress') {
+      tasks = tasks.filter(t => t.status === 'inprogress');
+    } else if (this.activeQuickFilter === 'backlog') {
+      tasks = tasks.filter(t => t.status === 'backlog');
+    } else if (this.activeQuickFilter === 'todo') {
+      tasks = tasks.filter(t => t.status === 'todo');
+    } else if (this.activeQuickFilter === 'inreview') {
+      tasks = tasks.filter(t => t.status === 'inreview');
+    } else if (this.activeQuickFilter === 'done') {
+      tasks = tasks.filter(t => t.status === 'done');
+    } else if (this.activeQuickFilter === 'critical') {
+      tasks = tasks.filter(t => t.priority === 'critical' || t.priority === 'highest');
+    } else if (this.activeQuickFilter === 'bugs') {
+      tasks = tasks.filter(t => t.type === 'bug');
+    } else if (this.activeQuickFilter === 'improvements') {
+      tasks = tasks.filter(t => t.type === 'improvement');
+    } else if (this.activeQuickFilter === 'overdue') {
+      tasks = tasks.filter(t => Utils.isOverdue(t.dueDate, t.status));
+    } else if (this.activeQuickFilter === 'today') {
+      tasks = tasks.filter(t => Utils.isDueToday(t.dueDate));
+    }
+
+    // 8. Search query filter
+    if (this.searchQuery && this.searchQuery.trim()) {
       const q = this.searchQuery.trim().toLowerCase();
       tasks = tasks.filter(t =>
         (t.title && t.title.toLowerCase().includes(q)) ||
@@ -316,7 +412,7 @@ const ListView = {
       );
     }
 
-    // 10. Natural Sorting (handles WEB-1, WEB-2, WEB-10 correctly)
+    // 9. Natural Sorting (handles WEB-1, WEB-2, WEB-10 correctly)
     const priorityWeights = { critical: 5, highest: 4, high: 3, medium: 2, low: 1, lowest: 0 };
     const statusWeights = { backlog: 0, todo: 1, inprogress: 2, inreview: 3, done: 4 };
 
@@ -368,36 +464,283 @@ const ListView = {
     const isSomeSelected = tasks.some(t => this.selectedTaskIds.has(t.id)) && !isAllSelected;
 
     // Metrics calculations
+    const totalCount = tasks.length;
     const totalPoints = tasks.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0);
-    const doneTasksCount = tasks.filter(t => t.status === 'done').length;
-    const donePct = tasks.length > 0 ? Math.round((doneTasksCount / tasks.length) * 100) : 0;
+    const doneTasks = tasks.filter(t => t.status === 'done');
+    const inProgressCount = tasks.filter(t => t.status === 'inprogress' || t.status === 'inreview').length;
     const overdueCount = tasks.filter(t => Utils.isOverdue(t.dueDate, t.status)).length;
+    const completionPct = totalCount > 0 ? Math.round((doneTasks.length / totalCount) * 100) : 0;
+    const donePct = completionPct;
+
+    const statusCounts = {
+      backlog: tasks.filter(t => t.status === 'backlog').length,
+      todo: tasks.filter(t => t.status === 'todo').length,
+      inprogress: tasks.filter(t => t.status === 'inprogress').length,
+      inreview: tasks.filter(t => t.status === 'inreview').length,
+      done: doneTasks.length
+    };
+
+    const hasFilters = this.hasAnyActiveFilters();
+    const activeFilterCount = this.getActiveFilterCount();
+    const selectedProject = AppState.projects.find(p => p.id === AppState.selectedProjectId);
+    const activeSprint = AppState.sprints.find(s => s.id === AppState.activeFilters.sprintId);
 
     container.innerHTML = `
-      <div class="view-page datagrid-view-container">
+      <div class="view-page board-view-page">
         
-        <!-- Standard TaskForge Atlassian Design System Header -->
-        <div class="view-header">
+        <!-- ROW 1: Executive Command Header (Harmonized layout with Board View) -->
+        <div class="view-header board-executive-header">
           <div class="view-title-group">
-            <h1><i class="fa-solid fa-table-list" style="color: var(--accent-primary);"></i> Data Grid & Bulk Operations</h1>
-            <p>High-density tabular workspace with multi-select, inline status editing, and batch actions.</p>
+            <h1>
+              <i class="fa-solid fa-list-check" style="color: var(--accent-primary);"></i>
+              <span>${selectedProject ? Utils.escapeHTML(selectedProject.name) : 'All Projects'} Tasks</span>
+              ${activeSprint ? `
+                <span class="board-sprint-badge" title="Active Sprint: ${Utils.escapeHTML(activeSprint.name)}">
+                  <i class="fa-solid fa-person-running"></i>
+                  <span>${Utils.escapeHTML(activeSprint.name)}</span>
+                </span>
+              ` : ''}
+            </h1>
+            <p>Manage, track, and update workflow progress across your team.</p>
           </div>
+
           <div class="view-actions">
-            <div class="datagrid-search-box">
-              <i class="fa-solid fa-magnifying-glass datagrid-search-icon"></i>
-              <input type="text" id="datagrid-search-input" placeholder="Search tasks... (/)" value="${Utils.escapeHTML(this.searchQuery)}">
-              ${this.searchQuery ? `<button id="datagrid-search-clear" class="datagrid-search-clear" title="Clear search"><i class="fa-solid fa-xmark"></i></button>` : ''}
+            <!-- View Mode Switcher (Board vs List) -->
+            ${typeof TasksView !== 'undefined' ? TasksView.renderSwitcherHTML() : ''}
+
+            <!-- Compact Search -->
+            <div class="board-search-field-compact">
+              <i class="fa-solid fa-magnifying-glass search-field-icon"></i>
+              <input type="text" id="datagrid-search-input" placeholder="Search... (/)" value="${Utils.escapeHTML(this.searchQuery)}" autocomplete="off">
+              <span class="search-kbd-pill" title="Press '/' to search">/</span>
+              ${this.searchQuery ? `<button type="button" id="datagrid-search-clear" class="search-field-clear" title="Clear search"><i class="fa-solid fa-xmark"></i></button>` : ''}
             </div>
-            <button id="btn-list-create" class="btn btn-primary btn-sm" title="Create New Task (C)">
-              <i class="fa-solid fa-plus"></i> New Task
+
+            <!-- Filters Toggle Button -->
+            <button type="button" id="datagrid-btn-toggle-filters" class="board-filters-toggle-btn ${!this.filtersMinimized ? 'is-open' : ''} ${hasFilters ? 'has-active-filters' : ''}" title="${this.filtersMinimized ? 'Show Filters' : 'Minimize Filters'}">
+              <i class="fa-solid fa-sliders"></i>
+              <span>Filters</span>
+              ${activeFilterCount > 0 ? `<span class="filters-count-badge">${activeFilterCount}</span>` : ''}
+              <i class="fa-solid ${this.filtersMinimized ? 'fa-chevron-down' : 'fa-chevron-up'} toggle-chevron"></i>
+            </button>
+
+            <!-- Table Density & Sort Toggles (Identical 2-button width matching Board View) -->
+            <div class="board-view-toggles-group">
+              <button type="button" id="datagrid-btn-density" class="btn btn-ghost btn-sm btn-icon" title="Density: ${this.density === 'compact' ? 'Compact' : 'Comfortable'}">
+                <i class="fa-solid ${this.density === 'compact' ? 'fa-bars-staggered' : 'fa-bars'}"></i>
+              </button>
+              <button type="button" id="datagrid-btn-reset-sort" class="btn btn-ghost btn-sm btn-icon" title="Reset column sorting (Default: Key)">
+                <i class="fa-solid fa-arrow-down-short-wide"></i>
+              </button>
+            </div>
+
+            <!-- New Task Primary Action -->
+            <button type="button" id="btn-list-create" class="btn btn-primary btn-sm btn-create-task" title="Create New Task (C)">
+              <i class="fa-solid fa-plus"></i>
+              <span>New Task</span>
+              <kbd class="board-kbd-hint">C</kbd>
             </button>
           </div>
         </div>
 
+        <!-- ROW 2: Executive Overall Status Progression & Health Center -->
+        <div class="board-executive-statusbar">
+          <div class="statusbar-center-group">
+            <div class="board-stage-distribution-bar" title="Interactive Workflow Distribution">
+              ${totalCount > 0 ? `
+                <div class="stage-seg seg-backlog ${this.activeQuickFilter === 'backlog' ? 'is-selected' : ''}" data-status="backlog" style="width: ${(statusCounts.backlog / totalCount) * 100}%;" title="Backlog: ${statusCounts.backlog} (${Math.round((statusCounts.backlog / totalCount) * 100)}%) - Click to filter"></div>
+                <div class="stage-seg seg-todo ${this.activeQuickFilter === 'todo' ? 'is-selected' : ''}" data-status="todo" style="width: ${(statusCounts.todo / totalCount) * 100}%;" title="To Do: ${statusCounts.todo} (${Math.round((statusCounts.todo / totalCount) * 100)}%) - Click to filter"></div>
+                <div class="stage-seg seg-inprogress ${this.activeQuickFilter === 'inprogress' ? 'is-selected' : ''}" data-status="inprogress" style="width: ${(statusCounts.inprogress / totalCount) * 100}%;" title="In Progress: ${statusCounts.inprogress} (${Math.round((statusCounts.inprogress / totalCount) * 100)}%) - Click to filter"></div>
+                <div class="stage-seg seg-inreview ${this.activeQuickFilter === 'inreview' ? 'is-selected' : ''}" data-status="inreview" style="width: ${(statusCounts.inreview / totalCount) * 100}%;" title="In Review: ${statusCounts.inreview} (${Math.round((statusCounts.inreview / totalCount) * 100)}%) - Click to filter"></div>
+                <div class="stage-seg seg-done ${this.activeQuickFilter === 'done' ? 'is-selected' : ''}" data-status="done" style="width: ${(statusCounts.done / totalCount) * 100}%;" title="Done: ${statusCounts.done} (${Math.round((statusCounts.done / totalCount) * 100)}%) - Click to filter"></div>
+              ` : `
+                <div class="stage-seg is-empty" style="width: 100%;"></div>
+              `}
+            </div>
+
+            <div class="board-status-metrics-strip">
+              <span class="status-metric-pill stat-total" title="Total Filtered Tasks">
+                <i class="fa-solid fa-layer-group"></i> <span><strong>${totalCount}</strong> Tasks</span>
+              </span>
+              <span class="status-metric-pill stat-points" title="Total Story Points">
+                <i class="fa-solid fa-diamond"></i> <span><strong>${totalPoints}</strong> pts</span>
+              </span>
+              <span class="status-metric-pill stat-active" title="Tasks In Progress or In Review">
+                <i class="fa-solid fa-bolt-lightning"></i> <span><strong>${inProgressCount}</strong> active</span>
+              </span>
+              <span class="status-metric-pill stat-completion ${completionPct === 100 ? 'is-complete' : ''}" title="${doneTasks.length} of ${totalCount} tasks completed (${completionPct}%)">
+                <i class="fa-solid fa-circle-check"></i> <span><strong>${completionPct}%</strong> done</span>
+              </span>
+              ${overdueCount > 0 ? `
+                <button type="button" class="status-metric-pill stat-overdue ${this.activeQuickFilter === 'overdue' ? 'active' : ''}" id="datagrid-metric-overdue" title="Click to filter overdue tasks">
+                  <i class="fa-solid fa-triangle-exclamation"></i> <span><strong>${overdueCount}</strong> overdue</span>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- COLLAPSIBLE FILTER CONSOLE (Shown when !this.filtersMinimized) -->
+        ${!this.filtersMinimized ? `
+          <div class="board-collapsible-filter-panel">
+            <div class="filter-panel-inner">
+              
+              <!-- Selectors Group -->
+              <div class="filter-panel-selectors">
+                <!-- Project Filter -->
+                <div class="board-filter-select-wrapper">
+                  <i class="fa-solid fa-folder-tree select-leading-icon" style="color: #388BFD;"></i>
+                  <select id="datagrid-project-filter" class="board-select-control" title="Filter by Project">
+                    <option value="">All Projects</option>
+                    ${AppState.projects.map(p => `
+                      <option value="${p.id}" ${p.id === AppState.selectedProjectId ? 'selected' : ''}>
+                        ${Utils.escapeHTML(p.name)}
+                      </option>
+                    `).join('')}
+                  </select>
+                  <i class="fa-solid fa-chevron-down select-trailing-chevron"></i>
+                </div>
+
+                <!-- Sprint Filter -->
+                <div class="board-filter-select-wrapper">
+                  <i class="fa-solid fa-person-running select-leading-icon" style="color: #E06C00;"></i>
+                  <select id="datagrid-sprint-filter" class="board-select-control" title="Filter by Sprint">
+                    <option value="">All Sprints</option>
+                    ${AppState.sprints.map(s => `
+                      <option value="${s.id}" ${AppState.activeFilters.sprintId === s.id ? 'selected' : ''}>
+                        ${s.status === 'active' ? '⚡ ' : ''}${Utils.escapeHTML(s.name)}
+                      </option>
+                    `).join('')}
+                  </select>
+                  <i class="fa-solid fa-chevron-down select-trailing-chevron"></i>
+                </div>
+
+                <!-- Work Type Filter -->
+                <div class="board-filter-select-wrapper">
+                  <i class="fa-solid fa-shapes select-leading-icon" style="color: #AF59E1;"></i>
+                  <select id="datagrid-type-filter" class="board-select-control" title="Filter by Type of Work">
+                    <option value="">All Types</option>
+                    <option value="bug" ${activeType === 'bug' ? 'selected' : ''}>Bug</option>
+                    <option value="story" ${activeType === 'story' ? 'selected' : ''}>Story</option>
+                    <option value="task" ${activeType === 'task' ? 'selected' : ''}>Task</option>
+                    <option value="improvement" ${activeType === 'improvement' ? 'selected' : ''}>Improvement</option>
+                    <option value="epic" ${activeType === 'epic' ? 'selected' : ''}>Epic</option>
+                    <option value="subtask" ${activeType === 'subtask' ? 'selected' : ''}>Subtask</option>
+                  </select>
+                  <i class="fa-solid fa-chevron-down select-trailing-chevron"></i>
+                </div>
+
+                <!-- Priority Filter -->
+                <div class="board-filter-select-wrapper">
+                  <i class="fa-solid fa-arrow-up-wide-short select-leading-icon" style="color: #E2483D;"></i>
+                  <select id="datagrid-priority-filter" class="board-select-control" title="Filter by Priority">
+                    <option value="">All Priorities</option>
+                    <option value="critical" ${activePriority === 'critical' ? 'selected' : ''}>Critical</option>
+                    <option value="highest" ${activePriority === 'highest' ? 'selected' : ''}>Highest</option>
+                    <option value="high" ${activePriority === 'high' ? 'selected' : ''}>High</option>
+                    <option value="medium" ${activePriority === 'medium' ? 'selected' : ''}>Medium</option>
+                    <option value="low" ${activePriority === 'low' ? 'selected' : ''}>Low</option>
+                    <option value="lowest" ${activePriority === 'lowest' ? 'selected' : ''}>Lowest</option>
+                  </select>
+                  <i class="fa-solid fa-chevron-down select-trailing-chevron"></i>
+                </div>
+              </div>
+
+              <!-- Quick Chips Group -->
+              <div class="filter-panel-chips">
+                <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'all' && !hasFilters ? 'active' : ''}" data-filter="all">
+                  <span>All</span>
+                </button>
+                <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'inprogress' ? 'active' : ''}" data-filter="inprogress">
+                  <i class="fa-solid fa-bolt" style="color: #E06C00;"></i>
+                  <span>In Progress</span>
+                </button>
+                <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'critical' ? 'active' : ''}" data-filter="critical">
+                  <i class="fa-solid fa-fire" style="color: #EF4444;"></i>
+                  <span>Critical</span>
+                </button>
+                <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'bugs' ? 'active' : ''}" data-filter="bugs">
+                  <i class="fa-solid fa-bug" style="color: #EF4444;"></i>
+                  <span>Bugs</span>
+                </button>
+                <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'improvements' ? 'active' : ''}" data-filter="improvements">
+                  <i class="fa-solid fa-arrow-up-right-dots" style="color: #00A3BF;"></i>
+                  <span>Improvements</span>
+                </button>
+                <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'overdue' ? 'active' : ''}" data-filter="overdue">
+                  <i class="fa-solid fa-triangle-exclamation" style="color: #E06C00;"></i>
+                  <span>Overdue</span>
+                </button>
+                <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'today' ? 'active' : ''}" data-filter="today">
+                  <i class="fa-solid fa-calendar-day" style="color: #3B82F6;"></i>
+                  <span>Due Today</span>
+                </button>
+              </div>
+
+              <!-- Actions: Clear & Minimize -->
+              <div class="filter-panel-actions">
+                ${hasFilters ? `
+                  <button type="button" id="datagrid-btn-reset-filters" class="board-filter-clear-all" title="Clear all filters">
+                    <i class="fa-solid fa-xmark"></i>
+                    <span>Clear (${activeFilterCount})</span>
+                  </button>
+                ` : ''}
+                <button type="button" id="datagrid-btn-minimize-filters" class="btn-minimize-panel" title="Minimize filters to single status bar">
+                  <i class="fa-solid fa-chevron-up"></i>
+                  <span>Minimize</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- ACTIVE FILTERS SUMMARY STRIP (Shown when minimized AND filters are active) -->
+        ${this.filtersMinimized && hasFilters ? `
+          <div class="board-minimized-active-strip">
+            <span class="active-strip-label"><i class="fa-solid fa-filter"></i> Filters:</span>
+            <div class="active-strip-chips">
+              ${this.searchQuery ? `
+                <button type="button" class="min-filter-chip" data-clear="search" title="Remove search filter">
+                  <span>"${Utils.escapeHTML(this.searchQuery)}"</span> <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+              ${selectedProject ? `
+                <button type="button" class="min-filter-chip" data-clear="project" title="Remove project filter">
+                  <i class="fa-solid fa-folder-tree" style="color: #388BFD;"></i> <span>${Utils.escapeHTML(selectedProject.name)}</span> <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+              ${activeSprint ? `
+                <button type="button" class="min-filter-chip" data-clear="sprint" title="Remove sprint filter">
+                  <i class="fa-solid fa-person-running" style="color: #E06C00;"></i> <span>${Utils.escapeHTML(activeSprint.name)}</span> <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+              ${activeType ? `
+                <button type="button" class="min-filter-chip" data-clear="type" title="Remove type filter">
+                  <i class="fa-solid fa-shapes" style="color: #AF59E1;"></i> <span>${activeType}</span> <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+              ${activePriority ? `
+                <button type="button" class="min-filter-chip" data-clear="priority" title="Remove priority filter">
+                  <i class="fa-solid fa-arrow-up-wide-short" style="color: #E2483D;"></i> <span>${activePriority}</span> <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+              ${this.activeQuickFilter !== 'all' ? `
+                <button type="button" class="min-filter-chip" data-clear="quick" title="Remove quick filter">
+                  <i class="fa-solid fa-bolt"></i> <span>${this.activeQuickFilter}</span> <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+            </div>
+            <button type="button" id="datagrid-btn-reset-filters-min" class="btn-clear-active-min" title="Clear all active filters">
+              <i class="fa-solid fa-xmark"></i> Clear All
+            </button>
+          </div>
+        ` : ''}
+
         <!-- Main Data Grid Card (Zero horizontal side-scroll, perfectly constrained) -->
-        <div class="datagrid-table-card">
+        <div class="datagrid-table-card tasks-view-content-fade">
           <div class="datagrid-scroll-wrapper">
-            <table class="datagrid-table">
+            <table class="datagrid-table ${this.density === 'compact' ? 'is-compact' : ''}">
               <thead>
                 <tr>
                   <th class="col-chk">
@@ -673,16 +1016,25 @@ const ListView = {
   },
 
   attachEventListeners(container, tasks) {
-    // 1. Search Box input with debounce
+    // Bind TasksView switcher if embedded
+    if (typeof TasksView !== 'undefined' && typeof TasksView.bindSwitcherEvents === 'function') {
+      TasksView.bindSwitcherEvents(container);
+    }
+
+    // 1. Search Box input with immediate live filtering & cursor preservation
     const searchInput = container.querySelector('#datagrid-search-input');
     if (searchInput) {
-      let timeout = null;
       searchInput.addEventListener('input', (e) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-          this.searchQuery = e.target.value;
-          this.render(container);
-        }, 200);
+        this.searchQuery = e.target.value;
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+        const newSearchInput = container.querySelector('#datagrid-search-input');
+        if (newSearchInput) {
+          newSearchInput.focus();
+          newSearchInput.selectionStart = newSearchInput.selectionEnd = newSearchInput.value.length;
+        }
       });
     }
 
@@ -691,6 +1043,183 @@ const ListView = {
     if (searchClearBtn) {
       searchClearBtn.addEventListener('click', () => {
         this.searchQuery = '';
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    }
+
+    // 2. Filter panel toggle and minimize buttons
+    const toggleFiltersBtn = container.querySelector('#datagrid-btn-toggle-filters');
+    if (toggleFiltersBtn) {
+      toggleFiltersBtn.addEventListener('click', () => {
+        this.filtersMinimized = !this.filtersMinimized;
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    }
+
+    const minimizeBtn = container.querySelector('#datagrid-btn-minimize-filters');
+    if (minimizeBtn) {
+      minimizeBtn.addEventListener('click', () => {
+        this.filtersMinimized = true;
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    }
+
+    // 3. Stage Distribution Bar segment clicks (quick stage filter)
+    container.querySelectorAll('.board-stage-distribution-bar .stage-seg[data-status]').forEach(seg => {
+      seg.addEventListener('click', () => {
+        const status = seg.dataset.status;
+        this.activeQuickFilter = this.activeQuickFilter === status ? 'all' : status;
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    });
+
+    // 4. Overdue metric pill click
+    const overduePill = container.querySelector('#datagrid-metric-overdue');
+    if (overduePill) {
+      overduePill.addEventListener('click', () => {
+        this.activeQuickFilter = this.activeQuickFilter === 'overdue' ? 'all' : 'overdue';
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    }
+
+    // 5. Select Filters (Project, Sprint, Type, Priority)
+    const projSelect = container.querySelector('#datagrid-project-filter');
+    if (projSelect) {
+      projSelect.addEventListener('change', (e) => {
+        AppState.selectedProjectId = e.target.value || null;
+        if (window.Router && typeof Router.updateTopbarProjectPicker === 'function') {
+          Router.updateTopbarProjectPicker();
+        }
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    }
+
+    const sprintSelect = container.querySelector('#datagrid-sprint-filter');
+    if (sprintSelect) {
+      sprintSelect.addEventListener('change', (e) => {
+        AppState.activeFilters.sprintId = e.target.value || null;
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    }
+
+    const typeSelect = container.querySelector('#datagrid-type-filter');
+    if (typeSelect) {
+      typeSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        this.selectedType = val;
+        AppState.activeFilters.type = val ? [val] : [];
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    }
+
+    const prioSelect = container.querySelector('#datagrid-priority-filter');
+    if (prioSelect) {
+      prioSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        this.selectedPriority = val;
+        AppState.activeFilters.priority = val ? [val] : [];
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    }
+
+    // 6. Quick Filter Chips
+    container.querySelectorAll('.board-filter-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.activeQuickFilter = chip.dataset.filter;
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    });
+
+    // 7. Clear & Reset Buttons
+    const resetBtn = container.querySelector('#datagrid-btn-reset-filters');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        this.clearAllFilters(container);
+      });
+    }
+
+    const resetMinBtn = container.querySelector('#datagrid-btn-reset-filters-min');
+    if (resetMinBtn) {
+      resetMinBtn.addEventListener('click', () => {
+        this.clearAllFilters(container);
+      });
+    }
+
+    // 8. Minimized Active Filter Strip Removals
+    container.querySelectorAll('.min-filter-chip[data-clear]').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = chip.dataset.clear;
+        if (target === 'search') {
+          this.searchQuery = '';
+        } else if (target === 'project') {
+          AppState.selectedProjectId = null;
+          if (window.Router && typeof Router.updateTopbarProjectPicker === 'function') {
+            Router.updateTopbarProjectPicker();
+          }
+        } else if (target === 'sprint') {
+          AppState.activeFilters.sprintId = null;
+        } else if (target === 'type') {
+          this.selectedType = '';
+          AppState.activeFilters.type = [];
+        } else if (target === 'priority') {
+          this.selectedPriority = '';
+          AppState.activeFilters.priority = [];
+        } else if (target === 'quick') {
+          this.activeQuickFilter = 'all';
+        }
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    });
+
+    // Density toggle button
+    const densityBtn = container.querySelector('#datagrid-btn-density');
+    if (densityBtn) {
+      densityBtn.addEventListener('click', () => {
+        this.density = this.density === 'compact' ? 'comfortable' : 'compact';
+        this.render(container);
+      });
+    }
+
+    const resetSortBtn = container.querySelector('#datagrid-btn-reset-sort');
+    if (resetSortBtn) {
+      resetSortBtn.addEventListener('click', () => {
+        this.sortField = 'key';
+        this.sortAsc = true;
         this.render(container);
       });
     }
@@ -848,7 +1377,7 @@ const ListView = {
           const sprintId = val === '__backlog__' ? null : val;
           const ids = Array.from(this.selectedTaskIds);
           AppState.bulkUpdateTasks(ids, { sprintId });
-          Toast.success(`Assigned ${ids.length} task(s) to ${sprintId ? 'sprint' : 'backlog pool'}.`);
+          Toast.success(`Assigned ${ids.length} task(s) to ${sprintId ? 'sprint' : 'unassigned'}.`);
           this.selectedTaskIds.clear();
           this.render(container);
         });
@@ -946,7 +1475,9 @@ const ListView = {
     if (!this._hasBoundKeydown) {
       this._hasBoundKeydown = true;
       document.addEventListener('keydown', (e) => {
-        if (AppState.currentView !== 'list') return;
+        const isListViewActive = AppState.currentView === 'list' || 
+          (AppState.currentView === 'tasks' && typeof TasksView !== 'undefined' && TasksView.getMode() === 'list');
+        if (!isListViewActive) return;
 
         if (e.key === 'Escape' && this.selectedTaskIds.size > 0) {
           this.selectedTaskIds.clear();

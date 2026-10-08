@@ -84,8 +84,8 @@ const ProjectsView = {
                     </div>
 
                     <div style="display: flex; gap: 6px;">
-                      <a href="#/board?project=${proj.id}" class="btn btn-secondary btn-sm" title="Open Board">
-                        <i class="fa-solid fa-table-columns"></i> Board
+                      <a href="#/tasks?project=${proj.id}" class="btn btn-secondary btn-sm" title="Open Tasks">
+                        <i class="fa-solid fa-table-columns"></i> Tasks
                       </a>
                       <button class="btn btn-ghost btn-sm" onclick="ProjectsView.openEditModal('${proj.id}')" title="Edit Project">
                         <i class="fa-solid fa-pen"></i>
