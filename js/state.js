@@ -83,6 +83,12 @@ const AppState = {
       StorageService.set(StorageService.KEYS.TASKS, this.tasks);
     }
 
+    // Reconcile saved stories with their subtasks before the first view renders.
+    if (typeof Automations !== 'undefined') {
+      const parentIds = new Set(this.tasks.filter(t => t.parentId).map(t => t.parentId));
+      parentIds.forEach(parentId => Automations.updateParentProgress(parentId, true));
+    }
+
     // Apply saved theme
     document.documentElement.setAttribute('data-theme', this.settings.theme || 'dark');
   },
@@ -223,7 +229,7 @@ const AppState = {
     this.addActivityLog(newTask.id, 'created', `Created task ${newTask.key}`);
 
     // Automation trigger for subtask
-    if (newTask.parentId && window.Automations) {
+    if (newTask.parentId && typeof Automations !== 'undefined') {
       Automations.updateParentProgress(newTask.parentId);
     }
 
@@ -287,7 +293,7 @@ const AppState = {
     }
 
     // Trigger local automations
-    if (window.Automations) {
+    if (typeof Automations !== 'undefined') {
       Automations.onTaskUpdated(updatedTask, oldTask);
     }
 
@@ -314,7 +320,7 @@ const AppState = {
       StorageService.set(StorageService.KEYS.TASKS, this.tasks);
 
       // If deleted task was a subtask, recalculate parent progress
-      if (task.parentId && window.Automations) {
+      if (task.parentId && typeof Automations !== 'undefined') {
         Automations.updateParentProgress(task.parentId);
       }
 
@@ -324,6 +330,9 @@ const AppState = {
           () => {
             this.tasks.push(task, ...childSubtasks);
             StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+            if (task.parentId && typeof Automations !== 'undefined') {
+              Automations.updateParentProgress(task.parentId);
+            }
             this.emit('tasks:changed', { action: 'restore', task });
           },
           () => this.deleteTask(taskId, false, false)
@@ -389,10 +398,17 @@ const AppState = {
           const prevMap = new Map(previousStates.map(p => [p.id, p]));
           this.tasks = this.tasks.map(t => prevMap.has(t.id) ? prevMap.get(t.id) : t);
           StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+          if (typeof Automations !== 'undefined') {
+            Automations.recalculateParentsForTasks(taskIds);
+          }
           this.emit('tasks:changed', { action: 'bulk_undo' });
         },
         () => this.bulkUpdateTasks(taskIds, updates)
       );
+
+      if (typeof Automations !== 'undefined') {
+        Automations.recalculateParentsForTasks(taskIds);
+      }
 
       this.emit('tasks:changed', { action: 'bulk_update', count: updatedCount });
     }
@@ -416,9 +432,18 @@ const AppState = {
 
     const deletedTasks = this.tasks.filter(t => allToDeleteIds.has(t.id));
     if (deletedTasks.length === 0) return 0;
+    const affectedParentIds = new Set(
+      deletedTasks
+        .map(t => t.parentId)
+        .filter(parentId => parentId && !allToDeleteIds.has(parentId))
+    );
 
     this.tasks = this.tasks.filter(t => !allToDeleteIds.has(t.id));
     StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+
+    if (typeof Automations !== 'undefined') {
+      affectedParentIds.forEach(parentId => Automations.updateParentProgress(parentId));
+    }
 
     if (recordUndo) {
       this.recordUndoAction(
@@ -426,6 +451,9 @@ const AppState = {
         () => {
           this.tasks.push(...deletedTasks);
           StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+          if (typeof Automations !== 'undefined') {
+            affectedParentIds.forEach(parentId => Automations.updateParentProgress(parentId));
+          }
           this.emit('tasks:changed', { action: 'restore' });
         },
         () => this.bulkDeleteTasks(taskIds, false)
@@ -580,7 +608,7 @@ const AppState = {
       syncChecklistSubtasks: true
     });
 
-    if (window.Automations) {
+    if (typeof Automations !== 'undefined') {
       Automations.updateParentProgress(taskId);
     }
 
@@ -803,7 +831,8 @@ const AppState = {
   createSprint(sprintData) {
     const newSprint = {
       id: Utils.generateId('sprint_'),
-      projectId: sprintData.projectId || this.selectedProjectId || (this.projects[0] ? this.projects[0].id : 'proj_web'),
+      // A null projectId represents a shared sprint across all projects.
+      projectId: sprintData.projectId === null ? null : (sprintData.projectId || this.selectedProjectId || (this.projects[0] ? this.projects[0].id : 'proj_web')),
       name: sprintData.name.trim(),
       goal: sprintData.goal ? sprintData.goal.trim() : '',
       startDate: sprintData.startDate || new Date().toISOString(),

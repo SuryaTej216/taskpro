@@ -964,8 +964,8 @@ const TaskModal = {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Story Points</label>
-            <input type="number" id="detail-task-points" class="form-input" min="0" value="${task.storyPoints !== undefined && task.storyPoints !== null ? task.storyPoints : (task.type === 'subtask' ? 1 : 0)}">
+            <label class="form-label">Story Points${totalSubtasks > 0 ? ' <span style="font-size: 10px; color: var(--text-muted); font-weight: 400;">Sum of subtasks</span>' : ''}</label>
+            <input type="number" id="detail-task-points" class="form-input" min="0" value="${task.storyPoints !== undefined && task.storyPoints !== null ? task.storyPoints : (task.type === 'subtask' ? 1 : 0)}" ${totalSubtasks > 0 ? 'readonly title="Automatically summed from subtasks"' : ''}>
           </div>
 
           <!-- Time Tracking Widget -->
@@ -1086,9 +1086,12 @@ const TaskModal = {
       const val = e.target.value ? new Date(e.target.value).toISOString() : null;
       AppState.updateTask(taskId, { dueDate: val });
     });
-    document.getElementById('detail-task-points').addEventListener('change', (e) => {
-      AppState.updateTask(taskId, { storyPoints: parseInt(e.target.value, 10) || 0 });
-    });
+    const storyPointsInput = document.getElementById('detail-task-points');
+    if (storyPointsInput && totalSubtasks === 0) {
+      storyPointsInput.addEventListener('change', (e) => {
+        AppState.updateTask(taskId, { storyPoints: parseInt(e.target.value, 10) || 0 });
+      });
+    }
     document.getElementById('detail-task-recurring').addEventListener('change', (e) => {
       const freq = e.target.value;
       AppState.updateTask(taskId, { recurring: freq ? { frequency: freq } : null });

@@ -248,7 +248,7 @@ const DocsView = {
                       <td><span class="badge" style="background: var(--accent-warning-subtle); color: var(--accent-warning);">Sprint</span></td>
                       <td><code>id</code>, <code>name</code></td>
                       <td>Status (<code>planned</code>, <code>active</code>, <code>completed</code>), startDate, endDate, goal</td>
-                      <td>Belongs to Project; tracks sprint commit points</td>
+                      <td>Belongs to a Project or spans all Projects; tracks sprint commit points</td>
                     </tr>
                     <tr>
                       <td><span class="badge" style="background: var(--accent-success-subtle); color: var(--accent-success);">Task</span></td>
@@ -660,8 +660,8 @@ const DocsView = {
               <div class="docs-card-grid docs-card-grid-2">
                 <div class="docs-feature-card">
                   <div class="docs-card-icon" style="color: var(--accent-success);"><i class="fa-solid fa-check-double"></i></div>
-                  <h3>Auto-Complete on Subtasks</h3>
-                  <p>When all checklist subtasks in a task card are checked off, the system automatically prompts or marks the parent task as Completed.</p>
+                  <h3>Story and Subtask Rollups</h3>
+                  <p>Story points sum from child subtasks. A story moves to In Progress when any subtask does, to In Review when every subtask is in review or done, and to Done when all are done.</p>
                 </div>
                 <div class="docs-feature-card">
                   <div class="docs-card-icon" style="color: var(--accent-warning);"><i class="fa-solid fa-arrows-rotate"></i></div>

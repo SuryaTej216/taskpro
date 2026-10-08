@@ -4,16 +4,24 @@
  */
 
 const Automations = {
+  _parentRollupUpdates: new Set(),
+
   /**
    * Called whenever a task is updated in AppState
    * @param {Object} updatedTask 
    * @param {Object} oldTask 
    */
   onTaskUpdated(updatedTask, oldTask) {
+    const isParentRollupUpdate = this._parentRollupUpdates.has(updatedTask.id);
+    if (!isParentRollupUpdate && !updatedTask.parentId && AppState.tasks.some(t => t.parentId === updatedTask.id)) {
+      this.updateParentProgress(updatedTask.id);
+    }
+    const currentTask = AppState.tasks.find(t => t.id === updatedTask.id) || updatedTask;
+
     // 1. Recurring task generation on completion
-    if (updatedTask.status === 'done' && oldTask.status !== 'done') {
-      this.handleRecurringTask(updatedTask);
-      Toast.success(`Completed ${updatedTask.key}! Great work.`);
+    if (!isParentRollupUpdate && currentTask.status === 'done' && oldTask.status !== 'done') {
+      this.handleRecurringTask(currentTask);
+      Toast.success(`Completed ${currentTask.key}! Great work.`);
     }
 
     // 2. Parent task progress and checklist sync if this is a subtask
@@ -22,6 +30,10 @@ const Automations = {
       this.updateParentProgress(updatedTask.parentId);
     } else if (updatedTask.checklist && (!oldTask.checklist || JSON.stringify(updatedTask.checklist) !== JSON.stringify(oldTask.checklist))) {
       this.syncParentChecklistToSubtasks(updatedTask);
+    }
+
+    if (oldTask.parentId && oldTask.parentId !== updatedTask.parentId) {
+      this.updateParentProgress(oldTask.parentId);
     }
 
     // 3. Goal progress roll-up
@@ -135,21 +147,97 @@ const Automations = {
    * Recalculates parent task subtask progress bar
    * @param {string} parentId 
    */
-  updateParentProgress(parentId) {
+  updateParentProgress(parentId, silent = false) {
     const parent = AppState.tasks.find(t => t.id === parentId);
     if (!parent) return;
 
     const subtasks = AppState.tasks.filter(t => t.parentId === parentId);
-    if (subtasks.length === 0) return;
+    if (subtasks.length === 0) {
+      const original = parent.subtaskRollupOriginal;
+      if (!original) return parent;
 
-    const completed = subtasks.filter(t => t.status === 'done').length;
-    const allDone = completed === subtasks.length;
+      const updates = {
+        storyPoints: Number(original.storyPoints) || 0,
+        status: original.status || 'todo',
+        completedAt: original.completedAt || null
+      };
+      delete parent.subtaskRollupOriginal;
+      if (silent) {
+        Object.assign(parent, updates, { updatedAt: new Date().toISOString() });
+        StorageService.set(StorageService.KEYS.TASKS, AppState.tasks);
+        return parent;
+      }
 
-    // If all subtasks done, offer or auto-complete parent
-    if (allDone && parent.status !== 'done') {
-      AppState.updateTask(parent.id, { status: 'inreview' });
-      Toast.info(`All subtasks done for ${parent.key}. Moved to IN REVIEW.`);
+      this._parentRollupUpdates.add(parent.id);
+      try {
+        const restoredParent = AppState.updateTask(parent.id, updates);
+        if (restoredParent) {
+          restoredParent.completedAt = original.completedAt || null;
+          StorageService.set(StorageService.KEYS.TASKS, AppState.tasks);
+        }
+        return restoredParent;
+      } finally {
+        this._parentRollupUpdates.delete(parent.id);
+      }
     }
+
+    const statuses = subtasks.map(t => t.status);
+    let status;
+    if (statuses.includes('inprogress')) {
+      status = 'inprogress';
+    } else if (statuses.every(value => value === 'done')) {
+      status = 'done';
+    } else if (statuses.every(value => value === 'inreview' || value === 'done')) {
+      status = 'inreview';
+    } else if (statuses.includes('blocked')) {
+      status = 'blocked';
+    } else if (statuses.every(value => value === 'cancelled')) {
+      status = 'cancelled';
+    } else if (statuses.every(value => value === 'backlog')) {
+      status = 'backlog';
+    } else {
+      status = 'todo';
+    }
+
+    const storyPoints = subtasks.reduce((total, task) => total + (Number(task.storyPoints) || 0), 0);
+    const updates = {};
+    if (!parent.subtaskRollupOriginal) {
+      updates.subtaskRollupOriginal = {
+        storyPoints: Number(parent.storyPoints) || 0,
+        status: parent.status || 'todo',
+        completedAt: parent.completedAt || null
+      };
+    }
+    if ((Number(parent.storyPoints) || 0) !== storyPoints) updates.storyPoints = storyPoints;
+    if (parent.status !== status) updates.status = status;
+    if (Object.keys(updates).length === 0) return parent;
+
+    if (silent) {
+      const now = new Date().toISOString();
+      if (updates.status === 'done' && parent.status !== 'done') updates.completedAt = now;
+      else if (updates.status && updates.status !== 'done' && parent.status === 'done') updates.completedAt = null;
+      Object.assign(parent, updates, { updatedAt: now });
+      StorageService.set(StorageService.KEYS.TASKS, AppState.tasks);
+      return parent;
+    }
+
+    this._parentRollupUpdates.add(parent.id);
+    try {
+      return AppState.updateTask(parent.id, updates);
+    } finally {
+      this._parentRollupUpdates.delete(parent.id);
+    }
+  },
+
+  /** Recalculates parents affected by a bulk task update or its undo. */
+  recalculateParentsForTasks(taskIds) {
+    const parentIds = new Set();
+    taskIds.forEach(taskId => {
+      const task = AppState.tasks.find(t => t.id === taskId);
+      if (task && task.parentId) parentIds.add(task.parentId);
+      if (AppState.tasks.some(t => t.parentId === taskId)) parentIds.add(taskId);
+    });
+    parentIds.forEach(parentId => this.updateParentProgress(parentId));
   },
 
   /**

@@ -10,7 +10,11 @@ const BacklogView = {
     const selectedProjectId = AppState.selectedProjectId;
 
     // Filter by selected project if active
-    const projectSprints = selectedProjectId ? sprints.filter(s => s.projectId === selectedProjectId) : sprints;
+    // Shared sprints are visible in every project context; their task list is
+    // still scoped by filteredTasks when a single project is selected.
+    const projectSprints = selectedProjectId
+      ? sprints.filter(s => !s.projectId || s.projectId === selectedProjectId)
+      : sprints;
     let filteredTasks = selectedProjectId ? tasks.filter(t => t.projectId === selectedProjectId) : tasks;
 
     // Filter by selected epic if active
@@ -242,6 +246,7 @@ const BacklogView = {
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
               ${isActive ? '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-success); animation: pulse 2s infinite;"></span>' : ''}
               <span style="font-weight: 700; font-size: 15px; color: var(--text-primary);">${Utils.escapeHTML(sprint.name)}</span>
+              ${!sprint.projectId ? '<span class="badge" style="font-size: 10px; background: var(--accent-primary-subtle); color: var(--accent-primary);">ALL PROJECTS</span>' : ''}
               <span class="badge ${isActive ? 'badge-status-inprogress' : 'badge-status-backlog'}" style="font-size: 10px;">${isActive ? 'ACTIVE' : 'PLANNED'}</span>
               <span style="font-size: 12px; color: var(--text-muted);">${Utils.formatDate(sprint.startDate)} — ${Utils.formatDate(sprint.endDate)}</span>
               ${daysInfo}
@@ -279,7 +284,7 @@ const BacklogView = {
               <i class="fa-solid fa-link"></i> Add Existing
             </button>
 
-            <button class="btn btn-ghost btn-sm" onclick="TaskModal.openCreate({ sprintId: '${sprint.id}', projectId: '${sprint.projectId}' })" title="Create new issue in this sprint">
+            <button class="btn btn-ghost btn-sm" onclick="TaskModal.openCreate({ sprintId: '${sprint.id}', projectId: '${sprint.projectId || ''}' })" title="Create new issue in this sprint">
               <i class="fa-solid fa-plus"></i> New
             </button>
 
@@ -467,9 +472,14 @@ const BacklogView = {
         const task = AppState.tasks.find(t => t.id === taskId);
         if (!task || task.sprintId === targetSprintId) return;
 
+        const targetSprint = targetSprintId ? AppState.sprints.find(s => s.id === targetSprintId) : null;
+        if (targetSprint && targetSprint.projectId && targetSprint.projectId !== task.projectId) {
+          Toast.warning('This sprint only accepts tasks from its project.');
+          return;
+        }
+
         AppState.updateTask(taskId, { sprintId: targetSprintId });
-        const sprintObj = targetSprintId ? AppState.sprints.find(s => s.id === targetSprintId) : null;
-        Toast.success(`Moved ${task.key} to ${sprintObj ? sprintObj.name : 'unassigned'}`);
+        Toast.success(`Moved ${task.key} to ${targetSprint ? targetSprint.name : 'unassigned'}`);
       });
     });
 
@@ -490,9 +500,10 @@ const BacklogView = {
     if (!sprint) return;
 
     // Get tasks that are NOT already in this sprint
-    const selectedProjectId = AppState.selectedProjectId;
-    let availableTasks = selectedProjectId
-      ? AppState.tasks.filter(t => t.projectId === selectedProjectId)
+    // Project sprints stay within their project; shared sprints can pull work
+    // from every project even when the planning view is currently filtered.
+    let availableTasks = sprint.projectId
+      ? AppState.tasks.filter(t => t.projectId === sprint.projectId)
       : AppState.tasks;
     
     // Exclude tasks already in this sprint
@@ -619,9 +630,9 @@ const BacklogView = {
       const statusVal = statusFilter.value;
       const assignVal = assignmentFilter.value;
 
-      const selectedProjectId = AppState.selectedProjectId;
-      let tasks = selectedProjectId
-        ? AppState.tasks.filter(t => t.projectId === selectedProjectId)
+      const targetSprint = AppState.sprints.find(s => s.id === targetSprintId);
+      let tasks = targetSprint && targetSprint.projectId
+        ? AppState.tasks.filter(t => t.projectId === targetSprint.projectId)
         : AppState.tasks;
 
       // Exclude tasks already in target sprint
@@ -719,8 +730,9 @@ const BacklogView = {
           <input type="text" id="sprint-name" class="form-input" placeholder="e.g. Sprint 3: Polish & Release" required autofocus>
         </div>
         <div class="form-group">
-          <label class="form-label">Project <span class="required">*</span></label>
+          <label class="form-label">Project Scope <span class="required">*</span></label>
           <select id="sprint-project" class="form-select">
+            <option value="__all_projects__">All Projects (Combined)</option>
             ${AppState.projects.map(p => `<option value="${p.id}" ${p.id === defaultProj ? 'selected' : ''}>${Utils.escapeHTML(p.name)} (${p.key})</option>`).join('')}
           </select>
         </div>
@@ -767,7 +779,9 @@ const BacklogView = {
             }
 
             AppState.createSprint({
-              projectId: document.getElementById('sprint-project').value,
+              projectId: document.getElementById('sprint-project').value === '__all_projects__'
+                ? null
+                : document.getElementById('sprint-project').value,
               name,
               goal: document.getElementById('sprint-goal').value.trim(),
               startDate: sDate.toISOString(),
