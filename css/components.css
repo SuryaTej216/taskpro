@@ -8933,7 +8933,7 @@
 }
 
 /* ==========================================================================
-   Personal Dashboard — Modern Executive & High-Productivity Styling
+   Personal Command Center — Moderate Professional Connected UI/UX
    ========================================================================== */
 
 .dash-page {
@@ -8941,60 +8941,154 @@
   flex-direction: column;
   gap: 16px;
   width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
-/* Executive Header */
-.dash-header-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #1868DB 0%, #579DFF 100%);
+/* 1. Executive Hero & Context Banner */
+.dash-hero-banner {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.dash-hero-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #1868DB, #AF59E1, #0BDA51);
+  opacity: 0.85;
+}
+
+.dash-hero-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dash-hero-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dash-hero-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #1868DB 0%, #357DE8 50%, #579DFF 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: 800;
+  font-size: 14px;
   letter-spacing: 0.5px;
-  box-shadow: 0 2px 8px rgba(24, 104, 219, 0.25);
-  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(24, 104, 219, 0.25);
 }
 
-.dash-greeting-pill {
+.dash-hero-avatar-pulse {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #0BDA51;
+  border: 2px solid var(--bg-surface);
+  box-shadow: 0 0 6px rgba(11, 218, 81, 0.6);
+}
+
+.dash-hero-text h1 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+  flex-wrap: wrap;
+}
+
+.dash-hero-pulse-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: var(--radius-full);
   font-size: 11px;
   font-weight: 600;
   background: var(--surface-sunken);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  vertical-align: middle;
 }
 
-.dash-greeting-pill .pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #0BDA51;
-  box-shadow: 0 0 0 2px rgba(11, 218, 81, 0.25);
-  display: inline-block;
-  animation: pulseDot 2s infinite;
+.dash-hero-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-@keyframes pulseDot {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.8; }
+.dash-hero-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.dash-date-pill {
+/* Scope Selector Pill */
+.dash-scope-selector {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dash-scope-selector:hover {
+  border-color: var(--border-bold);
+  background: var(--surface-hovered);
+}
+
+.dash-scope-selector select {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  padding-right: 2px;
+}
+
+.dash-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
@@ -9003,126 +9097,246 @@
   border-radius: var(--radius-md);
 }
 
-/* Four-Tile Executive Command Grid */
-.dash-command-grid {
+/* 2. Executive Five-Metric Command Grid */
+.dash-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
 }
 
-@media (max-width: 1200px) {
-  .dash-command-grid {
+@media (max-width: 1300px) {
+  .dash-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .dash-kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 640px) {
-  .dash-command-grid {
+@media (max-width: 560px) {
+  .dash-kpi-grid {
     grid-template-columns: 1fr;
   }
 }
 
-.dash-command-tile {
+.dash-kpi-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  padding: 16px 18px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   box-shadow: var(--shadow-sm);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
   text-decoration: none;
   color: inherit;
   position: relative;
   overflow: hidden;
 }
 
-.dash-command-tile:hover {
+.dash-kpi-card:hover {
   transform: translateY(-2px);
   border-color: var(--border-bold);
   box-shadow: var(--shadow-md);
 }
 
-.dash-tile-top {
+.dash-kpi-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
-.dash-tile-label {
-  font-size: 11px;
+.dash-kpi-label {
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.dash-tile-icon-box {
-  width: 32px;
-  height: 32px;
+.dash-kpi-icon-wrap {
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
 }
 
-.dash-tile-body {
+.dash-kpi-main {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.dash-tile-number {
-  font-size: 28px;
+.dash-kpi-value {
+  font-size: 26px;
   font-weight: 800;
-  color: var(--text-primary);
   line-height: 1;
   letter-spacing: -0.02em;
-}
-
-.dash-tile-meta-col {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.dash-tile-meta-title {
-  font-size: 13px;
-  font-weight: 600;
   color: var(--text-primary);
 }
 
-.dash-tile-meta-sub {
+.dash-kpi-pill {
   font-size: 11px;
-  color: var(--text-muted);
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.dash-tile-progress {
-  height: 5px;
+.dash-kpi-meta {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.dash-kpi-subtext {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.dash-kpi-track {
+  height: 4px;
   width: 100%;
   background: var(--surface-sunken);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
-.dash-tile-progress-fill {
+.dash-kpi-track-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.4s ease;
 }
 
-/* Two-Column Cockpit Layout (60% / 40%) */
+/* 3. Full-Width Workflow Pipeline & Stage Ribbon */
+.dash-pipeline-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: 14px 18px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-pipeline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dash-pipeline-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dash-pipeline-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.dash-pipeline-bar {
+  display: flex;
+  height: 8px;
+  width: 100%;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  gap: 2px;
+}
+
+.dash-pipeline-seg {
+  height: 100%;
+  transition: width 0.3s ease;
+  cursor: pointer;
+}
+
+.dash-pipeline-stages {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .dash-pipeline-stages {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.dash-pipeline-chip {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.dash-pipeline-chip:hover {
+  border-color: var(--border-bold);
+  background: var(--surface-hovered);
+  transform: translateY(-1px);
+}
+
+.dash-pipeline-chip-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.dash-pipeline-chip-count {
+  font-size: 13px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+/* 4. Two-Column Strategic Execution Cockpit */
 .dash-cockpit-layout {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  grid-template-columns: 1.4fr 1fr;
   gap: 16px;
   align-items: start;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1120px) {
   .dash-cockpit-layout {
     grid-template-columns: 1fr;
   }
@@ -9139,7 +9353,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
-  padding: 20px;
+  padding: 18px 20px;
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -9161,13 +9375,14 @@
 }
 
 .dash-panel-icon {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .dash-panel-title {
@@ -9182,25 +9397,102 @@
   font-size: 11px;
   color: var(--text-muted);
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
+}
+
+/* Active Sprint Telemetry Card */
+.dash-sprint-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid #1868DB;
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-sprint-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dash-sprint-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(24, 104, 219, 0.12);
+  color: #1868DB;
+  letter-spacing: 0.03em;
+}
+
+.dash-sprint-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dash-sprint-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dash-sprint-goal {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.dash-sprint-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.dash-sprint-metric-num {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.dash-sprint-metric-lbl {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
 }
 
 /* Smart Dispatcher Spotlight Card */
 .dash-spotlight-card {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
-  border-left: 3px solid #579DFF;
+  border-left: 3px solid #AF59E1;
   border-radius: var(--radius-lg);
-  padding: 16px 18px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   transition: all 0.2s ease;
 }
 
 .dash-spotlight-card:hover {
-  border-color: rgba(87, 157, 255, 0.4);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-color: rgba(175, 89, 225, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .dash-spotlight-top {
@@ -9212,7 +9504,7 @@
 }
 
 .dash-spotlight-title {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--text-primary);
   cursor: pointer;
@@ -9225,9 +9517,9 @@
 }
 
 .dash-spotlight-desc {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.45;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -9237,8 +9529,8 @@
 .dash-spotlight-rationale {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 11px;
+  gap: 6px;
+  padding: 6px 10px;
   background: rgba(245, 158, 11, 0.08);
   border: 1px solid rgba(245, 158, 11, 0.2);
   border-radius: var(--radius-md);
@@ -9246,18 +9538,15 @@
   color: var(--text-secondary);
 }
 
-.dash-spotlight-rationale strong {
-  color: #f59e0b;
-}
-
 .dash-spotlight-actions {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  padding-top: 4px;
 }
 
-/* Today's Daily Focus Issue Rows */
+/* Must-Win Focus Checklist */
 .dash-focus-table {
   display: flex;
   flex-direction: column;
@@ -9267,11 +9556,11 @@
 .dash-focus-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 10px 14px;
+  padding: 9px 12px;
   transition: all 0.15s ease;
 }
 
@@ -9281,7 +9570,7 @@
 }
 
 .dash-focus-row.is-done {
-  opacity: 0.6;
+  opacity: 0.55;
   background: var(--surface-sunken);
 }
 
@@ -9323,7 +9612,7 @@
   font-size: 11px;
   font-weight: 700;
   color: var(--accent-primary);
-  width: 18px;
+  width: 16px;
   text-align: center;
   flex-shrink: 0;
 }
@@ -9353,107 +9642,74 @@
 .dash-focus-tags {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   font-size: 11px;
   color: var(--text-muted);
   flex-wrap: wrap;
 }
 
-/* Workflow Radar Pipeline */
-.dash-radar-row {
+/* Taxonomy & Quality Radar */
+.dash-taxonomy-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
 
-@media (max-width: 680px) {
-  .dash-radar-row {
+@media (max-width: 600px) {
+  .dash-taxonomy-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-.dash-radar-card {
+.dash-taxonomy-card {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
   text-decoration: none;
   color: inherit;
 }
 
-.dash-radar-card:hover {
+.dash-taxonomy-card:hover {
   border-color: var(--border-bold);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
-.dash-radar-header {
+.dash-taxonomy-info {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
 }
 
-.dash-radar-count {
-  font-size: 18px;
+.dash-taxonomy-count {
+  font-size: 13px;
   font-weight: 800;
-  line-height: 1.1;
+  font-family: var(--font-mono);
 }
 
-/* Personal Quick Scratchpad */
-.dash-memo-textarea {
-  width: 100%;
-  min-height: 120px;
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 12px 14px;
-  font-family: inherit;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--text-primary);
-  resize: vertical;
-  outline: none;
-  box-sizing: border-box;
-  transition: border-color 0.15s ease;
-}
-
-.dash-memo-textarea:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(87, 157, 255, 0.2);
-}
-
-.dash-memo-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-/* Active Projects Matrix */
+/* Portfolio Trajectory Matrix */
 .dash-project-track {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .dash-project-row {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 10px 12px;
+  padding: 9px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   text-decoration: none;
   color: inherit;
   transition: all 0.15s ease;
@@ -9468,7 +9724,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .dash-project-dot {
@@ -9479,25 +9735,90 @@
 }
 
 .dash-project-progress-bar {
-  height: 5px;
+  height: 4px;
   width: 100%;
   background: var(--surface-sunken);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
 .dash-project-progress-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.3s ease;
 }
 
-/* Live Activity Stream */
+/* Execution Sentinel / Risk Radar */
+.dash-sentinel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dash-sentinel-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dash-sentinel-item:hover {
+  border-color: var(--border-bold);
+  background: var(--surface-hovered);
+}
+
+.dash-sentinel-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Personal Quick Scratchpad */
+.dash-memo-textarea {
+  width: 100%;
+  min-height: 110px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.dash-memo-textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(24, 104, 219, 0.15);
+}
+
+.dash-memo-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Live Audit Activity Stream */
 .dash-feed-stream {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 260px;
+  gap: 8px;
+  max-height: 240px;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -9505,20 +9826,21 @@
 .dash-feed-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  font-size: 12px;
+  gap: 8px;
+  font-size: 11.5px;
   line-height: 1.4;
+  padding: 4px 0;
 }
 
 .dash-feed-icon-wrap {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--surface-sunken);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9px;
   color: var(--accent-primary);
   flex-shrink: 0;
   margin-top: 1px;
@@ -9532,12 +9854,14 @@
 .dash-feed-text {
   color: var(--text-primary);
   font-weight: 500;
+  word-break: break-word;
 }
 
 .dash-feed-time {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-muted);
   margin-top: 1px;
 }
+
 
 
