@@ -540,7 +540,11 @@ const TaskModal = {
     const drawer = document.getElementById('task-drawer');
     if (!overlay || !drawer) return;
 
-    this.renderDrawerContent(drawer, task);
+    try {
+      this.renderDrawerContent(drawer, task);
+    } catch (err) {
+      console.error('Error rendering task drawer content:', err);
+    }
     overlay.classList.add('active');
     this.isOpen = true;
   },
@@ -1012,6 +1016,8 @@ const TaskModal = {
     const taskId = task.id;
     const drawer = document.getElementById('task-drawer');
     const overlay = document.getElementById('task-drawer-overlay');
+    const subtasks = AppState.tasks.filter(t => t.parentId === task.id);
+    const totalSubtasks = subtasks.length;
 
     if (overlay && !overlay._tfBackdropBound) {
       overlay._tfBackdropBound = true;
