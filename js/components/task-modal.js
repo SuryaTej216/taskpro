@@ -1035,16 +1035,22 @@ const TaskModal = {
     }
 
     // Duplicate button
-    document.getElementById('drawer-btn-duplicate').addEventListener('click', () => {
-      this.closeDetail();
-      AppState.duplicateTask(taskId);
-    });
+    const dupBtn = document.getElementById('drawer-btn-duplicate');
+    if (dupBtn) {
+      dupBtn.addEventListener('click', () => {
+        this.closeDetail();
+        AppState.duplicateTask(taskId);
+      });
+    }
 
     // Delete button
-    document.getElementById('drawer-btn-delete').addEventListener('click', () => {
-      this.closeDetail();
-      AppState.deleteTask(taskId, true, true);
-    });
+    const delBtn = document.getElementById('drawer-btn-delete');
+    if (delBtn) {
+      delBtn.addEventListener('click', () => {
+        this.closeDetail();
+        AppState.deleteTask(taskId, true, true);
+      });
+    }
 
     // Parent Task link navigation
     const parentLink = document.getElementById('drawer-parent-task-link');
@@ -1056,31 +1062,47 @@ const TaskModal = {
 
     // Real-time title update on blur / enter
     const titleInput = document.getElementById('detail-task-title');
-    titleInput.addEventListener('change', () => {
-      if (titleInput.value.trim()) {
-        AppState.updateTask(taskId, { title: titleInput.value.trim() });
-      }
-    });
+    if (titleInput) {
+      titleInput.addEventListener('change', () => {
+        if (titleInput.value.trim()) {
+          AppState.updateTask(taskId, { title: titleInput.value.trim() });
+        }
+      });
+    }
 
     // Description update on change
     const descInput = document.getElementById('detail-task-desc');
-    descInput.addEventListener('change', () => {
-      AppState.updateTask(taskId, { description: descInput.value });
-    });
+    if (descInput) {
+      descInput.addEventListener('change', () => {
+        AppState.updateTask(taskId, { description: descInput.value });
+      });
+    }
 
     // Property dropdown changes
-    document.getElementById('detail-task-status').addEventListener('change', (e) => {
-      const res = AppState.updateTask(taskId, { status: e.target.value });
-      if (!res) {
-        e.target.value = task.status;
-      }
-    });
-    document.getElementById('detail-task-priority').addEventListener('change', (e) => {
-      AppState.updateTask(taskId, { priority: e.target.value });
-    });
-    document.getElementById('detail-task-project').addEventListener('change', (e) => {
-      AppState.updateTask(taskId, { projectId: e.target.value });
-    });
+    const statusSelect = document.getElementById('detail-task-status');
+    if (statusSelect) {
+      statusSelect.addEventListener('change', (e) => {
+        const res = AppState.updateTask(taskId, { status: e.target.value });
+        if (!res) {
+          e.target.value = task.status;
+        }
+      });
+    }
+
+    const prioritySelect = document.getElementById('detail-task-priority');
+    if (prioritySelect) {
+      prioritySelect.addEventListener('change', (e) => {
+        AppState.updateTask(taskId, { priority: e.target.value });
+      });
+    }
+
+    const projectSelect = document.getElementById('detail-task-project');
+    if (projectSelect) {
+      projectSelect.addEventListener('change', (e) => {
+        AppState.updateTask(taskId, { projectId: e.target.value });
+      });
+    }
+
     const startEl = document.getElementById('detail-task-start');
     if (startEl) {
       startEl.addEventListener('change', (e) => {
@@ -1088,20 +1110,29 @@ const TaskModal = {
         AppState.updateTask(taskId, { startDate: val });
       });
     }
-    document.getElementById('detail-task-due').addEventListener('change', (e) => {
-      const val = e.target.value ? new Date(e.target.value).toISOString() : null;
-      AppState.updateTask(taskId, { dueDate: val });
-    });
+
+    const dueEl = document.getElementById('detail-task-due');
+    if (dueEl) {
+      dueEl.addEventListener('change', (e) => {
+        const val = e.target.value ? new Date(e.target.value).toISOString() : null;
+        AppState.updateTask(taskId, { dueDate: val });
+      });
+    }
+
     const storyPointsInput = document.getElementById('detail-task-points');
     if (storyPointsInput && totalSubtasks === 0) {
       storyPointsInput.addEventListener('change', (e) => {
         AppState.updateTask(taskId, { storyPoints: parseInt(e.target.value, 10) || 0 });
       });
     }
-    document.getElementById('detail-task-recurring').addEventListener('change', (e) => {
-      const freq = e.target.value;
-      AppState.updateTask(taskId, { recurring: freq ? { frequency: freq } : null });
-    });
+
+    const recurringSelect = document.getElementById('detail-task-recurring');
+    if (recurringSelect) {
+      recurringSelect.addEventListener('change', (e) => {
+        const freq = e.target.value;
+        AppState.updateTask(taskId, { recurring: freq ? { frequency: freq } : null });
+      });
+    }
 
     // Sprint Property Change
     const sprintSelect = document.getElementById('detail-task-sprint');
