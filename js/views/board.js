@@ -20,7 +20,9 @@ const BoardView = {
     { id: 'todo', title: 'To Do', icon: 'fa-regular fa-circle-dot', color: '#1868DB', statusVar: 'var(--status-todo, #1868DB)' },
     { id: 'inprogress', title: 'In Progress', icon: 'fa-solid fa-bolt-lightning', color: '#E06C00', statusVar: 'var(--status-inprogress, #E06C00)' },
     { id: 'inreview', title: 'In Review', icon: 'fa-solid fa-eye', color: '#AF59E1', statusVar: 'var(--status-inreview, #AF59E1)' },
-    { id: 'done', title: 'Done', icon: 'fa-solid fa-circle-check', color: '#0BDA51', statusVar: 'var(--status-done, #0BDA51)' }
+    { id: 'blocked', title: 'Blocked', icon: 'fa-solid fa-ban', color: '#EF4444', statusVar: 'var(--status-blocked, #EF4444)' },
+    { id: 'done', title: 'Done', icon: 'fa-solid fa-circle-check', color: '#0BDA51', statusVar: 'var(--status-done, #0BDA51)' },
+    { id: 'cancelled', title: 'Cancelled', icon: 'fa-solid fa-circle-xmark', color: '#6B6E76', statusVar: 'var(--status-cancelled, #6B6E76)' }
   ],
 
   // Internal view state
@@ -118,8 +120,12 @@ const BoardView = {
       activeTasks = activeTasks.filter(t => t.status === 'todo');
     } else if (this.activeQuickFilter === 'inreview') {
       activeTasks = activeTasks.filter(t => t.status === 'inreview');
+    } else if (this.activeQuickFilter === 'blocked') {
+      activeTasks = activeTasks.filter(t => t.status === 'blocked');
     } else if (this.activeQuickFilter === 'done') {
       activeTasks = activeTasks.filter(t => t.status === 'done');
+    } else if (this.activeQuickFilter === 'cancelled') {
+      activeTasks = activeTasks.filter(t => t.status === 'cancelled');
     } else if (this.activeQuickFilter === 'critical') {
       activeTasks = activeTasks.filter(t => t.priority === 'critical' || t.priority === 'highest');
     } else if (this.activeQuickFilter === 'bugs') {
@@ -160,7 +166,9 @@ const BoardView = {
       todo: activeTasks.filter(t => t.status === 'todo').length,
       inprogress: activeTasks.filter(t => t.status === 'inprogress').length,
       inreview: activeTasks.filter(t => t.status === 'inreview').length,
-      done: doneTasks.length
+      blocked: activeTasks.filter(t => t.status === 'blocked').length,
+      done: doneTasks.length,
+      cancelled: activeTasks.filter(t => t.status === 'cancelled').length
     };
 
     const hasFilters = this.hasAnyActiveFilters();
@@ -233,7 +241,9 @@ const BoardView = {
                 <div class="stage-seg seg-todo ${this.activeQuickFilter === 'todo' ? 'is-selected' : ''}" data-status="todo" style="width: ${(statusCounts.todo / totalCount) * 100}%;" title="To Do: ${statusCounts.todo} (${Math.round((statusCounts.todo / totalCount) * 100)}%) - Click to filter"></div>
                 <div class="stage-seg seg-inprogress ${this.activeQuickFilter === 'inprogress' ? 'is-selected' : ''}" data-status="inprogress" style="width: ${(statusCounts.inprogress / totalCount) * 100}%;" title="In Progress: ${statusCounts.inprogress} (${Math.round((statusCounts.inprogress / totalCount) * 100)}%) - Click to filter"></div>
                 <div class="stage-seg seg-inreview ${this.activeQuickFilter === 'inreview' ? 'is-selected' : ''}" data-status="inreview" style="width: ${(statusCounts.inreview / totalCount) * 100}%;" title="In Review: ${statusCounts.inreview} (${Math.round((statusCounts.inreview / totalCount) * 100)}%) - Click to filter"></div>
+                <div class="stage-seg seg-blocked ${this.activeQuickFilter === 'blocked' ? 'is-selected' : ''}" data-status="blocked" style="width: ${(statusCounts.blocked / totalCount) * 100}%;" title="Blocked: ${statusCounts.blocked} (${Math.round((statusCounts.blocked / totalCount) * 100)}%) - Click to filter"></div>
                 <div class="stage-seg seg-done ${this.activeQuickFilter === 'done' ? 'is-selected' : ''}" data-status="done" style="width: ${(statusCounts.done / totalCount) * 100}%;" title="Done: ${statusCounts.done} (${Math.round((statusCounts.done / totalCount) * 100)}%) - Click to filter"></div>
+                <div class="stage-seg seg-cancelled ${this.activeQuickFilter === 'cancelled' ? 'is-selected' : ''}" data-status="cancelled" style="width: ${(statusCounts.cancelled / totalCount) * 100}%;" title="Cancelled: ${statusCounts.cancelled} (${Math.round((statusCounts.cancelled / totalCount) * 100)}%) - Click to filter"></div>
               ` : `
                 <div class="stage-seg is-empty" style="width: 100%;"></div>
               `}
@@ -249,6 +259,11 @@ const BoardView = {
               <span class="status-metric-pill stat-active" title="Tasks In Progress or In Review">
                 <i class="fa-solid fa-bolt-lightning"></i> <span><strong>${inProgressCount}</strong> active</span>
               </span>
+              ${statusCounts.blocked > 0 ? `
+                <button type="button" class="status-metric-pill ${this.activeQuickFilter === 'blocked' ? 'active' : ''}" id="board-metric-blocked" style="color: #EF4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.12);" title="Click to filter ${statusCounts.blocked} blocked tasks">
+                  <i class="fa-solid fa-ban"></i> <span><strong>${statusCounts.blocked}</strong> blocked</span>
+                </button>
+              ` : ''}
               <span class="status-metric-pill stat-completion ${completionPct === 100 ? 'is-complete' : ''}" title="${doneTasks.length} of ${totalCount} tasks completed (${completionPct}%)">
                 <i class="fa-solid fa-circle-check"></i> <span><strong>${completionPct}%</strong> done</span>
               </span>

@@ -25,7 +25,7 @@ const DashboardView = {
   render(container) {
     if (!container) return;
 
-    const allTasks = AppState.tasks.filter(t => t.status !== 'cancelled');
+    const allTasks = AppState.tasks;
     const projects = AppState.projects;
     const selectedProjectId = AppState.selectedProjectId;
     const currentProject = projects.find(p => p.id === selectedProjectId) || null;
@@ -47,6 +47,8 @@ const DashboardView = {
     const completed = scopedTasks.filter(t => t.status === 'done').length;
     const overdueTasks = scopedTasks.filter(t => Utils.isOverdue(t.dueDate, t.status));
     const criticalTasks = scopedTasks.filter(t => (t.priority === 'critical' || t.priority === 'highest') && t.status !== 'done');
+    const blockedTasks = scopedTasks.filter(t => t.status === 'blocked');
+    const cancelledTasks = scopedTasks.filter(t => t.status === 'cancelled');
     const inReviewTasks = scopedTasks.filter(t => t.status === 'inreview');
 
     // 2. Story Points Burnup
@@ -129,15 +131,19 @@ const DashboardView = {
       todo: scopedTasks.filter(t => t.status === 'todo').length,
       inprogress: scopedTasks.filter(t => t.status === 'inprogress').length,
       inreview: scopedTasks.filter(t => t.status === 'inreview').length,
-      done: completed
+      blocked: blockedTasks.length,
+      done: completed,
+      cancelled: cancelledTasks.length
     };
 
     const stages = [
-      { id: 'backlog', label: 'Backlog', icon: 'fa-box-archive', color: '#64748B', count: statusCounts.backlog },
+      { id: 'backlog', label: 'Backlog', icon: 'fa-inbox', color: '#64748B', count: statusCounts.backlog },
       { id: 'todo', label: 'To Do', icon: 'fa-circle-dot', color: '#1868DB', count: statusCounts.todo },
       { id: 'inprogress', label: 'In Progress', icon: 'fa-bolt-lightning', color: '#E06C00', count: statusCounts.inprogress },
       { id: 'inreview', label: 'In Review', icon: 'fa-eye', color: '#AF59E1', count: statusCounts.inreview },
-      { id: 'done', label: 'Done', icon: 'fa-circle-check', color: '#0BDA51', count: statusCounts.done }
+      { id: 'blocked', label: 'Blocked', icon: 'fa-ban', color: '#EF4444', count: statusCounts.blocked },
+      { id: 'done', label: 'Done', icon: 'fa-circle-check', color: '#0BDA51', count: statusCounts.done },
+      { id: 'cancelled', label: 'Cancelled', icon: 'fa-circle-xmark', color: '#6B7280', count: statusCounts.cancelled }
     ];
 
     // 9. Active Sprint Telemetry Details
@@ -290,27 +296,27 @@ const DashboardView = {
             </div>
 
             <!-- KPI 3: Execution Risk Sentinel -->
-            <div class="dash-kpi-card" id="dash-kpi-watchdog" title="Inspect overdue & critical blockers">
+            <div class="dash-kpi-card" id="dash-kpi-watchdog" title="Inspect overdue, blocked & critical items">
               <div class="dash-kpi-top">
                 <span class="dash-kpi-label">Risk Sentinel</span>
-                <div class="dash-kpi-icon-wrap" style="background: ${overdueTasks.length > 0 ? 'rgba(239, 68, 68, 0.14)' : (criticalTasks.length > 0 ? 'rgba(224, 108, 0, 0.14)' : 'rgba(11, 218, 81, 0.12)')}; color: ${overdueTasks.length > 0 ? '#EF4444' : (criticalTasks.length > 0 ? '#E06C00' : '#0BDA51')};">
-                  <i class="fa-solid ${overdueTasks.length > 0 ? 'fa-triangle-exclamation' : (criticalTasks.length > 0 ? 'fa-circle-exclamation' : 'fa-shield-halved')}"></i>
+                <div class="dash-kpi-icon-wrap" style="background: ${blockedTasks.length > 0 || overdueTasks.length > 0 ? 'rgba(239, 68, 68, 0.14)' : (criticalTasks.length > 0 ? 'rgba(224, 108, 0, 0.14)' : 'rgba(11, 218, 81, 0.12)')}; color: ${blockedTasks.length > 0 || overdueTasks.length > 0 ? '#EF4444' : (criticalTasks.length > 0 ? '#E06C00' : '#0BDA51')};">
+                  <i class="fa-solid ${blockedTasks.length > 0 ? 'fa-ban' : (overdueTasks.length > 0 ? 'fa-triangle-exclamation' : (criticalTasks.length > 0 ? 'fa-circle-exclamation' : 'fa-shield-halved'))}"></i>
                 </div>
               </div>
               <div class="dash-kpi-main">
-                <div class="dash-kpi-value" style="color: ${overdueTasks.length > 0 ? '#EF4444' : (criticalTasks.length > 0 ? '#E06C00' : 'var(--text-primary)')};">
-                  ${overdueTasks.length + criticalTasks.length}
+                <div class="dash-kpi-value" style="color: ${blockedTasks.length > 0 || overdueTasks.length > 0 ? '#EF4444' : (criticalTasks.length > 0 ? '#E06C00' : 'var(--text-primary)')};">
+                  ${overdueTasks.length + criticalTasks.length + blockedTasks.length}
                 </div>
-                <span class="dash-kpi-pill" style="background: ${overdueTasks.length > 0 ? 'rgba(239, 68, 68, 0.12)' : (criticalTasks.length > 0 ? 'rgba(224, 108, 0, 0.12)' : 'rgba(11, 218, 81, 0.12)')}; color: ${overdueTasks.length > 0 ? '#EF4444' : (criticalTasks.length > 0 ? '#E06C00' : '#0BDA51')};">
-                  ${overdueTasks.length > 0 ? `${overdueTasks.length} overdue` : (criticalTasks.length > 0 ? `${criticalTasks.length} critical` : 'All on track')}
+                <span class="dash-kpi-pill" style="background: ${blockedTasks.length > 0 || overdueTasks.length > 0 ? 'rgba(239, 68, 68, 0.12)' : (criticalTasks.length > 0 ? 'rgba(224, 108, 0, 0.12)' : 'rgba(11, 218, 81, 0.12)')}; color: ${blockedTasks.length > 0 || overdueTasks.length > 0 ? '#EF4444' : (criticalTasks.length > 0 ? '#E06C00' : '#0BDA51')};">
+                  ${blockedTasks.length > 0 ? `${blockedTasks.length} blocked` : (overdueTasks.length > 0 ? `${overdueTasks.length} overdue` : (criticalTasks.length > 0 ? `${criticalTasks.length} critical` : 'All on track'))}
                 </span>
               </div>
               <div class="dash-kpi-meta">
-                <span>${overdueTasks.length > 0 ? 'Requires attention' : (criticalTasks.length > 0 ? 'High priority items' : 'Zero blockers')}</span>
+                <span>${blockedTasks.length > 0 ? 'Active blockers present' : (overdueTasks.length > 0 ? 'Requires attention' : (criticalTasks.length > 0 ? 'High priority items' : 'Zero blockers'))}</span>
                 <span class="dash-kpi-subtext">${inReviewTasks.length} in review</span>
               </div>
               <div class="dash-kpi-track">
-                <div class="dash-kpi-track-fill" style="width: ${overdueTasks.length > 0 ? 100 : (criticalTasks.length > 0 ? 60 : 0)}%; background: ${overdueTasks.length > 0 ? '#EF4444' : '#E06C00'};"></div>
+                <div class="dash-kpi-track-fill" style="width: ${blockedTasks.length > 0 || overdueTasks.length > 0 ? 100 : (criticalTasks.length > 0 ? 60 : 0)}%; background: ${blockedTasks.length > 0 || overdueTasks.length > 0 ? '#EF4444' : '#E06C00'};"></div>
               </div>
             </div>
 
@@ -385,7 +391,9 @@ const DashboardView = {
                 <div class="dash-pipeline-seg" style="width: ${(statusCounts.todo / total) * 100}%; background: #1868DB;" title="To Do: ${statusCounts.todo}"></div>
                 <div class="dash-pipeline-seg" style="width: ${(statusCounts.inprogress / total) * 100}%; background: #E06C00;" title="In Progress: ${statusCounts.inprogress}"></div>
                 <div class="dash-pipeline-seg" style="width: ${(statusCounts.inreview / total) * 100}%; background: #AF59E1;" title="In Review: ${statusCounts.inreview}"></div>
+                <div class="dash-pipeline-seg" style="width: ${(statusCounts.blocked / total) * 100}%; background: #EF4444;" title="Blocked: ${statusCounts.blocked}"></div>
                 <div class="dash-pipeline-seg" style="width: ${(statusCounts.done / total) * 100}%; background: #0BDA51;" title="Done: ${statusCounts.done}"></div>
+                <div class="dash-pipeline-seg" style="width: ${(statusCounts.cancelled / total) * 100}%; background: #6B7280;" title="Cancelled: ${statusCounts.cancelled}"></div>
               ` : `
                 <div class="dash-pipeline-seg" style="width: 100%; background: var(--surface-sunken);"></div>
               `}
@@ -707,6 +715,16 @@ const DashboardView = {
                     </div>
                     <span class="badge" style="background: ${criticalTasks.length > 0 ? 'rgba(224, 108, 0, 0.15)' : 'var(--surface-sunken)'}; color: ${criticalTasks.length > 0 ? '#E06C00' : 'var(--text-muted)'}; font-weight: 700;">
                       ${criticalTasks.length}
+                    </span>
+                  </div>
+
+                  <div class="dash-sentinel-item" data-filter="blocked" title="Click to view blocked tasks">
+                    <div class="dash-sentinel-item-left">
+                      <i class="fa-solid fa-ban" style="color: #EF4444;"></i>
+                      <span>Blocked Workflows</span>
+                    </div>
+                    <span class="badge" style="background: ${blockedTasks.length > 0 ? 'rgba(239, 68, 68, 0.18)' : 'var(--surface-sunken)'}; color: ${blockedTasks.length > 0 ? '#EF4444' : 'var(--text-muted)'}; font-weight: 700;">
+                      ${blockedTasks.length}
                     </span>
                   </div>
 

@@ -51,14 +51,23 @@ const ContextMenu = {
           <i class="fa-solid fa-box-archive"></i> Move to Backlog Pool
         </div>
       ` : '')}
+      <div class="context-menu-item" id="ctx-status-backlog">
+        <i class="fa-solid fa-inbox" style="color: #64748B;"></i> Move to Backlog
+      </div>
       <div class="context-menu-item" id="ctx-status-todo">
-        <i class="fa-regular fa-circle"></i> Move to To Do
+        <i class="fa-regular fa-circle" style="color: #2563EB;"></i> Move to To Do
       </div>
       <div class="context-menu-item" id="ctx-status-progress">
-        <i class="fa-regular fa-circle-play"></i> Move to In Progress
+        <i class="fa-regular fa-circle-play" style="color: #EA580C;"></i> Move to In Progress
+      </div>
+      <div class="context-menu-item" id="ctx-status-blocked">
+        <i class="fa-solid fa-ban" style="color: #EF4444;"></i> Move to Blocked
       </div>
       <div class="context-menu-item" id="ctx-status-done">
-        <i class="fa-regular fa-circle-check"></i> Move to Done
+        <i class="fa-regular fa-circle-check" style="color: #059669;"></i> Move to Done
+      </div>
+      <div class="context-menu-item" id="ctx-status-cancelled">
+        <i class="fa-solid fa-circle-xmark" style="color: #6B7280;"></i> Move to Cancelled
       </div>
       <div class="context-menu-divider"></div>
       <div class="context-menu-item danger" id="ctx-delete">
@@ -125,16 +134,28 @@ const ContextMenu = {
       AppState.duplicateTask(task.id);
     });
 
-    document.getElementById('ctx-status-todo').addEventListener('click', () => {
+    document.getElementById('ctx-status-backlog')?.addEventListener('click', () => {
+      AppState.updateTask(task.id, { status: 'backlog' });
+    });
+
+    document.getElementById('ctx-status-todo')?.addEventListener('click', () => {
       AppState.updateTask(task.id, { status: 'todo' });
     });
 
-    document.getElementById('ctx-status-progress').addEventListener('click', () => {
+    document.getElementById('ctx-status-progress')?.addEventListener('click', () => {
       AppState.updateTask(task.id, { status: 'inprogress' });
     });
 
-    document.getElementById('ctx-status-done').addEventListener('click', () => {
+    document.getElementById('ctx-status-blocked')?.addEventListener('click', () => {
+      AppState.updateTask(task.id, { status: 'blocked' });
+    });
+
+    document.getElementById('ctx-status-done')?.addEventListener('click', () => {
       AppState.updateTask(task.id, { status: 'done' });
+    });
+
+    document.getElementById('ctx-status-cancelled')?.addEventListener('click', () => {
+      AppState.updateTask(task.id, { status: 'cancelled' });
     });
 
     document.getElementById('ctx-delete').addEventListener('click', () => {

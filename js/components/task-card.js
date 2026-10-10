@@ -113,12 +113,18 @@ const TaskCard = {
     }
 
     // Next Status for 1-click Advance button
-    const statusOrder = ['backlog', 'todo', 'inprogress', 'inreview', 'done'];
-    const currIdx = statusOrder.indexOf(task.status);
-    const nextStatus = currIdx >= 0 && currIdx < statusOrder.length - 1 ? statusOrder[currIdx + 1] : null;
+    const advanceMap = {
+      backlog: 'todo',
+      todo: 'inprogress',
+      inprogress: 'inreview',
+      inreview: 'done',
+      blocked: 'inprogress',
+      cancelled: 'todo'
+    };
+    const nextStatus = advanceMap[task.status] || null;
     const nextStatusLabels = {
-      todo: 'To Do',
-      inprogress: 'In Progress',
+      todo: task.status === 'cancelled' ? 'Restore (To Do)' : 'To Do',
+      inprogress: task.status === 'blocked' ? 'Unblock (In Progress)' : 'In Progress',
       inreview: 'In Review',
       done: 'Done'
     };

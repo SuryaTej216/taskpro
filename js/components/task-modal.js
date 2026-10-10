@@ -533,8 +533,14 @@ const TaskModal = {
    * @param {string} taskId 
    * @param {boolean} updateUrl
    */
+  /**
+   * Opens the full-page professional Task Detail view
+   * @param {string} taskId 
+   * @param {boolean} updateUrl
+   */
   openDetail(taskId, updateUrl = true) {
     this.currentTaskId = taskId;
+    this.ensureSubscriptions();
     const task = AppState.tasks.find(t => t.id === taskId);
     if (!task) return;
 
@@ -556,6 +562,273 @@ const TaskModal = {
     overlay.classList.add('active');
     document.body.classList.add('has-modal-open');
     this.isOpen = true;
+  },
+
+  ensureSubscriptions() {
+    if (this._hasSubscribed) return;
+    this._hasSubscribed = true;
+
+    AppState.subscribe('activity:changed', ({ taskId }) => {
+      if (this.isOpen && this.currentTaskId && (!taskId || this.currentTaskId === taskId)) {
+        const task = AppState.tasks.find(t => t.id === this.currentTaskId);
+        if (task) this.updateActivitySection(task);
+      }
+    });
+
+    AppState.subscribe('comments:changed', ({ taskId }) => {
+      if (this.isOpen && this.currentTaskId && (!taskId || this.currentTaskId === taskId)) {
+        const task = AppState.tasks.find(t => t.id === this.currentTaskId);
+        if (task) this.updateActivitySection(task);
+      }
+    });
+
+    AppState.subscribe('tasks:changed', ({ action, task }) => {
+      if (this.isOpen && this.currentTaskId) {
+        const currentTask = AppState.tasks.find(t => t.id === this.currentTaskId);
+        if (currentTask) {
+          this.syncTaskHeaderAndAttributes(currentTask);
+        }
+      }
+    });
+  },
+
+  getAuditMeta(action) {
+    switch (action) {
+      case 'created':
+        return { icon: 'fa-solid fa-plus', cls: 'audit-marker-created' };
+      case 'status_changed':
+      case 'completed':
+        return { icon: 'fa-solid fa-arrows-spin', cls: 'audit-marker-status' };
+      case 'priority_changed':
+        return { icon: 'fa-solid fa-flag', cls: 'audit-marker-priority' };
+      case 'sprint_changed':
+        return { icon: 'fa-solid fa-person-running', cls: 'audit-marker-sprint' };
+      case 'time_logged':
+        return { icon: 'fa-solid fa-stopwatch', cls: 'audit-marker-time' };
+      case 'comment_added':
+        return { icon: 'fa-solid fa-comment-dots', cls: 'audit-marker-comment' };
+      case 'comment_deleted':
+        return { icon: 'fa-regular fa-comment-slash', cls: 'audit-marker-comment' };
+      case 'checklist_added':
+        return { icon: 'fa-solid fa-list-check', cls: 'audit-marker-subtask' };
+      case 'due_changed':
+      case 'start_changed':
+        return { icon: 'fa-regular fa-calendar', cls: 'audit-marker-due' };
+      case 'title_changed':
+      case 'desc_changed':
+        return { icon: 'fa-solid fa-pen', cls: 'audit-marker-general' };
+      default:
+        return { icon: 'fa-solid fa-circle-dot', cls: 'audit-marker-general' };
+    }
+  },
+
+  renderAuditDetailsHTML(a) {
+    const details = a.details || '';
+    const statusMatch = details.match(/^Status changed from (\w+) to (\w+)$/i);
+    if (statusMatch) {
+      const fromStatus = statusMatch[1].toLowerCase();
+      const toStatus = statusMatch[2].toLowerCase();
+      return `
+        <div class="audit-details-wrap">
+          <span class="audit-details-text">Status changed from</span>
+          <span class="badge badge-status-${fromStatus}" style="font-size: 10px; padding: 2px 7px; text-transform: uppercase;">${fromStatus}</span>
+          <i class="fa-solid fa-arrow-right" style="font-size: 10px; color: var(--text-muted); margin: 0 2px;"></i>
+          <span class="badge badge-status-${toStatus}" style="font-size: 10px; padding: 2px 7px; text-transform: uppercase;">${toStatus}</span>
+        </div>
+      `;
+    }
+    const prioMatch = details.match(/^Priority changed from (\w+) to (\w+)$/i);
+    if (prioMatch) {
+      const fromP = prioMatch[1].toLowerCase();
+      const toP = prioMatch[2].toLowerCase();
+      return `
+        <div class="audit-details-wrap">
+          <span class="audit-details-text">Priority changed from</span>
+          <span class="badge priority-${fromP}" style="font-size: 11px; font-weight: 600; text-transform: capitalize;">${fromP}</span>
+          <i class="fa-solid fa-arrow-right" style="font-size: 10px; color: var(--text-muted); margin: 0 2px;"></i>
+          <span class="badge priority-${toP}" style="font-size: 11px; font-weight: 600; text-transform: capitalize;">${toP}</span>
+        </div>
+      `;
+    }
+    return `<span class="audit-entry-details">${Utils.escapeHTML(details)}</span>`;
+  },
+
+  renderCommentCard(c) {
+    return `
+      <div class="task-comment-card" data-comment-id="${c.id}">
+        <div class="user-avatar-bubble">
+          ${Utils.escapeHTML(c.authorInitials || 'ST')}
+        </div>
+        <div class="task-comment-main">
+          <div class="task-comment-header">
+            <div class="task-comment-meta">
+              <span class="task-comment-author">${Utils.escapeHTML(c.authorName || 'Surya Tej')}</span>
+              <span class="task-comment-badge">Author</span>
+              <span class="task-comment-time" title="${c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}">
+                <i class="fa-regular fa-clock" style="font-size: 10px; margin-right: 2px;"></i>
+                ${Utils.formatRelativeDate(c.createdAt)}
+              </span>
+            </div>
+            <div class="task-comment-actions">
+              <button type="button" class="task-comment-action-btn btn-copy-comment" data-id="${c.id}" title="Copy comment">
+                <i class="fa-regular fa-copy"></i>
+              </button>
+              <button type="button" class="task-comment-action-btn is-delete btn-del-comment" data-id="${c.id}" title="Delete comment">
+                <i class="fa-regular fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+          <div class="task-comment-text">${Utils.escapeHTML(c.text)}</div>
+        </div>
+      </div>
+    `;
+  },
+
+  renderAuditItem(a) {
+    const meta = this.getAuditMeta(a.action);
+    return `
+      <div class="audit-entry">
+        <div class="audit-entry-marker ${meta.cls}">
+          <i class="${meta.icon}"></i>
+        </div>
+        <div class="audit-entry-body">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            ${this.renderAuditDetailsHTML(a)}
+            <span class="audit-entry-author"><i class="fa-solid fa-user-check" style="font-size: 9px; opacity: 0.6;"></i> Surya Tej</span>
+          </div>
+          <span class="audit-entry-time" title="${a.timestamp ? new Date(a.timestamp).toLocaleString() : ''}">
+            <i class="fa-regular fa-clock" style="font-size: 10px; margin-right: 2px;"></i>
+            ${Utils.formatRelativeDate(a.timestamp)}
+          </span>
+        </div>
+      </div>
+    `;
+  },
+
+  updateActivitySection(task) {
+    if (!task) return;
+    const taskComments = AppState.comments.filter(c => c.taskId === task.id);
+    const taskActivities = AppState.activity.filter(a => a.taskId === task.id);
+    const combinedTimeline = [
+      ...taskComments.map(c => ({ type: 'comment', data: c, time: new Date(c.createdAt || 0).getTime() })),
+      ...taskActivities.map(a => ({ type: 'activity', data: a, time: new Date(a.timestamp || 0).getTime() }))
+    ].sort((x, y) => y.time - x.time);
+
+    // Update tab counts
+    const countAll = document.querySelector('#tab-btn-all .activity-tab-count');
+    if (countAll) countAll.textContent = combinedTimeline.length;
+
+    const countComments = document.querySelector('#tab-btn-comments .activity-tab-count');
+    if (countComments) countComments.textContent = taskComments.length;
+
+    const countAudits = document.querySelector('#tab-btn-activity .activity-tab-count');
+    if (countAudits) countAudits.textContent = taskActivities.length;
+
+    // Update Panes
+    const paneAll = document.getElementById('tab-content-all');
+    if (paneAll) {
+      paneAll.innerHTML = combinedTimeline.length === 0 ? `
+        <div style="font-size: 13px; color: var(--text-muted); padding: 24px; text-align: center; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
+          <i class="fa-solid fa-timeline" style="font-size: 22px; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+          No activity recorded yet for this task.
+        </div>
+      ` : `
+        <div class="audit-timeline">
+          ${combinedTimeline.map(item => item.type === 'comment' ? this.renderCommentCard(item.data) : this.renderAuditItem(item.data)).join('')}
+        </div>
+      `;
+    }
+
+    const paneComments = document.getElementById('tab-content-comments');
+    if (paneComments) {
+      paneComments.innerHTML = taskComments.length === 0 ? `
+        <div style="font-size: 13px; color: var(--text-muted); padding: 24px; text-align: center; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
+          <i class="fa-regular fa-comments" style="font-size: 22px; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+          No discussion comments yet. Use the box above to write the first note.
+        </div>
+      ` : `
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          ${taskComments.map(c => this.renderCommentCard(c)).join('')}
+        </div>
+      `;
+    }
+
+    const paneActivity = document.getElementById('tab-content-activity');
+    if (paneActivity) {
+      paneActivity.innerHTML = taskActivities.length === 0 ? `
+        <div style="font-size: 13px; color: var(--text-muted); padding: 24px; text-align: center; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
+          <i class="fa-solid fa-clock-rotate-left" style="font-size: 22px; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+          No audit events recorded for this task yet.
+        </div>
+      ` : `
+        <div class="audit-timeline">
+          ${taskActivities.map(a => this.renderAuditItem(a)).join('')}
+        </div>
+      `;
+    }
+
+    this.bindCommentActions(task);
+  },
+
+  bindCommentActions(task) {
+    const drawer = document.getElementById('task-drawer');
+    if (!drawer) return;
+
+    drawer.querySelectorAll('.btn-copy-comment').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const commId = btn.dataset.id;
+        const comm = AppState.comments.find(c => c.id === commId);
+        if (comm && comm.text) {
+          navigator.clipboard.writeText(comm.text).then(() => {
+            Toast.success('Comment copied to clipboard');
+          }).catch(() => {
+            Toast.info(comm.text);
+          });
+        }
+      };
+    });
+
+    drawer.querySelectorAll('.btn-del-comment').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const commId = btn.dataset.id;
+        Modal.confirm('Delete Comment', 'Are you sure you want to delete this comment? This cannot be undone.', () => {
+          AppState.deleteComment(commId);
+          Toast.success('Comment deleted');
+          const updated = AppState.tasks.find(t => t.id === task.id);
+          this.updateActivitySection(updated);
+        });
+      };
+    });
+  },
+
+  syncTaskHeaderAndAttributes(task) {
+    if (!task) return;
+    // 1. Sync header status badge
+    const headerStatusBadge = document.querySelector('.fullpage-header-left .badge[class*="badge-status-"]');
+    if (headerStatusBadge) {
+      headerStatusBadge.className = `badge badge-status-${task.status}`;
+      headerStatusBadge.textContent = task.status;
+    }
+
+    // 2. Sync inspector status dropdown
+    const statusSelect = document.getElementById('detail-task-status');
+    if (statusSelect && statusSelect.value !== task.status) {
+      statusSelect.value = task.status;
+    }
+
+    // 3. Sync inspector priority dropdown
+    const prioritySelect = document.getElementById('detail-task-priority');
+    if (prioritySelect && prioritySelect.value !== task.priority) {
+      prioritySelect.value = task.priority;
+    }
+
+    // 4. Sync task title input if not currently focused
+    const titleInput = document.getElementById('detail-task-title');
+    if (titleInput && document.activeElement !== titleInput && titleInput.value !== task.title) {
+      titleInput.value = task.title;
+    }
   },
 
   closeDetail(updateUrl = true) {
@@ -597,6 +870,12 @@ const TaskModal = {
     const parentTask = task.parentId ? AppState.tasks.find(t => t.id === task.parentId) : null;
 
     const isMerged = !!task.mergeChecklistAndSubtasks;
+    const activeActivityTab = this.activeActivityTab || 'all';
+
+    const combinedTimeline = [
+      ...taskComments.map(c => ({ type: 'comment', data: c, time: new Date(c.createdAt || 0).getTime() })),
+      ...taskActivities.map(a => ({ type: 'activity', data: a, time: new Date(a.timestamp || 0).getTime() }))
+    ].sort((x, y) => y.time - x.time);
 
     const checklist = Array.isArray(task.checklist) ? task.checklist : [];
     const totalChecklist = checklist.length;
@@ -1033,61 +1312,94 @@ const TaskModal = {
             `}
 
             <!-- Activity, Comments & History Hub -->
-            <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 18px;">
-              <div style="display: flex; gap: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; margin-bottom: 16px;">
-                <span id="tab-btn-comments" style="font-weight: 700; font-size: 14px; color: var(--accent-primary); cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                  <i class="fa-regular fa-comment"></i> Discussion (${taskComments.length})
-                </span>
-                <span id="tab-btn-activity" style="font-weight: 600; font-size: 14px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                  <i class="fa-solid fa-clock-rotate-left"></i> History &amp; Audit (${taskActivities.length})
-                </span>
-              </div>
-
-              <!-- Comments Section -->
-              <div id="tab-content-comments">
-                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px;">
-                  ${taskComments.length === 0 ? `
-                    <div style="font-size: 13px; color: var(--text-muted); padding: 12px; text-align: center; background: var(--bg-surface-elevated); border-radius: var(--radius-md);">
-                      <i class="fa-regular fa-comments" style="font-size: 20px; display: block; margin-bottom: 6px; opacity: 0.6;"></i>
-                      No discussion yet. Leave a note or updates below.
-                    </div>
-                  ` : ''}
-                  ${taskComments.map(c => `
-                    <div style="padding: 12px 14px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
-                      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 6px;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                          <span style="width: 22px; height: 22px; border-radius: 50%; background: #579DFF; display: flex; align-items: center; justify-content: center; color: #0C1A32; font-size: 10px; font-weight: 700;">ST</span>
-                          <span style="font-weight: 600; color: var(--text-primary);">Surya Tej</span>
-                        </div>
-                        <span style="color: var(--text-muted); font-size: 11px;">${Utils.formatRelativeDate(c.createdAt)}</span>
-                      </div>
-                      <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5;">${Utils.escapeHTML(c.text)}</div>
-                    </div>
-                  `).join('')}
-                </div>
-
-                <!-- Add Comment Input -->
-                <div style="display: flex; gap: 10px;">
-                  <input type="text" id="detail-new-comment" class="form-input" placeholder="Write a comment or note... (Press Ctrl+Enter to post)" style="font-size: 13px; padding: 8px 12px; flex: 1;">
-                  <button id="btn-post-comment" class="btn btn-primary" style="font-size: 13px; padding: 0 16px; height: 38px; white-space: nowrap;">
-                    <i class="fa-solid fa-paper-plane"></i> Post
+            <div class="activity-discussion-card">
+              
+              <!-- Tab Navigation Header -->
+              <div class="activity-nav-header">
+                <div class="activity-nav-tabs">
+                  <button type="button" id="tab-btn-all" class="activity-tab-btn ${activeActivityTab === 'all' ? 'active' : ''}">
+                    <i class="fa-solid fa-list-ul"></i>
+                    <span>All Activity</span>
+                    <span class="activity-tab-count">${combinedTimeline.length}</span>
+                  </button>
+                  <button type="button" id="tab-btn-comments" class="activity-tab-btn ${activeActivityTab === 'comments' ? 'active' : ''}">
+                    <i class="fa-regular fa-comment"></i>
+                    <span>Discussion</span>
+                    <span class="activity-tab-count">${taskComments.length}</span>
+                  </button>
+                  <button type="button" id="tab-btn-activity" class="activity-tab-btn ${activeActivityTab === 'activity' ? 'active' : ''}">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>History &amp; Audits</span>
+                    <span class="activity-tab-count">${taskActivities.length}</span>
                   </button>
                 </div>
+
+                <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-solid fa-shield-halved" style="color: var(--accent-primary);"></i>
+                  <span>Live Audit Log</span>
+                </div>
               </div>
 
-              <!-- Activity History Timeline -->
-              <div id="tab-content-activity" style="display: none; display: flex; flex-direction: column; gap: 10px;">
-                ${taskActivities.length === 0 ? `
-                  <div style="font-size: 12px; color: var(--text-muted); padding: 8px 0;">No audit events recorded for this task.</div>
-                ` : taskActivities.map(a => `
-                  <div style="display: flex; gap: 12px; font-size: 13px; color: var(--text-secondary); align-items: baseline;">
-                    <i class="fa-solid fa-circle-dot" style="color: var(--accent-primary); font-size: 8px;"></i>
-                    <div style="flex: 1;">
-                      <span style="color: var(--text-primary); font-weight: 500;">${Utils.escapeHTML(a.details)}</span>
-                      <span style="color: var(--text-muted); font-size: 11px; margin-left: 8px;">${Utils.formatRelativeDate(a.timestamp)}</span>
+              <!-- Comment Composer Box (Available for instant discussion) -->
+              <div class="comment-composer-box">
+                <div class="user-avatar-bubble">ST</div>
+                <div class="comment-composer-inner">
+                  <textarea id="detail-new-comment" class="comment-composer-textarea" placeholder="Add a comment, share progress notes, or ask a question... (Markdown supported)"></textarea>
+                  <div class="comment-composer-footer">
+                    <div class="comment-shortcut-hint">
+                      <kbd style="font-size: 10px; background: var(--bg-surface); padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); border: 1px solid var(--border-subtle); color: var(--text-secondary);">Ctrl+Enter</kbd>
+                      <span>to post comment</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <button type="button" id="btn-cancel-comment" class="btn btn-ghost btn-sm" style="font-size: 12px;">Clear</button>
+                      <button type="button" id="btn-post-comment" class="btn btn-primary btn-sm" style="font-size: 12px; padding: 0 14px; gap: 6px;">
+                        <i class="fa-solid fa-paper-plane"></i> Post Comment
+                      </button>
                     </div>
                   </div>
-                `).join('')}
+                </div>
+              </div>
+
+              <!-- PANE 1: ALL ACTIVITY (Chronological Combined Feed) -->
+              <div id="tab-content-all" class="activity-tab-pane ${activeActivityTab === 'all' ? 'active' : ''}">
+                ${combinedTimeline.length === 0 ? `
+                  <div style="font-size: 13px; color: var(--text-muted); padding: 24px; text-align: center; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
+                    <i class="fa-solid fa-timeline" style="font-size: 22px; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+                    No activity recorded yet for this task.
+                  </div>
+                ` : `
+                  <div class="audit-timeline">
+                    ${combinedTimeline.map(item => item.type === 'comment' ? this.renderCommentCard(item.data) : this.renderAuditItem(item.data)).join('')}
+                  </div>
+                `}
+              </div>
+
+              <!-- PANE 2: COMMENTS ONLY (Discussion Stream) -->
+              <div id="tab-content-comments" class="activity-tab-pane ${activeActivityTab === 'comments' ? 'active' : ''}">
+                ${taskComments.length === 0 ? `
+                  <div style="font-size: 13px; color: var(--text-muted); padding: 24px; text-align: center; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
+                    <i class="fa-regular fa-comments" style="font-size: 22px; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+                    No discussion comments yet. Use the box above to write the first note.
+                  </div>
+                ` : `
+                  <div style="display: flex; flex-direction: column; gap: 10px;">
+                    ${taskComments.map(c => this.renderCommentCard(c)).join('')}
+                  </div>
+                `}
+              </div>
+
+              <!-- PANE 3: HISTORY & AUDITS ONLY (Timeline) -->
+              <div id="tab-content-activity" class="activity-tab-pane ${activeActivityTab === 'activity' ? 'active' : ''}">
+                ${taskActivities.length === 0 ? `
+                  <div style="font-size: 13px; color: var(--text-muted); padding: 24px; text-align: center; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
+                    <i class="fa-solid fa-clock-rotate-left" style="font-size: 22px; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+                    No audit events recorded for this task yet.
+                  </div>
+                ` : `
+                  <div class="audit-timeline">
+                    ${taskActivities.map(a => this.renderAuditItem(a)).join('')}
+                  </div>
+                `}
               </div>
 
             </div>
@@ -1512,7 +1824,8 @@ const TaskModal = {
           e.target.value = task.status;
         } else {
           const updated = AppState.tasks.find(t => t.id === taskId);
-          this.renderDrawerContent(drawer, updated);
+          this.syncTaskHeaderAndAttributes(updated);
+          this.updateActivitySection(updated);
         }
       });
     }
@@ -1521,6 +1834,9 @@ const TaskModal = {
     if (prioritySelect) {
       prioritySelect.addEventListener('change', (e) => {
         AppState.updateTask(taskId, { priority: e.target.value });
+        const updated = AppState.tasks.find(t => t.id === taskId);
+        this.syncTaskHeaderAndAttributes(updated);
+        this.updateActivitySection(updated);
       });
     }
 
@@ -1886,46 +2202,59 @@ const TaskModal = {
       });
     }
 
-    // Add Comment
+    // Comment Posting & Shortcuts
     const postCommBtn = document.getElementById('btn-post-comment');
     const newCommInput = document.getElementById('detail-new-comment');
+    const cancelCommBtn = document.getElementById('btn-cancel-comment');
+
     const handlePostComment = () => {
+      if (!newCommInput) return;
       const text = newCommInput.value.trim();
       if (!text) return;
       AppState.addComment(taskId, text);
+      Toast.success('Comment posted to discussion');
+      newCommInput.value = '';
       const updated = AppState.tasks.find(t => t.id === taskId);
-      this.renderDrawerContent(drawer, updated);
+      this.updateActivitySection(updated);
     };
+
     if (postCommBtn && newCommInput) {
       postCommBtn.addEventListener('click', handlePostComment);
       newCommInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || !e.shiftKey)) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
           e.preventDefault();
           handlePostComment();
         }
       });
     }
 
-    // Tab Switching for Comments / Activity
-    const tabComments = document.getElementById('tab-btn-comments');
-    const tabActivity = document.getElementById('tab-btn-activity');
-    const contentComments = document.getElementById('tab-content-comments');
-    const contentActivity = document.getElementById('tab-content-activity');
-
-    if (tabComments && tabActivity) {
-      tabComments.addEventListener('click', () => {
-        tabComments.style.color = 'var(--accent-primary)';
-        tabActivity.style.color = 'var(--text-muted)';
-        contentComments.style.display = 'block';
-        contentActivity.style.display = 'none';
-      });
-      tabActivity.addEventListener('click', () => {
-        tabActivity.style.color = 'var(--accent-primary)';
-        tabComments.style.color = 'var(--text-muted)';
-        contentComments.style.display = 'none';
-        contentActivity.style.display = 'flex';
+    if (cancelCommBtn && newCommInput) {
+      cancelCommBtn.addEventListener('click', () => {
+        newCommInput.value = '';
       });
     }
+
+    // Comment actions (Copy & Delete)
+    this.bindCommentActions(task);
+
+    // Tab Switching for All Activity / Comments / History
+    const tabBtns = [
+      { btn: document.getElementById('tab-btn-all'), pane: document.getElementById('tab-content-all'), key: 'all' },
+      { btn: document.getElementById('tab-btn-comments'), pane: document.getElementById('tab-content-comments'), key: 'comments' },
+      { btn: document.getElementById('tab-btn-activity'), pane: document.getElementById('tab-content-activity'), key: 'activity' }
+    ];
+
+    tabBtns.forEach(({ btn, pane, key }) => {
+      if (btn && pane) {
+        btn.addEventListener('click', () => {
+          this.activeActivityTab = key;
+          tabBtns.forEach(t => {
+            if (t.btn) t.btn.classList.toggle('active', t.key === key);
+            if (t.pane) t.pane.classList.toggle('active', t.key === key);
+          });
+        });
+      }
+    });
 
     // Time tracking timer Start / Pause
     const timerBtn = document.getElementById('btn-timer-toggle');

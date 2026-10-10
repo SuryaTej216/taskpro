@@ -67,12 +67,11 @@ const StorageService = {
   },
 
   /**
-   * Checks if app has been initialized before or if projects are missing; seeds realistic initial demo data.
+   * Checks if app has been initialized before; seeds realistic initial demo data only on true first run.
    */
   initDemoDataIfFirstTime() {
-    const initialized = this.get(this.KEYS.INITIALIZED, false);
-    const existingProjects = this.get(this.KEYS.PROJECTS, []);
-    if (!initialized || existingProjects.length === 0) {
+    const initialized = this.get(this.KEYS.INITIALIZED, null);
+    if (initialized === null || initialized === false) {
       this.seedDemoData();
       this.set(this.KEYS.INITIALIZED, true);
     }
@@ -442,6 +441,7 @@ const StorageService = {
    * Initializes clean, empty data collections
    */
   initEmptyData() {
+    this.set(this.KEYS.INITIALIZED, true);
     this.set(this.KEYS.PROJECTS, []);
     this.set(this.KEYS.TASKS, []);
     this.set(this.KEYS.EPICS, []);
@@ -453,7 +453,8 @@ const StorageService = {
     this.set(this.KEYS.NOTIFICATIONS, []);
     this.set(this.KEYS.SETTINGS, {
       theme: 'dark',
-      soundEffects: true
+      soundEffects: true,
+      autoSyncChecklistSubtasks: true
     });
   },
 
@@ -556,7 +557,12 @@ const StorageService = {
    * Clears all TaskForge data from LocalStorage (Danger Zone)
    */
   wipeAllData() {
-    Object.values(this.KEYS).forEach(k => this.remove(k));
+    try {
+      localStorage.clear();
+    } catch (err) {
+      Object.values(this.KEYS).forEach(k => this.remove(k));
+    }
+    this.initEmptyData();
   },
 
   /**

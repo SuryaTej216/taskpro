@@ -39,7 +39,9 @@ const DataGridDropdown = {
         { value: 'todo', label: 'To Do', icon: 'fa-regular fa-circle', iconColor: '#2563EB' },
         { value: 'inprogress', label: 'In Progress', icon: 'fa-solid fa-spinner', iconColor: '#EA580C' },
         { value: 'inreview', label: 'In Review', icon: 'fa-solid fa-eye', iconColor: '#9333EA' },
-        { value: 'done', label: 'Done', icon: 'fa-solid fa-circle-check', iconColor: '#059669' }
+        { value: 'blocked', label: 'Blocked', icon: 'fa-solid fa-ban', iconColor: '#EF4444' },
+        { value: 'done', label: 'Done', icon: 'fa-solid fa-circle-check', iconColor: '#059669' },
+        { value: 'cancelled', label: 'Cancelled', icon: 'fa-solid fa-circle-xmark', iconColor: '#6B7280' }
       ];
     } else if (type === 'priority') {
       title = 'Change Priority';
@@ -135,6 +137,7 @@ const ListView = {
   searchQuery: '',
   selectedType: '',
   selectedPriority: '',
+  selectedStatus: '',
   activeQuickFilter: 'all',
   filtersMinimized: true,
   density: 'comfortable',
@@ -144,8 +147,10 @@ const ListView = {
       (this.searchQuery && this.searchQuery.trim()) ||
       this.selectedType ||
       this.selectedPriority ||
+      this.selectedStatus ||
       (AppState.activeFilters.type && AppState.activeFilters.type.length > 0) ||
       (AppState.activeFilters.priority && AppState.activeFilters.priority.length > 0) ||
+      (AppState.activeFilters.status && AppState.activeFilters.status.length > 0) ||
       AppState.activeFilters.sprintId ||
       AppState.selectedProjectId ||
       (this.activeQuickFilter && this.activeQuickFilter !== 'all')
@@ -158,6 +163,7 @@ const ListView = {
     if (this.searchQuery && this.searchQuery.trim()) count++;
     if (this.selectedType || (AppState.activeFilters.type && AppState.activeFilters.type.length > 0)) count++;
     if (this.selectedPriority || (AppState.activeFilters.priority && AppState.activeFilters.priority.length > 0)) count++;
+    if (this.selectedStatus || (AppState.activeFilters.status && AppState.activeFilters.status.length > 0)) count++;
     if (AppState.activeFilters.sprintId) count++;
     if (AppState.selectedProjectId) count++;
     return count;
@@ -167,11 +173,13 @@ const ListView = {
     this.searchQuery = '';
     this.selectedType = '';
     this.selectedPriority = '';
+    this.selectedStatus = '';
     this.activeQuickFilter = 'all';
     AppState.selectedProjectId = null;
     AppState.activeFilters.sprintId = null;
     AppState.activeFilters.type = [];
     AppState.activeFilters.priority = [];
+    AppState.activeFilters.status = [];
     if (window.Router && typeof Router.updateTopbarProjectPicker === 'function') {
       Router.updateTopbarProjectPicker();
     }
@@ -225,7 +233,9 @@ const ListView = {
       todo: { label: 'To Do', icon: 'fa-regular fa-circle' },
       inprogress: { label: 'In Progress', icon: 'fa-solid fa-spinner' },
       inreview: { label: 'In Review', icon: 'fa-solid fa-eye' },
-      done: { label: 'Done', icon: 'fa-solid fa-circle-check' }
+      blocked: { label: 'Blocked', icon: 'fa-solid fa-ban' },
+      done: { label: 'Done', icon: 'fa-solid fa-circle-check' },
+      cancelled: { label: 'Cancelled', icon: 'fa-solid fa-circle-xmark' }
     }[s] || { label: 'To Do', icon: 'fa-regular fa-circle' };
 
     return `
@@ -344,6 +354,7 @@ const ListView = {
       this.searchQuery = TasksView.state.searchQuery ?? this.searchQuery;
       this.selectedType = TasksView.state.selectedType ?? this.selectedType;
       this.selectedPriority = TasksView.state.selectedPriority ?? this.selectedPriority;
+      this.selectedStatus = TasksView.state.selectedStatus ?? this.selectedStatus;
       this.activeQuickFilter = TasksView.state.activeQuickFilter ?? this.activeQuickFilter;
       this.filtersMinimized = TasksView.state.filtersMinimized ?? this.filtersMinimized;
     }
@@ -352,8 +363,8 @@ const ListView = {
     const validTaskIdSet = new Set(AppState.tasks.map(t => t.id));
     this.selectedTaskIds = new Set([...this.selectedTaskIds].filter(id => validTaskIdSet.has(id)));
 
-    // 2. Base tasks pool (exclude cancelled)
-    const allTasks = AppState.tasks.filter(t => t.status !== 'cancelled');
+    // 2. Base tasks pool (includes all statuses with full visibility)
+    const allTasks = AppState.tasks;
     let tasks = allTasks;
 
     // 3. Project filter
@@ -378,6 +389,12 @@ const ListView = {
       tasks = tasks.filter(t => t.priority === activePriority);
     }
 
+    // 6b. Status filter
+    const activeStatus = this.selectedStatus || (AppState.activeFilters.status && AppState.activeFilters.status[0]) || '';
+    if (activeStatus) {
+      tasks = tasks.filter(t => t.status === activeStatus);
+    }
+
     // 7. Quick filter chips & stage segment filters
     if (this.activeQuickFilter === 'inprogress') {
       tasks = tasks.filter(t => t.status === 'inprogress');
@@ -387,8 +404,12 @@ const ListView = {
       tasks = tasks.filter(t => t.status === 'todo');
     } else if (this.activeQuickFilter === 'inreview') {
       tasks = tasks.filter(t => t.status === 'inreview');
+    } else if (this.activeQuickFilter === 'blocked') {
+      tasks = tasks.filter(t => t.status === 'blocked');
     } else if (this.activeQuickFilter === 'done') {
       tasks = tasks.filter(t => t.status === 'done');
+    } else if (this.activeQuickFilter === 'cancelled') {
+      tasks = tasks.filter(t => t.status === 'cancelled');
     } else if (this.activeQuickFilter === 'critical') {
       tasks = tasks.filter(t => t.priority === 'critical' || t.priority === 'highest');
     } else if (this.activeQuickFilter === 'bugs') {
@@ -414,7 +435,7 @@ const ListView = {
 
     // 9. Natural Sorting (handles WEB-1, WEB-2, WEB-10 correctly)
     const priorityWeights = { critical: 5, highest: 4, high: 3, medium: 2, low: 1, lowest: 0 };
-    const statusWeights = { backlog: 0, todo: 1, inprogress: 2, inreview: 3, done: 4 };
+    const statusWeights = { backlog: 0, todo: 1, inprogress: 2, inreview: 3, blocked: 4, done: 5, cancelled: 6 };
 
     tasks.sort((a, b) => {
       let valA = a[this.sortField];
@@ -477,7 +498,9 @@ const ListView = {
       todo: tasks.filter(t => t.status === 'todo').length,
       inprogress: tasks.filter(t => t.status === 'inprogress').length,
       inreview: tasks.filter(t => t.status === 'inreview').length,
-      done: doneTasks.length
+      blocked: tasks.filter(t => t.status === 'blocked').length,
+      done: doneTasks.length,
+      cancelled: tasks.filter(t => t.status === 'cancelled').length
     };
 
     const hasFilters = this.hasAnyActiveFilters();
@@ -552,7 +575,9 @@ const ListView = {
                 <div class="stage-seg seg-todo ${this.activeQuickFilter === 'todo' ? 'is-selected' : ''}" data-status="todo" style="width: ${(statusCounts.todo / totalCount) * 100}%;" title="To Do: ${statusCounts.todo} (${Math.round((statusCounts.todo / totalCount) * 100)}%) - Click to filter"></div>
                 <div class="stage-seg seg-inprogress ${this.activeQuickFilter === 'inprogress' ? 'is-selected' : ''}" data-status="inprogress" style="width: ${(statusCounts.inprogress / totalCount) * 100}%;" title="In Progress: ${statusCounts.inprogress} (${Math.round((statusCounts.inprogress / totalCount) * 100)}%) - Click to filter"></div>
                 <div class="stage-seg seg-inreview ${this.activeQuickFilter === 'inreview' ? 'is-selected' : ''}" data-status="inreview" style="width: ${(statusCounts.inreview / totalCount) * 100}%;" title="In Review: ${statusCounts.inreview} (${Math.round((statusCounts.inreview / totalCount) * 100)}%) - Click to filter"></div>
+                <div class="stage-seg seg-blocked ${this.activeQuickFilter === 'blocked' ? 'is-selected' : ''}" data-status="blocked" style="width: ${(statusCounts.blocked / totalCount) * 100}%;" title="Blocked: ${statusCounts.blocked} (${Math.round((statusCounts.blocked / totalCount) * 100)}%) - Click to filter"></div>
                 <div class="stage-seg seg-done ${this.activeQuickFilter === 'done' ? 'is-selected' : ''}" data-status="done" style="width: ${(statusCounts.done / totalCount) * 100}%;" title="Done: ${statusCounts.done} (${Math.round((statusCounts.done / totalCount) * 100)}%) - Click to filter"></div>
+                <div class="stage-seg seg-cancelled ${this.activeQuickFilter === 'cancelled' ? 'is-selected' : ''}" data-status="cancelled" style="width: ${(statusCounts.cancelled / totalCount) * 100}%;" title="Cancelled: ${statusCounts.cancelled} (${Math.round((statusCounts.cancelled / totalCount) * 100)}%) - Click to filter"></div>
               ` : `
                 <div class="stage-seg is-empty" style="width: 100%;"></div>
               `}
@@ -615,6 +640,22 @@ const ListView = {
                   <i class="fa-solid fa-chevron-down select-trailing-chevron"></i>
                 </div>
 
+                <!-- Status Filter -->
+                <div class="board-filter-select-wrapper">
+                  <i class="fa-solid fa-list-check select-leading-icon" style="color: #0BDA51;"></i>
+                  <select id="datagrid-status-filter" class="board-select-control" title="Filter by Status">
+                    <option value="">All Statuses</option>
+                    <option value="backlog" ${activeStatus === 'backlog' ? 'selected' : ''}>Backlog</option>
+                    <option value="todo" ${activeStatus === 'todo' ? 'selected' : ''}>To Do</option>
+                    <option value="inprogress" ${activeStatus === 'inprogress' ? 'selected' : ''}>In Progress</option>
+                    <option value="inreview" ${activeStatus === 'inreview' ? 'selected' : ''}>In Review</option>
+                    <option value="blocked" ${activeStatus === 'blocked' ? 'selected' : ''}>Blocked</option>
+                    <option value="done" ${activeStatus === 'done' ? 'selected' : ''}>Done</option>
+                    <option value="cancelled" ${activeStatus === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                  </select>
+                  <i class="fa-solid fa-chevron-down select-trailing-chevron"></i>
+                </div>
+
                 <!-- Work Type Filter -->
                 <div class="board-filter-select-wrapper">
                   <i class="fa-solid fa-shapes select-leading-icon" style="color: #AF59E1;"></i>
@@ -651,9 +692,18 @@ const ListView = {
                 <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'all' && !hasFilters ? 'active' : ''}" data-filter="all">
                   <span>All</span>
                 </button>
+                <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'backlog' ? 'active' : ''}" data-filter="backlog">
+                  <i class="fa-solid fa-inbox" style="color: #64748B;"></i>
+                  <span>Backlog</span>
+                </button>
                 <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'inprogress' ? 'active' : ''}" data-filter="inprogress">
                   <i class="fa-solid fa-bolt" style="color: #E06C00;"></i>
                   <span>In Progress</span>
+                </button>
+                <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'blocked' ? 'active' : ''}" data-filter="blocked" title="Show blocked items">
+                  <i class="fa-solid fa-ban" style="color: #EF4444;"></i>
+                  <span>Blocked</span>
+                  ${statusCounts.blocked > 0 ? `<span class="chip-count-badge" style="background: rgba(239, 68, 68, 0.2); color: #EF4444; font-size: 10px; padding: 1px 5px; border-radius: 10px; font-weight: 700;">${statusCounts.blocked}</span>` : ''}
                 </button>
                 <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'critical' ? 'active' : ''}" data-filter="critical">
                   <i class="fa-solid fa-fire" style="color: #EF4444;"></i>
@@ -713,6 +763,11 @@ const ListView = {
               ${activeSprint ? `
                 <button type="button" class="min-filter-chip" data-clear="sprint" title="Remove sprint filter">
                   <i class="fa-solid fa-person-running" style="color: #E06C00;"></i> <span>${Utils.escapeHTML(activeSprint.name)}</span> <i class="fa-solid fa-xmark"></i>
+                </button>
+              ` : ''}
+              ${activeStatus ? `
+                <button type="button" class="min-filter-chip" data-clear="status" title="Remove status filter">
+                  <i class="fa-solid fa-list-check" style="color: #0BDA51;"></i> <span>${activeStatus}</span> <i class="fa-solid fa-xmark"></i>
                 </button>
               ` : ''}
               ${activeType ? `
@@ -827,7 +882,7 @@ const ListView = {
                         <div class="datagrid-title-container">
                           <!-- Line 1: Main Task Title -->
                           <div class="datagrid-title-line">
-                            <span class="datagrid-title-text ${t.status === 'done' ? 'title-done' : ''}" onclick="TaskModal.openDetail('${t.id}')" title="${Utils.escapeHTML(t.title)}">
+                            <span class="datagrid-title-text ${t.status === 'done' ? 'title-done' : ''} ${t.status === 'cancelled' ? 'title-cancelled' : ''}" onclick="TaskModal.openDetail('${t.id}')" title="${Utils.escapeHTML(t.title)}">
                               ${Utils.escapeHTML(t.title)}
                             </span>
                           </div>
@@ -941,10 +996,13 @@ const ListView = {
             <!-- Bulk Status Selector -->
             <select id="bulk-status-select" class="bulk-select" title="Change Status">
               <option value="">Status...</option>
+              <option value="backlog">Backlog</option>
               <option value="todo">To Do</option>
               <option value="inprogress">In Progress</option>
               <option value="inreview">In Review</option>
+              <option value="blocked">Blocked</option>
               <option value="done">Done</option>
+              <option value="cancelled">Cancelled</option>
             </select>
 
             <!-- Bulk Priority Selector -->
@@ -1136,6 +1194,19 @@ const ListView = {
       });
     }
 
+    const statusSelect = container.querySelector('#datagrid-status-filter');
+    if (statusSelect) {
+      statusSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        this.selectedStatus = val;
+        AppState.activeFilters.status = val ? [val] : [];
+        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
+          TasksView.syncStateFromView(this);
+        }
+        this.render(container);
+      });
+    }
+
     const prioSelect = container.querySelector('#datagrid-priority-filter');
     if (prioSelect) {
       prioSelect.addEventListener('change', (e) => {
@@ -1190,6 +1261,9 @@ const ListView = {
           }
         } else if (target === 'sprint') {
           AppState.activeFilters.sprintId = null;
+        } else if (target === 'status') {
+          this.selectedStatus = '';
+          AppState.activeFilters.status = [];
         } else if (target === 'type') {
           this.selectedType = '';
           AppState.activeFilters.type = [];

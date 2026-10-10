@@ -94,6 +94,33 @@ const AppState = {
   },
 
   /**
+   * Completely wipes all local storage and resets memory state to a clean slate
+   */
+  wipeAndReset() {
+    StorageService.wipeAllData();
+    this.projects = [];
+    this.tasks = [];
+    this.epics = [];
+    this.sprints = [];
+    this.labels = [];
+    this.goals = [];
+    this.comments = [];
+    this.activity = [];
+    this.notifications = [];
+    this.selectedProjectId = null;
+    this.activeTimer = null;
+    if (typeof Sidebar !== 'undefined') {
+      Sidebar.render();
+      if (typeof Sidebar.updateStorageWidget === 'function') {
+        Sidebar.updateStorageWidget();
+      }
+    }
+    this.emit('tasks:changed', { action: 'wipe' });
+    this.emit('projects:changed', {});
+    this.emit('activity:changed', {});
+  },
+
+  /**
    * Subscribes to state change events
    * @param {string} event 
    * @param {Function} callback 
@@ -101,6 +128,13 @@ const AppState = {
   subscribe(event, callback) {
     if (!this.listeners[event]) this.listeners[event] = [];
     this.listeners[event].push(callback);
+    return () => this.unsubscribe(event, callback);
+  },
+
+  unsubscribe(event, callback) {
+    if (this.listeners[event]) {
+      this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+    }
   },
 
   /**
@@ -279,17 +313,44 @@ const AppState = {
     this.tasks[taskIndex] = updatedTask;
     StorageService.set(StorageService.KEYS.TASKS, this.tasks);
 
-    // Record activity
+    // Record comprehensive audit activity
     if (updates.status && updates.status !== oldTask.status) {
-      this.addActivityLog(taskId, 'status_changed', `Status changed to ${updates.status.toUpperCase()}`);
+      this.addActivityLog(taskId, 'status_changed', `Status changed from ${oldTask.status.toUpperCase()} to ${updates.status.toUpperCase()}`);
     }
     if (updates.priority && updates.priority !== oldTask.priority) {
-      this.addActivityLog(taskId, 'priority_changed', `Priority changed to ${updates.priority.toUpperCase()}`);
+      this.addActivityLog(taskId, 'priority_changed', `Priority changed from ${oldTask.priority.toUpperCase()} to ${updates.priority.toUpperCase()}`);
     }
     if (updates.sprintId !== undefined && updates.sprintId !== oldTask.sprintId) {
       const sprint = this.sprints.find(s => s.id === updates.sprintId);
       const sprintName = sprint ? sprint.name : 'Backlog';
       this.addActivityLog(taskId, 'sprint_changed', `Moved to ${sprintName}`);
+    }
+    if (updates.title && updates.title !== oldTask.title) {
+      this.addActivityLog(taskId, 'title_changed', `Renamed task to "${updates.title}"`);
+    }
+    if (updates.type && updates.type !== oldTask.type) {
+      this.addActivityLog(taskId, 'type_changed', `Changed issue type to ${updates.type.toUpperCase()}`);
+    }
+    if (updates.dueDate !== undefined && updates.dueDate !== oldTask.dueDate) {
+      const dateStr = updates.dueDate ? Utils.formatDate(updates.dueDate) : 'None';
+      this.addActivityLog(taskId, 'due_changed', `Due date set to ${dateStr}`);
+    }
+    if (updates.startDate !== undefined && updates.startDate !== oldTask.startDate) {
+      const dateStr = updates.startDate ? Utils.formatDate(updates.startDate) : 'None';
+      this.addActivityLog(taskId, 'start_changed', `Start date set to ${dateStr}`);
+    }
+    if (updates.storyPoints !== undefined && updates.storyPoints !== oldTask.storyPoints) {
+      this.addActivityLog(taskId, 'points_changed', `Story points updated to ${updates.storyPoints} pts`);
+    }
+    if (updates.trackedTime !== undefined && updates.trackedTime !== oldTask.trackedTime) {
+      const diffMins = updates.trackedTime - (oldTask.trackedTime || 0);
+      if (diffMins > 0) {
+        this.addActivityLog(taskId, 'time_logged', `Logged ${diffMins}m of work (Total: ${updates.trackedTime}m)`);
+      }
+    }
+    if (updates.checklist && oldTask.checklist && updates.checklist.length > oldTask.checklist.length) {
+      const addedCount = updates.checklist.length - oldTask.checklist.length;
+      this.addActivityLog(taskId, 'checklist_added', `Added ${addedCount} checklist item(s)`);
     }
 
     // Trigger local automations
@@ -947,11 +1008,13 @@ const AppState = {
       id: Utils.generateId('comm_'),
       taskId,
       text: text.trim(),
+      authorName: 'Surya Tej',
+      authorInitials: 'ST',
       createdAt: new Date().toISOString()
     };
     this.comments.push(newComment);
     StorageService.set(StorageService.KEYS.COMMENTS, this.comments);
-    this.addActivityLog(taskId, 'comment_added', 'Added a comment');
+    this.addActivityLog(taskId, 'comment_added', 'Added a comment to discussion');
     this.emit('comments:changed', { taskId });
     return newComment;
   },
@@ -961,6 +1024,7 @@ const AppState = {
     if (!comm) return;
     this.comments = this.comments.filter(c => c.id !== commentId);
     StorageService.set(StorageService.KEYS.COMMENTS, this.comments);
+    this.addActivityLog(comm.taskId, 'comment_deleted', 'Deleted a comment');
     this.emit('comments:changed', { taskId: comm.taskId });
   },
 

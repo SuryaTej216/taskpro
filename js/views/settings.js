@@ -207,18 +207,30 @@ const SettingsView = {
 
           <!-- 6. Danger Zone -->
           <div style="background: var(--bg-surface); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: var(--radius-lg); padding: 20px;">
-            <h3 style="font-size: 15px; font-weight: 700; color: var(--accent-danger); margin-bottom: 12px;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--accent-danger); margin-bottom: 16px;">
               <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
             </h3>
 
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div>
-                <div style="font-weight: 600; font-size: 13px; color: var(--accent-danger);">Wipe All Application Data</div>
-                <div style="font-size: 12px; color: var(--text-secondary);">Permanently clears all tasks, projects, sprints, and metrics from LocalStorage to start with a fresh slate.</div>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle);">
+                <div>
+                  <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">Restore Sample Demo Data</div>
+                  <div style="font-size: 12px; color: var(--text-secondary);">Reload the default demonstration projects, epics, sprints, and tasks for exploration.</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="SettingsView.restoreDemoData()">
+                  <i class="fa-solid fa-rotate-left"></i> Restore Demo Data
+                </button>
               </div>
-              <button class="btn btn-danger btn-sm" onclick="SettingsView.wipeData()">
-                Wipe Local Storage
-              </button>
+
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                <div>
+                  <div style="font-weight: 600; font-size: 13px; color: var(--accent-danger);">Wipe All Local Storage Data</div>
+                  <div style="font-size: 12px; color: var(--text-secondary);">Permanently clears all tasks, projects, sprints, and metrics from LocalStorage to start with a clean empty slate.</div>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="SettingsView.wipeData()">
+                  <i class="fa-solid fa-trash-can"></i> Wipe Local Storage
+                </button>
+              </div>
             </div>
           </div>
 
@@ -322,11 +334,33 @@ const SettingsView = {
   },
 
   wipeData() {
-    Modal.confirm('Wipe All Data', 'Are you absolutely sure? All tasks, projects, and sprint data will be PERMANENTLY deleted from your browser.', () => {
-      StorageService.wipeAllData();
+    Modal.confirm('Wipe All Local Storage Data', 'Are you absolutely sure? All tasks, projects, sprints, comments, and activity logs will be PERMANENTLY deleted from your browser. Storage will be reset to a clean empty slate.', () => {
+      AppState.wipeAndReset();
+      if (typeof TaskModal !== 'undefined' && TaskModal.isOpen) {
+        TaskModal.closeDetail(false);
+      }
+      if (typeof Router !== 'undefined') {
+        Router.renderCurrentRoute();
+      }
+      Toast.warning('Local storage wiped: All data has been cleared.');
+    });
+  },
+
+  restoreDemoData() {
+    Modal.confirm('Restore Sample Demo Data', 'This will reload the initial demonstration projects, sprints, tasks, and activity logs.', () => {
+      StorageService.seedDemoData();
+      StorageService.set(StorageService.KEYS.INITIALIZED, true);
       AppState.init();
-      Router.renderCurrentRoute();
-      Toast.warning('All application data cleared.');
+      if (typeof Sidebar !== 'undefined') {
+        Sidebar.render();
+        if (typeof Sidebar.updateStorageWidget === 'function') {
+          Sidebar.updateStorageWidget();
+        }
+      }
+      if (typeof Router !== 'undefined') {
+        Router.renderCurrentRoute();
+      }
+      Toast.success('Sample demo data restored successfully.');
     });
   },
 
