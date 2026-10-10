@@ -529,13 +529,20 @@ const TaskModal = {
   },
 
   /**
-   * Opens the full Jira-style Task Detail Slide-over Panel
+   * Opens the full-page professional Task Detail view
    * @param {string} taskId 
+   * @param {boolean} updateUrl
    */
-  openDetail(taskId) {
+  openDetail(taskId, updateUrl = true) {
     this.currentTaskId = taskId;
     const task = AppState.tasks.find(t => t.id === taskId);
     if (!task) return;
+
+    if (updateUrl && window.location.hash !== `#/task?id=${taskId}`) {
+      this.previousHash = window.location.hash || '#/tasks';
+      this.previousRoute = AppState.currentView || 'tasks';
+      window.location.hash = `#/task?id=${taskId}`;
+    }
 
     const overlay = document.getElementById('task-drawer-overlay');
     const drawer = document.getElementById('task-drawer');
@@ -544,33 +551,46 @@ const TaskModal = {
     try {
       this.renderDrawerContent(drawer, task);
     } catch (err) {
-      console.error('Error rendering task drawer content:', err);
+      console.error('Error rendering task detail content:', err);
     }
     overlay.classList.add('active');
+    document.body.classList.add('has-modal-open');
     this.isOpen = true;
   },
 
-  closeDetail() {
+  closeDetail(updateUrl = true) {
     if (typeof DropdownUI !== 'undefined') {
       DropdownUI.close();
     }
     const overlay = document.getElementById('task-drawer-overlay');
     if (overlay) overlay.classList.remove('active');
+    document.body.classList.remove('has-modal-open');
     this.isOpen = false;
     this.currentTaskId = null;
     if (this.activeTimerInterval) {
       clearInterval(this.activeTimerInterval);
       this.activeTimerInterval = null;
     }
+    if (this._keyNavHandler) {
+      window.removeEventListener('keydown', this._keyNavHandler);
+      this._keyNavHandler = null;
+    }
+
+    if (updateUrl && window.location.hash.startsWith('#/task')) {
+      const targetHash = (this.previousHash && !this.previousHash.startsWith('#/task')) 
+        ? this.previousHash 
+        : '#/tasks';
+      window.location.hash = targetHash;
+    }
   },
 
   /**
-   * Renders the complete Task Detail UI into drawer
+   * Renders the complete Full-Page Task Detail UI
    * @param {HTMLElement} drawer 
    * @param {Object} task 
    */
   renderDrawerContent(drawer, task) {
-    const project = AppState.projects.find(p => p.id === task.projectId) || { name: 'Unknown', key: 'PRJ' };
+    const project = AppState.projects.find(p => p.id === task.projectId) || { name: 'No Project', key: 'PRJ', color: '#579DFF' };
     const taskComments = AppState.comments.filter(c => c.taskId === task.id);
     const taskActivities = AppState.activity.filter(a => a.taskId === task.id);
     const subtasks = AppState.tasks.filter(t => t.parentId === task.id);
@@ -592,417 +612,661 @@ const TaskModal = {
     const completedMerged = clubbedItems.filter(i => i.completed).length;
     const mergedPct = totalMerged > 0 ? Math.round((completedMerged / totalMerged) * 100) : 0;
 
+    // Contextual tasks for Next / Prev navigation
+    const contextTasks = AppState.selectedProjectId 
+      ? AppState.tasks.filter(t => t.projectId === AppState.selectedProjectId)
+      : AppState.tasks;
+    const taskIndex = contextTasks.findIndex(t => t.id === task.id);
+    const totalContextTasks = contextTasks.length;
+    const prevTask = taskIndex > 0 ? contextTasks[taskIndex - 1] : null;
+    const nextTask = taskIndex >= 0 && taskIndex < totalContextTasks - 1 ? contextTasks[taskIndex + 1] : null;
+
+    // Previous route label for Back button
+    const backRouteName = this.previousRoute || (AppState.currentView !== 'task' ? AppState.currentView : 'tasks');
+    const backLabel = backRouteName ? (backRouteName.charAt(0).toUpperCase() + backRouteName.slice(1)) : 'Tasks';
+
+    // Layout Mode preference
+    const layoutMode = localStorage.getItem('taskforge_task_layout_mode') || 'centered';
+
+    // Due date status badge
+    let dueStatusHTML = '';
+    if (task.dueDate) {
+      const due = new Date(task.dueDate);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const dueMidnight = new Date(due);
+      dueMidnight.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((dueMidnight - now) / (1000 * 60 * 60 * 24));
+      if (task.status === 'done') {
+        dueStatusHTML = `<span class="badge" style="background: rgba(54, 179, 126, 0.15); color: #36B37E;"><i class="fa-regular fa-calendar-check"></i> Completed (${Utils.formatDate(task.dueDate)})</span>`;
+      } else if (diffDays < 0) {
+        dueStatusHTML = `<span class="badge" style="background: rgba(248, 81, 73, 0.16); color: #F85149; border: 1px solid rgba(248, 81, 73, 0.35); font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> Overdue by ${Math.abs(diffDays)}d (${Utils.formatDate(task.dueDate)})</span>`;
+      } else if (diffDays === 0) {
+        dueStatusHTML = `<span class="badge" style="background: rgba(210, 153, 34, 0.2); color: #E3B341; border: 1px solid rgba(210, 153, 34, 0.4); font-weight: 600;"><i class="fa-regular fa-clock"></i> Due Today</span>`;
+      } else if (diffDays === 1) {
+        dueStatusHTML = `<span class="badge" style="background: rgba(210, 153, 34, 0.15); color: #E3B341;"><i class="fa-regular fa-calendar"></i> Due Tomorrow</span>`;
+      } else if (diffDays <= 4) {
+        dueStatusHTML = `<span class="badge" style="background: rgba(87, 157, 255, 0.15); color: #579DFF;"><i class="fa-regular fa-calendar"></i> Due in ${diffDays} days</span>`;
+      } else {
+        dueStatusHTML = `<span class="badge" style="background: var(--bg-surface-elevated); color: var(--text-secondary);"><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(task.dueDate)}</span>`;
+      }
+    }
+
+    // Type definition
+    const typeIcons = {
+      task: { icon: 'fa-square-check', color: '#579DFF', label: 'Task' },
+      story: { icon: 'fa-bookmark', color: '#6554C0', label: 'Story' },
+      bug: { icon: 'fa-circle-dot', color: '#F85149', label: 'Bug' },
+      epic: { icon: 'fa-bolt', color: '#8777D9', label: 'Epic' },
+      improvement: { icon: 'fa-circle-arrow-up', color: '#36B37E', label: 'Improvement' },
+      subtask: { icon: 'fa-turn-up fa-rotate-90', color: '#579DFF', label: 'Subtask' }
+    };
+    const currentType = typeIcons[task.type] || typeIcons.task;
+
+    const labels = Array.isArray(task.labels) ? task.labels : [];
+
     drawer.innerHTML = `
-      <!-- Drawer Header -->
-      <div class="drawer-header">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span class="type-icon type-${task.type}" title="${task.type}"><i class="fa-solid fa-cube"></i></span>
-          <span style="font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: #FFFFFF;">${task.key}</span>
-          <span style="color: #94A3B8; font-size: 13px;">in ${Utils.escapeHTML(project.name)}</span>
+      <!-- 1. Executive Full-Page Command Header -->
+      <div class="fullpage-task-header">
+        <div class="fullpage-header-left">
+          <button id="drawer-btn-back" class="btn btn-secondary btn-sm" title="Return to previous view (Esc)" style="display: flex; align-items: center; gap: 6px; padding: 5px 12px; font-weight: 600;">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Back to ${backLabel}</span>
+            <kbd style="font-size: 10px; background: rgba(255, 255, 255, 0.1); padding: 1px 4px; border-radius: 3px; font-family: var(--font-mono);">Esc</kbd>
+          </button>
+          
+          <div class="fullpage-header-divider"></div>
+
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span class="badge" style="background: ${project.color || '#579DFF'}18; color: ${project.color || '#579DFF'}; border: 1px solid ${project.color || '#579DFF'}44; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: ${project.color || '#579DFF'};"></span>
+              ${Utils.escapeHTML(project.name)}
+            </span>
+            <span style="color: var(--text-muted); font-size: 13px;">/</span>
+            <button id="detail-btn-copy-key" class="btn-copy-chip" title="Click to copy task key">
+              <span>${task.key}</span>
+              <i class="fa-regular fa-copy" style="font-size: 11px; opacity: 0.7;"></i>
+            </button>
+            <span class="badge" style="background: ${currentType.color}18; color: ${currentType.color}; border: 1px solid ${currentType.color}44; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;">
+              <i class="fa-solid ${currentType.icon}"></i> ${currentType.label}
+            </span>
+            <span class="badge badge-status-${task.status}" style="font-size: 11px; padding: 2px 8px; text-transform: uppercase;">
+              ${task.status}
+            </span>
+          </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
+
+        <div class="fullpage-header-center">
+          ${totalContextTasks > 1 ? `
+            <div class="task-nav-pager" title="Navigate tasks in list (Alt+Up / Alt+Down)">
+              <button id="task-nav-prev" class="btn btn-ghost btn-xs" ${!prevTask ? 'disabled style="opacity: 0.35;"' : ''} title="${prevTask ? `Previous: ${prevTask.key} (Alt+Up)` : 'No previous task'}">
+                <i class="fa-solid fa-chevron-up"></i>
+              </button>
+              <span class="task-nav-counter">${taskIndex >= 0 ? `${taskIndex + 1} of ${totalContextTasks}` : 'Task'}</span>
+              <button id="task-nav-next" class="btn btn-ghost btn-xs" ${!nextTask ? 'disabled style="opacity: 0.35;"' : ''} title="${nextTask ? `Next: ${nextTask.key} (Alt+Down)` : 'No next task'}">
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="fullpage-header-right">
+          <button id="drawer-btn-share" class="btn btn-ghost btn-sm" title="Copy direct task URL" style="gap: 5px;">
+            <i class="fa-solid fa-link"></i> <span>Share</span>
+          </button>
+
+          <button id="drawer-btn-layout-toggle" class="btn btn-ghost btn-sm" title="Toggle Centered Focus / Full Canvas width">
+            <i class="fa-solid ${layoutMode === 'fluid' ? 'fa-compress' : 'fa-expand'}"></i>
+          </button>
+
           <button id="drawer-btn-duplicate" class="btn btn-ghost btn-sm" title="Duplicate Task">
             <i class="fa-regular fa-copy"></i>
           </button>
+
           <button id="drawer-btn-delete" class="btn btn-ghost btn-sm" style="color: #F87171;" title="Delete Task">
             <i class="fa-regular fa-trash-can"></i>
           </button>
+
+          <div class="fullpage-header-divider"></div>
+
           <button id="drawer-btn-close" class="btn-icon" title="Close (Esc)">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
       </div>
 
-      ${parentTask ? `
-        <!-- Parent Task Banner -->
-        <div style="padding: 8px 20px; background: var(--accent-primary-subtle); border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; font-size: 12px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <i class="fa-solid fa-network-wired" style="color: var(--accent-primary);"></i>
-            <span style="color: var(--text-secondary);">Subtask of:</span>
-            <a href="javascript:void(0)" id="drawer-parent-task-link" style="color: var(--accent-primary); font-weight: 600; text-decoration: underline;">
-              ${parentTask.key} — ${Utils.escapeHTML(parentTask.title)}
-            </a>
-          </div>
-          <span class="badge badge-status-${parentTask.status}" style="font-size: 10px; padding: 1px 6px;">${parentTask.status}</span>
-        </div>
-      ` : ''}
-
-      <!-- Drawer Body: Two Column Responsive Grid -->
-      <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: row; flex-wrap: wrap;">
-        
-        <!-- Left Main Content Column -->
-        <div style="flex: 1; min-width: 320px; padding: 24px; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 20px;">
+      <!-- 2. Scrollable Full-Page Workspace Canvas -->
+      <div class="fullpage-task-body">
+        <div class="fullpage-task-container ${layoutMode === 'fluid' ? 'is-fluid-mode' : 'is-centered-mode'}">
           
-          <!-- Task Title Input -->
-          <div>
-            <input type="text" id="detail-task-title" value="${Utils.escapeHTML(task.title)}" class="form-input" style="font-size: 18px; font-weight: 700; background: transparent; border-color: transparent; padding: 4px 8px;" placeholder="Task Title...">
-          </div>
-
-          <!-- Description -->
-          <div class="form-group">
-            <label class="form-label"><i class="fa-solid fa-align-left"></i> Description</label>
-            <textarea id="detail-task-desc" class="form-textarea" style="min-height: 100px;" placeholder="Add detailed requirements or notes...">${Utils.escapeHTML(task.description || '')}</textarea>
-          </div>
-
-          ${!isMerged ? `
-            <!-- PART 1: CHECKLIST SECTION (SEPARATE) -->
-            <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 16px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+          <!-- LEFT FOCUS CANVAS (~68-70%) -->
+          <div class="fullpage-main-canvas">
+            
+            ${parentTask ? `
+              <!-- Parent Task Hierarchy Card -->
+              <div class="parent-task-banner">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-weight: 600; font-size: 13px;">
-                    <i class="fa-regular fa-square-check" style="color: var(--accent-primary);"></i> Part 1: Checklist (${completedChecklist}/${totalChecklist})
-                  </span>
-                  <span style="font-size: 12px; font-weight: 600; color: ${chkPct === 100 && totalChecklist > 0 ? 'var(--accent-success)' : 'var(--text-muted)'};">
-                    ${chkPct}%
-                  </span>
+                  <i class="fa-solid fa-network-wired" style="color: var(--accent-primary);"></i>
+                  <span style="color: var(--text-secondary); font-size: 12px;">Subtask of:</span>
+                  <a href="javascript:void(0)" id="drawer-parent-task-link" class="parent-task-link">
+                    ${parentTask.key} — ${Utils.escapeHTML(parentTask.title)}
+                  </a>
                 </div>
-                <button id="btn-toggle-merge-view" class="btn-toggle-merge" title="Merge Checklist and Subtasks into a single view">
-                  <i class="fa-solid fa-arrows-split-up-and-left fa-rotate-90"></i> Merge Lists
-                </button>
-              </div>
-
-              <!-- Checklist Progress Bar -->
-              <div class="drawer-progress-container is-checklist" style="margin-bottom: 14px;">
-                <div class="task-card-progress-track">
-                  <div class="task-card-progress-fill is-checklist ${chkPct === 100 && totalChecklist > 0 ? 'is-complete' : ''}" style="width: ${chkPct}%;"></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="badge badge-status-${parentTask.status}" style="font-size: 11px;">${parentTask.status}</span>
+                  <span class="badge" style="font-size: 10px; background: var(--bg-surface);">${parentTask.storyPoints || 0} pts</span>
                 </div>
               </div>
+            ` : ''}
 
-              <!-- Checklist Items List -->
-              <div id="checklist-items-container" style="display: flex; flex-direction: column; gap: 6px;">
-                ${totalChecklist === 0 ? `
-                  <div style="font-size: 12px; color: var(--text-muted); padding: 4px 0;">No checklist items yet. Add quick steps below.</div>
-                ` : checklist.map(item => `
-                  <div class="chk-item-row" data-id="${item.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: var(--bg-app); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12px; gap: 8px;">
-                    <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
-                      <input type="checkbox" class="chk-item-toggle" data-id="${item.id}" ${item.completed ? 'checked' : ''} style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--accent-success);" title="Mark complete">
-                      <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; ${item.completed ? 'text-decoration: line-through; color: var(--text-muted);' : 'color: var(--text-primary);'}" title="${Utils.escapeHTML(item.text)}">
-                        ${Utils.escapeHTML(item.text)}
-                      </span>
-                    </div>
-                    <button class="btn btn-ghost btn-sm chk-item-del" data-id="${item.id}" title="Delete item" style="padding: 2px 6px; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
-                  </div>
-                `).join('')}
-              </div>
-
-              <!-- Add Checklist Item Bar (bulk: use {} placeholder + count) -->
-              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-                <div style="display: flex; gap: 8px; align-items: center;">
-                  <input type="text" id="new-checklist-input" class="form-input" placeholder="e.g. Design task {}" style="font-size: 12px; padding: 6px 10px; flex: 1;">
-                  <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                    <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
-                    <input type="number" id="new-checklist-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk item count">
-                  </div>
-                  <button id="btn-add-checklist" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px; white-space: nowrap;">
-                    <i class="fa-solid fa-plus"></i> Add
-                  </button>
+            <!-- Task Title with Inline Edit -->
+            <div>
+              <textarea id="detail-task-title" class="fullpage-task-title-input" rows="1" placeholder="Task Title...">${Utils.escapeHTML(task.title)}</textarea>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding-left: 2px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  ${dueStatusHTML}
+                  ${task.storyPoints !== undefined && task.storyPoints !== null ? `
+                    <span class="badge" style="background: var(--bg-surface-elevated); color: var(--accent-primary); font-weight: 600;" title="Story Points">
+                      <i class="fa-solid fa-award"></i> ${task.storyPoints} pts
+                    </span>
+                  ` : ''}
+                  ${task.sprintId ? `
+                    <span class="badge" style="background: rgba(54, 179, 126, 0.12); color: #36B37E;" title="Assigned Sprint">
+                      <i class="fa-solid fa-repeat"></i> ${Utils.escapeHTML((AppState.sprints.find(s => s.id === task.sprintId) || {}).name || 'Sprint')}
+                    </span>
+                  ` : ''}
                 </div>
-                <span style="font-size: 10px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk: use <code style='background:var(--bg-surface-active);padding:1px 4px;border-radius:3px;'>{}</code> as placeholder &amp; set count. E.g. "Step {}" × 3 → Step 1, Step 2, Step 3</span>
+                <span id="title-save-indicator" style="font-size: 11px; color: var(--accent-success); opacity: 0; transition: opacity 0.3s ease;">
+                  <i class="fa-solid fa-check"></i> Saved
+                </span>
               </div>
             </div>
 
-            <!-- PART 2: SUBTASKS (SUBLIST) SECTION (SEPARATE) -->
-            <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 16px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-weight: 600; font-size: 13px;">
-                    <i class="fa-solid fa-network-wired" style="color: var(--accent-primary);"></i> Part 2: Subtasks (${completedSubtasks}/${totalSubtasks})
-                  </span>
-                  <span style="font-size: 12px; font-weight: 600; color: ${stPct === 100 && totalSubtasks > 0 ? 'var(--accent-success)' : 'var(--text-muted)'};">
-                    ${stPct}%
-                  </span>
-                </div>
-                <button id="btn-toggle-merge-view-2" class="btn-toggle-merge" title="Merge Checklist and Subtasks into a single view">
-                  <i class="fa-solid fa-arrows-split-up-and-left fa-rotate-90"></i> Merge Lists
-                </button>
+            <!-- Productivity Quick Action Bar -->
+            <div class="fullpage-action-bar">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-right: 4px;">Quick Actions:</span>
+              <button type="button" class="fullpage-action-btn" id="btn-quick-add-subtask">
+                <i class="fa-solid fa-plus" style="color: var(--accent-primary);"></i> Subtask
+              </button>
+              <button type="button" class="fullpage-action-btn" id="btn-quick-add-checklist">
+                <i class="fa-regular fa-square-check" style="color: #36B37E;"></i> Checklist Item
+              </button>
+              <button type="button" class="fullpage-action-btn" id="btn-quick-add-comment">
+                <i class="fa-regular fa-comment" style="color: #A371F7;"></i> Add Comment
+              </button>
+              <button type="button" class="fullpage-action-btn" id="btn-quick-timer">
+                <i class="fa-solid fa-stopwatch" style="color: #E3B341;"></i> Focus Timer
+              </button>
+            </div>
+
+            <!-- Description Workspace with Markdown Controls -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 18px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                <label class="form-label" style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                  <i class="fa-solid fa-align-left" style="color: var(--accent-primary);"></i> Description &amp; Requirements
+                </label>
+                <span style="font-size: 11px; color: var(--text-muted);">Markdown supported</span>
               </div>
 
-              <!-- Subtasks Progress Bar -->
-              <div class="drawer-progress-container is-subtask" style="margin-bottom: 14px;">
-                <div class="task-card-progress-track">
-                  <div class="task-card-progress-fill is-subtask ${stPct === 100 && totalSubtasks > 0 ? 'is-complete' : ''}" style="width: ${stPct}%;"></div>
-                </div>
+              <!-- Markdown Format Toolbar -->
+              <div class="markdown-toolbar">
+                <button type="button" class="markdown-tool-btn md-btn-bold" title="Bold (**text**)"><i class="fa-solid fa-bold"></i></button>
+                <button type="button" class="markdown-tool-btn md-btn-italic" title="Italic (*text*)"><i class="fa-solid fa-italic"></i></button>
+                <button type="button" class="markdown-tool-btn md-btn-code" title="Inline Code (\`code\`)"><i class="fa-solid fa-code"></i></button>
+                <button type="button" class="markdown-tool-btn md-btn-heading" title="Heading (### Text)"><i class="fa-solid fa-heading"></i></button>
+                <button type="button" class="markdown-tool-btn md-btn-list" title="Bullet List (- item)"><i class="fa-solid fa-list-ul"></i></button>
+                <button type="button" class="markdown-tool-btn md-btn-numlist" title="Numbered List (1. item)"><i class="fa-solid fa-list-ol"></i></button>
+                <button type="button" class="markdown-tool-btn md-btn-check" title="Task checkbox (- [ ] item)"><i class="fa-regular fa-square-check"></i></button>
+                <button type="button" class="markdown-tool-btn md-btn-quote" title="Quote block (> quote)"><i class="fa-solid fa-quote-left"></i></button>
+                <button type="button" class="markdown-tool-btn md-btn-link" title="Link ([title](url))"><i class="fa-solid fa-link"></i></button>
               </div>
 
-              <!-- Subtasks List -->
-              <div id="subtasks-items-container" style="display: flex; flex-direction: column; gap: 6px;">
-                ${totalSubtasks === 0 ? `
-                  <div style="font-size: 12px; color: var(--text-muted); padding: 4px 0;">No subtasks yet. Add child subtasks below.</div>
-                ` : subtasks.map(st => `
-                  <div class="subtask-item-row" data-id="${st.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: var(--bg-app); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12px; gap: 8px;">
-                    <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
-                      <input type="checkbox" class="subtask-item-toggle" data-id="${st.id}" ${st.status === 'done' ? 'checked' : ''} style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--accent-success);" title="Mark complete">
-                      <span class="subtask-open-link" data-id="${st.id}" style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary); cursor: pointer;" title="Open subtask detail">${st.key}</span>
-                      <span class="subtask-open-link" data-id="${st.id}" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; ${st.status === 'done' ? 'text-decoration: line-through; color: var(--text-muted);' : 'color: var(--text-primary);'}" title="${Utils.escapeHTML(st.title)}">
-                        ${Utils.escapeHTML(st.title)}
-                      </span>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      <span class="badge" style="font-size: 9px; padding: 1px 6px; background: var(--bg-surface-active); color: var(--accent-primary); font-weight: 600;" title="Story Points">${st.storyPoints !== undefined && st.storyPoints !== null ? st.storyPoints : 1} pts</span>
-                      <span class="badge badge-status-${st.status}" style="font-size: 9px; padding: 1px 5px;">${st.status}</span>
-                      <button class="btn btn-ghost btn-sm subtask-item-del" data-id="${st.id}" title="Delete subtask" style="padding: 2px 6px; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
+              <textarea id="detail-task-desc" class="fullpage-desc-textarea" placeholder="Add detailed specifications, technical design, reproduction steps, or acceptance criteria...">${Utils.escapeHTML(task.description || '')}</textarea>
+            </div>
+
+            <!-- Subtasks & Checklist Workspace -->
+            ${!isMerged ? `
+              <!-- SEPARATE MODE: Part 1 Checklist -->
+              <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 18px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: 700; font-size: 14px; color: var(--text-primary);">
+                      <i class="fa-regular fa-square-check" style="color: var(--accent-primary);"></i> Checklist (${completedChecklist}/${totalChecklist})
+                    </span>
+                    <span style="font-size: 12px; font-weight: 600; color: ${chkPct === 100 && totalChecklist > 0 ? 'var(--accent-success)' : 'var(--text-muted)'};">
+                      ${chkPct}%
+                    </span>
                   </div>
-                `).join('')}
-              </div>
-
-              <!-- Add Subtask Bar (bulk: use {} placeholder + count) -->
-              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-                <div style="display: flex; gap: 8px; align-items: center;">
-                  <input type="text" id="new-subtask-input" class="form-input" placeholder="e.g. Implement feature {}" style="font-size: 12px; padding: 6px 10px; flex: 1;">
-                  <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                    <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
-                    <input type="number" id="new-subtask-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk subtask count">
-                  </div>
-                  <button id="btn-add-subtask" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px; white-space: nowrap;">
-                    <i class="fa-solid fa-plus"></i> Add
+                  <button id="btn-toggle-merge-view" class="btn btn-ghost btn-sm" title="Merge Checklist and Subtasks into a unified view" style="font-size: 11px;">
+                    <i class="fa-solid fa-arrows-split-up-and-left fa-rotate-90"></i> Switch to Unified View
                   </button>
                 </div>
-                <span style="font-size: 10px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk: use <code style='background:var(--bg-surface-active);padding:1px 4px;border-radius:3px;'>{}</code> as placeholder &amp; set count. E.g. "Task {}" × 5 → Task 1, Task 2 … Task 5</span>
-              </div>
-            </div>
-          ` : `
-            <!-- MERGED CHECKLIST & SUBTASKS SECTION -->
-            <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 16px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-weight: 600; font-size: 13px;">
-                    <i class="fa-solid fa-layer-group" style="color: var(--accent-primary);"></i> Merged Checklist & Subtasks (${completedMerged}/${totalMerged})
-                  </span>
-                  <span style="font-size: 12px; font-weight: 600; color: ${mergedPct === 100 && totalMerged > 0 ? 'var(--accent-success)' : 'var(--text-muted)'};">
-                    ${mergedPct}%
-                  </span>
-                </div>
-                <button id="btn-toggle-merge-view" class="btn-toggle-merge" title="Separate into two independent sections">
-                  <i class="fa-solid fa-arrows-split-up-and-left"></i> Separate into 2 Lists
-                </button>
-              </div>
 
-              <!-- Progress Bar -->
-              <div class="drawer-progress-container is-merged" style="margin-bottom: 14px;">
-                <div class="task-card-progress-track">
-                  <div class="task-card-progress-fill is-merged ${mergedPct === 100 && totalMerged > 0 ? 'is-complete' : ''}" style="width: ${mergedPct}%;"></div>
+                <!-- Checklist Progress Bar -->
+                <div class="drawer-progress-container is-checklist" style="margin-bottom: 14px;">
+                  <div class="task-card-progress-track">
+                    <div class="task-card-progress-fill is-checklist ${chkPct === 100 && totalChecklist > 0 ? 'is-complete' : ''}" style="width: ${chkPct}%;"></div>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Merged Items List -->
-              <div id="merged-items-container" style="display: flex; flex-direction: column; gap: 6px;">
-                ${totalMerged === 0 ? `
-                  <div style="font-size: 12px; color: var(--text-muted); padding: 4px 0;">No items yet. Add subtasks or checklist items below.</div>
-                ` : clubbedItems.map(item => `
-                  <div class="merged-item-row" data-id="${item.id}" data-is-subtask="${item.isSubtask}" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: var(--bg-app); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12px; gap: 8px;">
-                    <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
-                      <input type="checkbox" class="merged-item-toggle" data-id="${item.id}" data-is-subtask="${item.isSubtask}" ${item.completed ? 'checked' : ''} style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--accent-success);" title="Mark complete">
-                      
-                      ${item.key ? `
-                        <span class="subtask-open-link" data-id="${item.subtaskId || item.id}" style="font-family: var(--font-mono); font-weight: 600; color: var(--accent-primary); cursor: pointer;" title="Open subtask detail">${item.key}</span>
-                      ` : `
-                        <span style="font-size: 10px; color: var(--text-muted); background: var(--bg-surface-elevated); padding: 1px 5px; border-radius: 3px;" title="Checklist item"><i class="fa-regular fa-square-check"></i></span>
-                      `}
-                      
-                      <span class="${item.key ? 'subtask-open-link' : ''}" data-id="${item.subtaskId || item.id}" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; ${item.key ? 'cursor: pointer;' : ''} ${item.completed ? 'text-decoration: line-through; color: var(--text-muted);' : 'color: var(--text-primary);'}" title="${Utils.escapeHTML(item.title)}">
-                        ${Utils.escapeHTML(item.title)}
-                      </span>
+                <!-- Checklist Items -->
+                <div id="checklist-items-container" style="display: flex; flex-direction: column; gap: 6px;">
+                  ${totalChecklist === 0 ? `
+                    <div style="font-size: 12px; color: var(--text-muted); padding: 6px 0;">No checklist items yet. Add atomic steps below.</div>
+                  ` : checklist.map(item => `
+                    <div class="chk-item-row" data-id="${item.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 13px; gap: 10px;">
+                      <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                        <input type="checkbox" class="chk-item-toggle" data-id="${item.id}" ${item.completed ? 'checked' : ''} style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--accent-success);" title="Mark complete">
+                        <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; ${item.completed ? 'text-decoration: line-through; color: var(--text-muted);' : 'color: var(--text-primary);'}" title="${Utils.escapeHTML(item.text)}">
+                          ${Utils.escapeHTML(item.text)}
+                        </span>
+                      </div>
+                      <button class="btn btn-ghost btn-sm chk-item-del" data-id="${item.id}" title="Delete item" style="padding: 2px 6px; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
                     </div>
+                  `).join('')}
+                </div>
 
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      ${item.isSubtask ? `
-                        <span class="badge" style="font-size: 9px; padding: 1px 6px; background: var(--accent-primary-subtle); color: var(--accent-primary);" title="Tracked Subtask"><i class="fa-solid fa-network-wired"></i> Subtask</span>
-                        <span class="badge" style="font-size: 9px; padding: 1px 6px; background: var(--bg-surface-active); color: var(--accent-primary); font-weight: 600;" title="Story Points">${item.storyPoints !== undefined && item.storyPoints !== null ? item.storyPoints : 1} pts</span>
-                        ${item.status ? `<span class="badge badge-status-${item.status}" style="font-size: 9px; padding: 1px 5px;">${item.status}</span>` : ''}
-                      ` : `
-                        <span class="badge" style="font-size: 9px; padding: 1px 6px; background: var(--bg-surface-active); color: var(--text-muted);" title="Checklist step"><i class="fa-regular fa-square-check"></i> Checklist</span>
-                      `}
+                <!-- Add Checklist Item Bar (Bulk enabled with no 50 limit) -->
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="new-checklist-input" class="form-input" placeholder="e.g. Design checklist step {}" style="font-size: 13px; padding: 7px 12px; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                      <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
+                      <input type="number" id="new-checklist-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk item count">
+                    </div>
+                    <button id="btn-add-checklist" class="btn btn-primary btn-sm" style="font-size: 12px; height: 32px; white-space: nowrap;">
+                      <i class="fa-solid fa-plus"></i> Add
+                    </button>
+                  </div>
+                  <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk creation: use <code style='background:var(--bg-surface-elevated);padding:1px 4px;border-radius:3px;'>{}</code> as number placeholder &amp; set count. E.g. "Check {}" × 5 → Check 1 … Check 5</span>
+                </div>
+              </div>
 
-                      <button class="btn btn-ghost btn-sm merged-item-del" data-id="${item.id}" data-is-subtask="${item.isSubtask}" title="Delete item" style="padding: 2px 6px; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
+              <!-- SEPARATE MODE: Part 2 Subtasks -->
+              <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 18px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: 700; font-size: 14px; color: var(--text-primary);">
+                      <i class="fa-solid fa-network-wired" style="color: var(--accent-primary);"></i> Child Subtasks (${completedSubtasks}/${totalSubtasks})
+                    </span>
+                    <span style="font-size: 12px; font-weight: 600; color: ${stPct === 100 && totalSubtasks > 0 ? 'var(--accent-success)' : 'var(--text-muted)'};">
+                      ${stPct}%
+                    </span>
+                  </div>
+                  <button id="btn-toggle-merge-view-2" class="btn btn-ghost btn-sm" title="Merge Checklist and Subtasks into a unified view" style="font-size: 11px;">
+                    <i class="fa-solid fa-arrows-split-up-and-left fa-rotate-90"></i> Switch to Unified View
+                  </button>
+                </div>
+
+                <!-- Subtasks Progress Bar -->
+                <div class="drawer-progress-container is-subtask" style="margin-bottom: 14px;">
+                  <div class="task-card-progress-track">
+                    <div class="task-card-progress-fill is-subtask ${stPct === 100 && totalSubtasks > 0 ? 'is-complete' : ''}" style="width: ${stPct}%;"></div>
+                  </div>
+                </div>
+
+                <!-- Subtasks List -->
+                <div id="subtasks-items-container" style="display: flex; flex-direction: column; gap: 6px;">
+                  ${totalSubtasks === 0 ? `
+                    <div style="font-size: 12px; color: var(--text-muted); padding: 6px 0;">No subtasks created yet. Add tracked subtasks below.</div>
+                  ` : subtasks.map(st => `
+                    <div class="subtask-item-row" data-id="${st.id}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 13px; gap: 10px;">
+                      <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                        <input type="checkbox" class="subtask-item-toggle" data-id="${st.id}" ${st.status === 'done' ? 'checked' : ''} style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--accent-success);" title="Mark complete">
+                        <span class="subtask-open-link" data-id="${st.id}" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent-primary); cursor: pointer;" title="Open subtask detail">${st.key}</span>
+                        <span class="subtask-open-link" data-id="${st.id}" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; ${st.status === 'done' ? 'text-decoration: line-through; color: var(--text-muted);' : 'color: var(--text-primary);'}" title="${Utils.escapeHTML(st.title)}">
+                          ${Utils.escapeHTML(st.title)}
+                        </span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="badge" style="font-size: 10px; padding: 2px 7px; background: var(--bg-surface-active); color: var(--accent-primary); font-weight: 600;" title="Story Points">${st.storyPoints !== undefined && st.storyPoints !== null ? st.storyPoints : 1} pts</span>
+                        <span class="badge badge-status-${st.status}" style="font-size: 10px; padding: 2px 7px;">${st.status}</span>
+                        <button class="btn btn-ghost btn-sm subtask-item-del" data-id="${st.id}" title="Delete subtask" style="padding: 2px 6px; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+
+                <!-- Add Subtask Bar (Bulk enabled with no 50 limit) -->
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="new-subtask-input" class="form-input" placeholder="e.g. Implement module {}" style="font-size: 13px; padding: 7px 12px; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                      <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
+                      <input type="number" id="new-subtask-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk subtask count">
+                    </div>
+                    <button id="btn-add-subtask" class="btn btn-primary btn-sm" style="font-size: 12px; height: 32px; white-space: nowrap;">
+                      <i class="fa-solid fa-plus"></i> Add Subtask
+                    </button>
+                  </div>
+                  <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk creation: use <code style='background:var(--bg-surface-elevated);padding:1px 4px;border-radius:3px;'>{}</code> as number placeholder &amp; set count. E.g. "Task {}" × 5 → Task 1 … Task 5</span>
+                </div>
+              </div>
+            ` : `
+              <!-- MERGED UNIFIED VIEW -->
+              <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 18px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: 700; font-size: 14px; color: var(--text-primary);">
+                      <i class="fa-solid fa-layer-group" style="color: var(--accent-primary);"></i> Unified Checklist &amp; Subtasks (${completedMerged}/${totalMerged})
+                    </span>
+                    <span style="font-size: 12px; font-weight: 600; color: ${mergedPct === 100 && totalMerged > 0 ? 'var(--accent-success)' : 'var(--text-muted)'};">
+                      ${mergedPct}%
+                    </span>
+                  </div>
+                  <button id="btn-toggle-merge-view" class="btn btn-ghost btn-sm" title="Separate into independent sections" style="font-size: 11px;">
+                    <i class="fa-solid fa-arrows-split-up-and-left"></i> Switch to Separate Lists
+                  </button>
+                </div>
+
+                <!-- Unified Progress Bar -->
+                <div class="drawer-progress-container is-merged" style="margin-bottom: 14px;">
+                  <div class="task-card-progress-track">
+                    <div class="task-card-progress-fill is-merged ${mergedPct === 100 && totalMerged > 0 ? 'is-complete' : ''}" style="width: ${mergedPct}%;"></div>
+                  </div>
+                </div>
+
+                <!-- Unified Items List -->
+                <div id="merged-items-container" style="display: flex; flex-direction: column; gap: 6px;">
+                  ${totalMerged === 0 ? `
+                    <div style="font-size: 12px; color: var(--text-muted); padding: 6px 0;">No items yet. Add subtasks or checklist steps below.</div>
+                  ` : clubbedItems.map(item => `
+                    <div class="merged-item-row" data-id="${item.id}" data-is-subtask="${item.isSubtask}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 13px; gap: 10px;">
+                      <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+                        <input type="checkbox" class="merged-item-toggle" data-id="${item.id}" data-is-subtask="${item.isSubtask}" ${item.completed ? 'checked' : ''} style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--accent-success);" title="Mark complete">
+                        
+                        ${item.key ? `
+                          <span class="subtask-open-link" data-id="${item.subtaskId || item.id}" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent-primary); cursor: pointer;" title="Open subtask detail">${item.key}</span>
+                        ` : `
+                          <span style="font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 1px 5px; border-radius: 3px;" title="Checklist step"><i class="fa-regular fa-square-check"></i></span>
+                        `}
+                        
+                        <span class="${item.key ? 'subtask-open-link' : ''}" data-id="${item.subtaskId || item.id}" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; ${item.key ? 'cursor: pointer;' : ''} ${item.completed ? 'text-decoration: line-through; color: var(--text-muted);' : 'color: var(--text-primary);'}" title="${Utils.escapeHTML(item.title)}">
+                          ${Utils.escapeHTML(item.title)}
+                        </span>
+                      </div>
+
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        ${item.isSubtask ? `
+                          <span class="badge" style="font-size: 10px; padding: 2px 7px; background: var(--accent-primary-subtle); color: var(--accent-primary);"><i class="fa-solid fa-network-wired"></i> Subtask</span>
+                          <span class="badge" style="font-size: 10px; padding: 2px 7px; background: var(--bg-surface-active); color: var(--accent-primary); font-weight: 600;">${item.storyPoints !== undefined && item.storyPoints !== null ? item.storyPoints : 1} pts</span>
+                          ${item.status ? `<span class="badge badge-status-${item.status}" style="font-size: 10px; padding: 2px 6px;">${item.status}</span>` : ''}
+                        ` : `
+                          <span class="badge" style="font-size: 10px; padding: 2px 7px; background: var(--bg-surface-active); color: var(--text-muted);"><i class="fa-regular fa-square-check"></i> Step</span>
+                        `}
+
+                        <button class="btn btn-ghost btn-sm merged-item-del" data-id="${item.id}" data-is-subtask="${item.isSubtask}" title="Delete item" style="padding: 2px 6px; color: var(--text-muted);"><i class="fa-solid fa-xmark"></i></button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+
+                <!-- Unified Inline Creator -->
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <input type="text" id="merged-new-input" class="form-input" placeholder="e.g. Review component {}" style="font-size: 13px; padding: 7px 12px; flex: 1; min-width: 180px;">
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                      <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
+                      <input type="number" id="merged-new-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk item count">
+                    </div>
+                    <select id="merged-new-type" class="form-select" style="width: auto; padding: 6px 10px; font-size: 12px; height: 34px;">
+                      <option value="checklist">Checklist Step</option>
+                      <option value="subtask">Tracked Subtask</option>
+                    </select>
+                    <button id="merged-btn-add" class="btn btn-primary btn-sm" style="font-size: 12px; height: 34px; white-space: nowrap;">
+                      <i class="fa-solid fa-plus"></i> Add Item
+                    </button>
+                  </div>
+                  <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk creation: use <code style='background:var(--bg-surface-elevated);padding:1px 4px;border-radius:3px;'>{}</code> as number placeholder &amp; set count. E.g. "Item {}" × 4 → Item 1 … Item 4</span>
+                </div>
+
+                <!-- Consolidation actions -->
+                <div style="display: flex; gap: 12px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
+                  <button id="btn-merge-chk-to-subtasks" class="btn btn-ghost btn-xs" style="color: var(--text-muted); font-size: 12px;" title="Convert unlinked checklist items to child subtasks">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Convert Checklist to Subtasks
+                  </button>
+                  <button id="btn-merge-subtasks-to-chk" class="btn btn-ghost btn-xs" style="color: var(--text-muted); font-size: 12px;" title="Import child subtasks into checklist">
+                    <i class="fa-solid fa-arrow-down-to-bracket"></i> Import Subtasks to Checklist
+                  </button>
+                </div>
+              </div>
+            `}
+
+            <!-- Activity, Comments & History Hub -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 18px;">
+              <div style="display: flex; gap: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; margin-bottom: 16px;">
+                <span id="tab-btn-comments" style="font-weight: 700; font-size: 14px; color: var(--accent-primary); cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-regular fa-comment"></i> Discussion (${taskComments.length})
+                </span>
+                <span id="tab-btn-activity" style="font-weight: 600; font-size: 14px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-solid fa-clock-rotate-left"></i> History &amp; Audit (${taskActivities.length})
+                </span>
+              </div>
+
+              <!-- Comments Section -->
+              <div id="tab-content-comments">
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px;">
+                  ${taskComments.length === 0 ? `
+                    <div style="font-size: 13px; color: var(--text-muted); padding: 12px; text-align: center; background: var(--bg-surface-elevated); border-radius: var(--radius-md);">
+                      <i class="fa-regular fa-comments" style="font-size: 20px; display: block; margin-bottom: 6px; opacity: 0.6;"></i>
+                      No discussion yet. Leave a note or updates below.
+                    </div>
+                  ` : ''}
+                  ${taskComments.map(c => `
+                    <div style="padding: 12px 14px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 6px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <span style="width: 22px; height: 22px; border-radius: 50%; background: #579DFF; display: flex; align-items: center; justify-content: center; color: #0C1A32; font-size: 10px; font-weight: 700;">ST</span>
+                          <span style="font-weight: 600; color: var(--text-primary);">Surya Tej</span>
+                        </div>
+                        <span style="color: var(--text-muted); font-size: 11px;">${Utils.formatRelativeDate(c.createdAt)}</span>
+                      </div>
+                      <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5;">${Utils.escapeHTML(c.text)}</div>
+                    </div>
+                  `).join('')}
+                </div>
+
+                <!-- Add Comment Input -->
+                <div style="display: flex; gap: 10px;">
+                  <input type="text" id="detail-new-comment" class="form-input" placeholder="Write a comment or note... (Press Ctrl+Enter to post)" style="font-size: 13px; padding: 8px 12px; flex: 1;">
+                  <button id="btn-post-comment" class="btn btn-primary" style="font-size: 13px; padding: 0 16px; height: 38px; white-space: nowrap;">
+                    <i class="fa-solid fa-paper-plane"></i> Post
+                  </button>
+                </div>
+              </div>
+
+              <!-- Activity History Timeline -->
+              <div id="tab-content-activity" style="display: none; display: flex; flex-direction: column; gap: 10px;">
+                ${taskActivities.length === 0 ? `
+                  <div style="font-size: 12px; color: var(--text-muted); padding: 8px 0;">No audit events recorded for this task.</div>
+                ` : taskActivities.map(a => `
+                  <div style="display: flex; gap: 12px; font-size: 13px; color: var(--text-secondary); align-items: baseline;">
+                    <i class="fa-solid fa-circle-dot" style="color: var(--accent-primary); font-size: 8px;"></i>
+                    <div style="flex: 1;">
+                      <span style="color: var(--text-primary); font-weight: 500;">${Utils.escapeHTML(a.details)}</span>
+                      <span style="color: var(--text-muted); font-size: 11px; margin-left: 8px;">${Utils.formatRelativeDate(a.timestamp)}</span>
                     </div>
                   </div>
                 `).join('')}
               </div>
 
-              <!-- Merged Inline Creator Bar (bulk: use {} placeholder + count) -->
-              <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
-                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                  <input type="text" id="merged-new-input" class="form-input" placeholder="e.g. Review item {}" style="font-size: 12px; padding: 6px 10px; flex: 1; min-width: 160px;">
-                  <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                    <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
-                    <input type="number" id="merged-new-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk item count">
-                  </div>
-                  <select id="merged-new-type" class="form-select" style="width: auto; padding: 4px 8px; font-size: 11px; height: 30px;">
-                    <option value="checklist">Checklist</option>
-                    <option value="subtask">Subtask</option>
+            </div>
+
+          </div>
+
+          <!-- RIGHT PRODUCTIVITY INSPECTOR (340px Sticky) -->
+          <div class="fullpage-inspector-sidebar">
+            
+            <!-- Properties & Attributes Card -->
+            <div class="inspector-card">
+              <div class="inspector-card-title">
+                <span><i class="fa-solid fa-sliders" style="color: var(--accent-primary);"></i> Attributes &amp; Details</span>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 14px;">
+                
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Status</label>
+                  <select id="detail-task-status" class="form-select">
+                    <option value="backlog" ${task.status === 'backlog' ? 'selected' : ''}>Backlog</option>
+                    <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>To Do</option>
+                    <option value="inprogress" ${task.status === 'inprogress' ? 'selected' : ''}>In Progress</option>
+                    <option value="inreview" ${task.status === 'inreview' ? 'selected' : ''}>In Review</option>
+                    <option value="done" ${task.status === 'done' ? 'selected' : ''}>Done</option>
+                    <option value="blocked" ${task.status === 'blocked' ? 'selected' : ''}>Blocked</option>
+                    <option value="cancelled" ${task.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
                   </select>
-                  <button id="merged-btn-add" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px; white-space: nowrap;">
-                    <i class="fa-solid fa-plus"></i> Add
-                  </button>
                 </div>
-                <span style="font-size: 10px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk: use <code style='background:var(--bg-surface-active);padding:1px 4px;border-radius:3px;'>{}</code> as placeholder &amp; set count. E.g. "Item {}" × 4 → Item 1, Item 2, Item 3, Item 4</span>
-              </div>
 
-              <!-- Utility Actions -->
-              <div style="display: flex; gap: 12px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
-                <button id="btn-merge-chk-to-subtasks" class="btn btn-ghost btn-xs" style="color: var(--text-muted); font-size: 11px;" title="Convert unlinked checklist items to child subtasks">
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Convert Checklist to Subtasks
-                </button>
-                <button id="btn-merge-subtasks-to-chk" class="btn btn-ghost btn-xs" style="color: var(--text-muted); font-size: 11px;" title="Import child subtasks into checklist">
-                  <i class="fa-solid fa-arrow-down-to-bracket"></i> Import Subtasks to Checklist
-                </button>
-              </div>
-            </div>
-          `}
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Priority</label>
+                  <select id="detail-task-priority" class="form-select">
+                    <option value="critical" ${task.priority === 'critical' ? 'selected' : ''}>Critical</option>
+                    <option value="highest" ${task.priority === 'highest' ? 'selected' : ''}>Highest</option>
+                    <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
+                    <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                    <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
+                    <option value="lowest" ${task.priority === 'lowest' ? 'selected' : ''}>Lowest</option>
+                  </select>
+                </div>
 
-          <!-- Activity & Comments Tabbed Section -->
-          <div>
-            <div style="display: flex; gap: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 14px;">
-              <span id="tab-btn-comments" style="font-weight: 600; font-size: 13px; color: var(--accent-primary); cursor: pointer;"><i class="fa-regular fa-comment"></i> Comments (${taskComments.length})</span>
-              <span id="tab-btn-activity" style="font-weight: 600; font-size: 13px; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-clock-rotate-left"></i> History (${taskActivities.length})</span>
-            </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Issue Type</label>
+                  <select id="detail-task-type" class="form-select">
+                    <option value="task" ${task.type === 'task' ? 'selected' : ''}>Task</option>
+                    <option value="story" ${task.type === 'story' ? 'selected' : ''}>Story</option>
+                    <option value="bug" ${task.type === 'bug' ? 'selected' : ''}>Bug</option>
+                    <option value="epic" ${task.type === 'epic' ? 'selected' : ''}>Epic</option>
+                    <option value="improvement" ${task.type === 'improvement' ? 'selected' : ''}>Improvement</option>
+                    <option value="subtask" ${task.type === 'subtask' ? 'selected' : ''}>Subtask</option>
+                  </select>
+                </div>
 
-            <!-- Comments Area -->
-            <div id="tab-content-comments">
-              <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
-                ${taskComments.length === 0 ? `<div style="font-size: 12px; color: var(--text-muted);">No comments yet.</div>` : ''}
-                ${taskComments.map(c => `
-                  <div style="padding: 10px 12px; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
-                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">
-                      <span style="font-weight: 600; color: var(--text-primary);">Surya Tej</span>
-                      <span>${Utils.formatRelativeDate(c.createdAt)}</span>
-                    </div>
-                    <div style="font-size: 13px; color: var(--text-primary);">${Utils.escapeHTML(c.text)}</div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Project</label>
+                  <select id="detail-task-project" class="form-select">
+                    ${AppState.projects.map(p => `<option value="${p.id}" ${p.id === task.projectId ? 'selected' : ''}>${Utils.escapeHTML(p.name)} (${p.key})</option>`).join('')}
+                  </select>
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-repeat" style="color: var(--accent-success);"></i> Sprint</label>
+                  <select id="detail-task-sprint" class="form-select">
+                    <option value="">None (Backlog Pool)</option>
+                    ${AppState.sprints.map(s => `
+                      <option value="${s.id}" ${task.sprintId === s.id ? 'selected' : ''}>
+                        ${Utils.escapeHTML(s.name)} [${s.status.toUpperCase()}]
+                      </option>
+                    `).join('')}
+                  </select>
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-bolt" style="color: var(--accent-purple);"></i> Epic</label>
+                  <select id="detail-task-epic" class="form-select">
+                    <option value="">None</option>
+                    ${AppState.epics.map(e => `
+                      <option value="${e.id}" ${task.epicId === e.id ? 'selected' : ''}>
+                        ${Utils.escapeHTML(e.title)}
+                      </option>
+                    `).join('')}
+                  </select>
+                </div>
+
+                <div class="form-row" style="margin: 0; gap: 10px;">
+                  <div class="form-group" style="margin: 0; flex: 1;">
+                    <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Start Date</label>
+                    <input type="date" id="detail-task-start" class="form-input" style="height: 36px; font-size: 12px;" value="${Utils.toDateInputValue(task.startDate)}">
                   </div>
-                `).join('')}
-              </div>
-
-              <!-- Add Comment Input -->
-              <div style="display: flex; gap: 8px;">
-                <input type="text" id="detail-new-comment" class="form-input" placeholder="Write a comment..." style="font-size: 13px;">
-                <button id="btn-post-comment" class="btn btn-primary btn-sm">Comment</button>
-              </div>
-            </div>
-
-            <!-- Activity History Area (Hidden by default) -->
-            <div id="tab-content-activity" style="display: none; display: flex; flex-direction: column; gap: 8px;">
-              ${taskActivities.map(a => `
-                <div style="display: flex; gap: 10px; font-size: 12px; color: var(--text-secondary);">
-                  <i class="fa-solid fa-circle-dot" style="color: var(--accent-primary); font-size: 8px; margin-top: 5px;"></i>
-                  <div style="flex: 1;">
-                    <span style="color: var(--text-primary); font-weight: 500;">${Utils.escapeHTML(a.details)}</span>
-                    <span style="color: var(--text-muted); font-size: 11px; margin-left: 6px;">${Utils.formatRelativeDate(a.timestamp)}</span>
+                  <div class="form-group" style="margin: 0; flex: 1;">
+                    <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Due Date</label>
+                    <input type="date" id="detail-task-due" class="form-input" style="height: 36px; font-size: 12px;" value="${Utils.toDateInputValue(task.dueDate)}">
                   </div>
                 </div>
-              `).join('')}
+
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Story Points ${totalSubtasks > 0 ? '<span style="font-size: 10px; color: var(--text-muted); font-weight: 400;">(Sum of child subtasks)</span>' : ''}</label>
+                  <input type="number" id="detail-task-points" class="form-input" min="0" style="height: 36px; font-size: 13px;" value="${task.storyPoints !== undefined && task.storyPoints !== null ? task.storyPoints : (task.type === 'subtask' ? 1 : 0)}" ${totalSubtasks > 0 ? 'readonly title="Automatically calculated from subtasks"' : ''}>
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Recurrence</label>
+                  <select id="detail-task-recurring" class="form-select">
+                    <option value="">None (One-time)</option>
+                    <option value="daily" ${task.recurring && task.recurring.frequency === 'daily' ? 'selected' : ''}>Daily</option>
+                    <option value="weekly" ${task.recurring && task.recurring.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+                    <option value="monthly" ${task.recurring && task.recurring.frequency === 'monthly' ? 'selected' : ''}>Monthly</option>
+                  </select>
+                </div>
+
+                <!-- Labels / Tags interactive manager -->
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-tags" style="color: var(--accent-primary);"></i> Labels</label>
+                  <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px;">
+                    ${labels.length === 0 ? `<span style="font-size: 11px; color: var(--text-muted);">No labels attached</span>` : labels.map(l => `
+                      <span class="badge" style="background: var(--bg-surface-elevated); color: var(--text-primary); border: 1px solid var(--border-subtle); display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 2px 8px;">
+                        ${Utils.escapeHTML(l)}
+                        <i class="fa-solid fa-xmark del-label-btn" data-label="${Utils.escapeHTML(l)}" style="cursor: pointer; opacity: 0.6; font-size: 10px;" title="Remove tag"></i>
+                      </span>
+                    `).join('')}
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <input type="text" id="detail-new-label-input" class="form-input" placeholder="Add tag..." style="font-size: 12px; height: 32px; padding: 4px 10px; flex: 1;">
+                    <button id="detail-btn-add-label" class="btn btn-secondary btn-sm" style="font-size: 11px; height: 32px; padding: 0 10px;">Add</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Time Tracking Card -->
+            <div class="inspector-card">
+              <div class="inspector-card-title">
+                <span><i class="fa-solid fa-stopwatch" style="color: var(--accent-warning);"></i> Time Tracking</span>
+                <button id="btn-log-time" class="btn btn-ghost btn-xs" title="Log time manually" style="color: var(--text-muted); font-size: 11px;">
+                  <i class="fa-solid fa-pen-to-square"></i> Log
+                </button>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
+                <span>Tracked: <strong style="color: var(--accent-primary);">${Utils.formatMinutes(task.trackedTime)}</strong></span>
+                <span>Estimate: <strong style="color: var(--text-primary);">${Utils.formatMinutes(task.estimate)}</strong></span>
+              </div>
+
+              <!-- Time Track Bar -->
+              <div style="height: 6px; background: var(--bg-app); border-radius: 3px; overflow: hidden; margin-bottom: 12px;">
+                <div style="width: ${task.estimate ? Math.min(100, Math.round(((task.trackedTime || 0) / task.estimate) * 100)) : 0}%; height: 100%; background: linear-gradient(90deg, #579DFF, #36B37E); border-radius: 3px;"></div>
+              </div>
+
+              <button id="btn-timer-toggle" class="btn btn-secondary btn-sm" style="width: 100%; justify-content: center; height: 34px;">
+                <i class="fa-solid fa-play"></i> Start Live Timer
+              </button>
+            </div>
+
+            <!-- Task Metadata & Quick Shortcuts -->
+            <div class="inspector-card" style="font-size: 12px; color: var(--text-secondary);">
+              <div class="inspector-card-title">
+                <span><i class="fa-solid fa-circle-info" style="color: var(--text-muted);"></i> Metadata &amp; Keys</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: var(--text-muted);">Created:</span>
+                  <span style="font-weight: 500;">${Utils.formatDate(task.createdAt)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: var(--text-muted);">Updated:</span>
+                  <span style="font-weight: 500;">${Utils.formatRelativeDate(task.updatedAt || task.createdAt)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span style="color: var(--text-muted);">Shortcuts:</span>
+                  <span style="font-family: var(--font-mono); font-size: 11px;">Esc (Exit), Alt+↑/↓</span>
+                </div>
+              </div>
             </div>
 
           </div>
 
         </div>
-
-        <!-- Right Properties Sidebar Column -->
-        <div style="width: 280px; padding: 20px; background: var(--bg-surface); display: flex; flex-direction: column; gap: 16px;">
-          
-          <div class="form-group">
-            <label class="form-label">Status</label>
-            <select id="detail-task-status" class="form-select">
-              <option value="backlog" ${task.status === 'backlog' ? 'selected' : ''}>Backlog</option>
-              <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>To Do</option>
-              <option value="inprogress" ${task.status === 'inprogress' ? 'selected' : ''}>In Progress</option>
-              <option value="inreview" ${task.status === 'inreview' ? 'selected' : ''}>In Review</option>
-              <option value="done" ${task.status === 'done' ? 'selected' : ''}>Done</option>
-              <option value="blocked" ${task.status === 'blocked' ? 'selected' : ''}>Blocked</option>
-              <option value="cancelled" ${task.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Priority</label>
-            <select id="detail-task-priority" class="form-select">
-              <option value="critical" ${task.priority === 'critical' ? 'selected' : ''}>Critical</option>
-              <option value="highest" ${task.priority === 'highest' ? 'selected' : ''}>Highest</option>
-              <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
-              <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
-              <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
-              <option value="lowest" ${task.priority === 'lowest' ? 'selected' : ''}>Lowest</option>
-            </select>
-          </div>
-
-          <!-- Sprint Property -->
-          <div class="form-group">
-            <label class="form-label"><i class="fa-solid fa-person-running" style="color: var(--accent-warning);"></i> Sprint</label>
-            <select id="detail-task-sprint" class="form-select">
-              <option value="">None (Backlog Pool)</option>
-              ${AppState.sprints.map(s => `
-                <option value="${s.id}" ${task.sprintId === s.id ? 'selected' : ''}>
-                  ${Utils.escapeHTML(s.name)} [${s.status.toUpperCase()}]
-                </option>
-              `).join('')}
-            </select>
-          </div>
-
-          <!-- Epic Property -->
-          <div class="form-group">
-            <label class="form-label"><i class="fa-solid fa-bolt" style="color: var(--accent-purple);"></i> Epic</label>
-            <select id="detail-task-epic" class="form-select">
-              <option value="">None</option>
-              ${AppState.epics.map(e => `
-                <option value="${e.id}" ${task.epicId === e.id ? 'selected' : ''}>
-                  ${Utils.escapeHTML(e.title)}
-                </option>
-              `).join('')}
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Project</label>
-            <select id="detail-task-project" class="form-select">
-              ${AppState.projects.map(p => `<option value="${p.id}" ${p.id === task.projectId ? 'selected' : ''}>${Utils.escapeHTML(p.name)}</option>`).join('')}
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Start Date</label>
-            <input type="date" id="detail-task-start" class="form-input" value="${Utils.toDateInputValue(task.startDate)}">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Due Date</label>
-            <input type="date" id="detail-task-due" class="form-input" value="${Utils.toDateInputValue(task.dueDate)}">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Story Points${totalSubtasks > 0 ? ' <span style="font-size: 10px; color: var(--text-muted); font-weight: 400;">Sum of subtasks</span>' : ''}</label>
-            <input type="number" id="detail-task-points" class="form-input" min="0" value="${task.storyPoints !== undefined && task.storyPoints !== null ? task.storyPoints : (task.type === 'subtask' ? 1 : 0)}" ${totalSubtasks > 0 ? 'readonly title="Automatically summed from subtasks"' : ''}>
-          </div>
-
-          <!-- Time Tracking Widget -->
-          <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 12px;">
-            <div style="font-weight: 600; font-size: 12px; margin-bottom: 8px;"><i class="fa-solid fa-stopwatch"></i> Time Tracking</div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
-              <span>Tracked: <strong>${Utils.formatMinutes(task.trackedTime)}</strong></span>
-              <span>Est: <strong>${Utils.formatMinutes(task.estimate)}</strong></span>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button id="btn-timer-toggle" class="btn btn-secondary btn-sm" style="flex: 1;">
-                <i class="fa-solid fa-play"></i> Start Timer
-              </button>
-              <button id="btn-log-time" class="btn btn-ghost btn-sm" title="Log time manually">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </button>
-            </div>
-          </div>
-
-          <!-- Recurring Settings -->
-          <div class="form-group">
-            <label class="form-label">Recurrence</label>
-            <select id="detail-task-recurring" class="form-select">
-              <option value="">None (One-time)</option>
-              <option value="daily" ${task.recurring && task.recurring.frequency === 'daily' ? 'selected' : ''}>Daily</option>
-              <option value="weekly" ${task.recurring && task.recurring.frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
-              <option value="monthly" ${task.recurring && task.recurring.frequency === 'monthly' ? 'selected' : ''}>Monthly</option>
-            </select>
-          </div>
-
-        </div>
-
       </div>
     `;
 
@@ -1010,7 +1274,7 @@ const TaskModal = {
   },
 
   /**
-   * Binds events to elements inside the task drawer
+   * Binds events to elements inside the full-page task detail view
    * @param {Object} task 
    */
   attachDrawerListeners(task) {
@@ -1020,27 +1284,98 @@ const TaskModal = {
     const subtasks = AppState.tasks.filter(t => t.parentId === task.id);
     const totalSubtasks = subtasks.length;
 
-    if (overlay && !overlay._tfBackdropBound) {
-      overlay._tfBackdropBound = true;
-      overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-          this.closeDetail();
+    // Contextual tasks for Next / Prev navigation
+    const contextTasks = AppState.selectedProjectId 
+      ? AppState.tasks.filter(t => t.projectId === AppState.selectedProjectId)
+      : AppState.tasks;
+    const taskIndex = contextTasks.findIndex(t => t.id === task.id);
+    const prevTask = taskIndex > 0 ? contextTasks[taskIndex - 1] : null;
+    const nextTask = taskIndex >= 0 && taskIndex < contextTasks.length - 1 ? contextTasks[taskIndex + 1] : null;
+
+    // Back button and Close button
+    const backBtn = document.getElementById('drawer-btn-back');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => this.closeDetail());
+    }
+
+    const closeBtn = document.getElementById('drawer-btn-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.closeDetail());
+    }
+
+    // Copy key chip
+    const copyKeyBtn = document.getElementById('detail-btn-copy-key');
+    if (copyKeyBtn) {
+      copyKeyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(task.key).then(() => {
+          Toast.success(`Copied ${task.key} to clipboard`);
+        }).catch(() => {
+          Toast.info(`Key: ${task.key}`);
+        });
+      });
+    }
+
+    // Share link button
+    const shareBtn = document.getElementById('drawer-btn-share');
+    if (shareBtn) {
+      shareBtn.addEventListener('click', () => {
+        const fullUrl = window.location.origin + window.location.pathname + `#/task?id=${task.id}`;
+        navigator.clipboard.writeText(fullUrl).then(() => {
+          Toast.success('Direct task link copied to clipboard');
+        }).catch(() => {
+          Toast.info(fullUrl);
+        });
+      });
+    }
+
+    // Layout Toggle (Fluid vs Centered Focus)
+    const layoutToggleBtn = document.getElementById('drawer-btn-layout-toggle');
+    if (layoutToggleBtn) {
+      layoutToggleBtn.addEventListener('click', () => {
+        const container = document.querySelector('.fullpage-task-container');
+        if (container) {
+          const isFluid = container.classList.contains('is-fluid-mode');
+          if (isFluid) {
+            container.classList.remove('is-fluid-mode');
+            container.classList.add('is-centered-mode');
+            localStorage.setItem('taskforge_task_layout_mode', 'centered');
+            layoutToggleBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
+            layoutToggleBtn.title = 'Switch to Full Fluid Canvas';
+          } else {
+            container.classList.remove('is-centered-mode');
+            container.classList.add('is-fluid-mode');
+            localStorage.setItem('taskforge_task_layout_mode', 'fluid');
+            layoutToggleBtn.innerHTML = '<i class="fa-solid fa-compress"></i>';
+            layoutToggleBtn.title = 'Switch to Centered Focus Mode';
+          }
         }
       });
     }
 
-    // Close button
-    const closeBtn = document.getElementById('drawer-btn-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.closeDetail());
+    // Task Prev / Next pager navigation
+    const prevBtn = document.getElementById('task-nav-prev');
+    if (prevBtn && prevTask) {
+      prevBtn.addEventListener('click', () => {
+        this.openDetail(prevTask.id, true);
+      });
+    }
+
+    const nextBtn = document.getElementById('task-nav-next');
+    if (nextBtn && nextTask) {
+      nextBtn.addEventListener('click', () => {
+        this.openDetail(nextTask.id, true);
+      });
     }
 
     // Duplicate button
     const dupBtn = document.getElementById('drawer-btn-duplicate');
     if (dupBtn) {
       dupBtn.addEventListener('click', () => {
-        this.closeDetail();
-        AppState.duplicateTask(taskId);
+        const newT = AppState.duplicateTask(taskId);
+        if (newT) {
+          this.openDetail(newT.id, true);
+          Toast.success(`Duplicated as ${newT.key}`);
+        }
       });
     }
 
@@ -1048,8 +1383,10 @@ const TaskModal = {
     const delBtn = document.getElementById('drawer-btn-delete');
     if (delBtn) {
       delBtn.addEventListener('click', () => {
-        this.closeDetail();
-        AppState.deleteTask(taskId, true, true);
+        Modal.confirm('Delete Task', `Are you sure you want to delete ${task.key}? This action cannot be undone.`, () => {
+          this.closeDetail();
+          AppState.deleteTask(taskId, true, true);
+        });
       });
     }
 
@@ -1057,27 +1394,114 @@ const TaskModal = {
     const parentLink = document.getElementById('drawer-parent-task-link');
     if (parentLink && task.parentId) {
       parentLink.addEventListener('click', () => {
-        this.openDetail(task.parentId);
+        this.openDetail(task.parentId, true);
       });
     }
 
-    // Real-time title update on blur / enter
+    // Title input auto-grow and debounced autosave
     const titleInput = document.getElementById('detail-task-title');
+    const saveIndicator = document.getElementById('title-save-indicator');
     if (titleInput) {
-      titleInput.addEventListener('change', () => {
-        if (titleInput.value.trim()) {
-          AppState.updateTask(taskId, { title: titleInput.value.trim() });
+      const resizeTitle = () => {
+        titleInput.style.height = 'auto';
+        titleInput.style.height = `${Math.max(38, titleInput.scrollHeight)}px`;
+      };
+      resizeTitle();
+      titleInput.addEventListener('input', resizeTitle);
+
+      const triggerSave = () => {
+        const val = titleInput.value.trim();
+        if (val && val !== task.title) {
+          AppState.updateTask(taskId, { title: val });
+          if (saveIndicator) {
+            saveIndicator.style.opacity = '1';
+            setTimeout(() => { saveIndicator.style.opacity = '0'; }, 1800);
+          }
+        }
+      };
+      titleInput.addEventListener('change', triggerSave);
+      titleInput.addEventListener('blur', triggerSave);
+      titleInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          titleInput.blur();
         }
       });
     }
 
-    // Description update on change
+    // Description auto-grow and autosave
     const descInput = document.getElementById('detail-task-desc');
     if (descInput) {
+      const resizeDesc = () => {
+        descInput.style.height = 'auto';
+        descInput.style.height = `${Math.max(140, descInput.scrollHeight)}px`;
+      };
+      resizeDesc();
+      descInput.addEventListener('input', resizeDesc);
       descInput.addEventListener('change', () => {
         AppState.updateTask(taskId, { description: descInput.value });
       });
     }
+
+    // Markdown toolbar formatting actions
+    const insertMarkdown = (prefix, suffix = '') => {
+      if (!descInput) return;
+      const start = descInput.selectionStart;
+      const end = descInput.selectionEnd;
+      const text = descInput.value;
+      const selected = text.substring(start, end);
+      const replacement = prefix + (selected || 'text') + suffix;
+      descInput.value = text.substring(0, start) + replacement + text.substring(end);
+      descInput.focus();
+      descInput.selectionStart = start + prefix.length;
+      descInput.selectionEnd = start + prefix.length + (selected ? selected.length : 4);
+      AppState.updateTask(taskId, { description: descInput.value });
+    };
+
+    document.querySelector('.md-btn-bold')?.addEventListener('click', () => insertMarkdown('**', '**'));
+    document.querySelector('.md-btn-italic')?.addEventListener('click', () => insertMarkdown('*', '*'));
+    document.querySelector('.md-btn-code')?.addEventListener('click', () => insertMarkdown('`', '`'));
+    document.querySelector('.md-btn-heading')?.addEventListener('click', () => insertMarkdown('### '));
+    document.querySelector('.md-btn-list')?.addEventListener('click', () => insertMarkdown('- '));
+    document.querySelector('.md-btn-numlist')?.addEventListener('click', () => insertMarkdown('1. '));
+    document.querySelector('.md-btn-check')?.addEventListener('click', () => insertMarkdown('- [ ] '));
+    document.querySelector('.md-btn-quote')?.addEventListener('click', () => insertMarkdown('> '));
+    document.querySelector('.md-btn-link')?.addEventListener('click', () => insertMarkdown('[', '](https://)'));
+
+    // Quick Action Bar shortcuts
+    document.getElementById('btn-quick-add-subtask')?.addEventListener('click', () => {
+      const input = document.getElementById('new-subtask-input') || document.getElementById('merged-new-input');
+      if (input) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => input.focus(), 200);
+      }
+    });
+
+    document.getElementById('btn-quick-add-checklist')?.addEventListener('click', () => {
+      const input = document.getElementById('new-checklist-input') || document.getElementById('merged-new-input');
+      if (input) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => input.focus(), 200);
+      }
+    });
+
+    document.getElementById('btn-quick-add-comment')?.addEventListener('click', () => {
+      const tabComments = document.getElementById('tab-btn-comments');
+      if (tabComments) tabComments.click();
+      const input = document.getElementById('detail-new-comment');
+      if (input) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => input.focus(), 200);
+      }
+    });
+
+    document.getElementById('btn-quick-timer')?.addEventListener('click', () => {
+      const timerBtn = document.getElementById('btn-timer-toggle');
+      if (timerBtn) {
+        timerBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        timerBtn.click();
+      }
+    });
 
     // Property dropdown changes
     const statusSelect = document.getElementById('detail-task-status');
@@ -1086,6 +1510,9 @@ const TaskModal = {
         const res = AppState.updateTask(taskId, { status: e.target.value });
         if (!res) {
           e.target.value = task.status;
+        } else {
+          const updated = AppState.tasks.find(t => t.id === taskId);
+          this.renderDrawerContent(drawer, updated);
         }
       });
     }
@@ -1097,10 +1524,21 @@ const TaskModal = {
       });
     }
 
+    const typeSelect = document.getElementById('detail-task-type');
+    if (typeSelect) {
+      typeSelect.addEventListener('change', (e) => {
+        AppState.updateTask(taskId, { type: e.target.value });
+        const updated = AppState.tasks.find(t => t.id === taskId);
+        this.renderDrawerContent(drawer, updated);
+      });
+    }
+
     const projectSelect = document.getElementById('detail-task-project');
     if (projectSelect) {
       projectSelect.addEventListener('change', (e) => {
         AppState.updateTask(taskId, { projectId: e.target.value });
+        const updated = AppState.tasks.find(t => t.id === taskId);
+        this.renderDrawerContent(drawer, updated);
       });
     }
 
@@ -1117,6 +1555,8 @@ const TaskModal = {
       dueEl.addEventListener('change', (e) => {
         const val = e.target.value ? new Date(e.target.value).toISOString() : null;
         AppState.updateTask(taskId, { dueDate: val });
+        const updated = AppState.tasks.find(t => t.id === taskId);
+        this.renderDrawerContent(drawer, updated);
       });
     }
 
@@ -1135,15 +1575,15 @@ const TaskModal = {
       });
     }
 
-    // Sprint Property Change
     const sprintSelect = document.getElementById('detail-task-sprint');
     if (sprintSelect) {
       sprintSelect.addEventListener('change', (e) => {
         AppState.updateTask(taskId, { sprintId: e.target.value || null });
+        const updated = AppState.tasks.find(t => t.id === taskId);
+        this.renderDrawerContent(drawer, updated);
       });
     }
 
-    // Epic Property Change
     const epicSelect = document.getElementById('detail-task-epic');
     if (epicSelect) {
       epicSelect.addEventListener('change', (e) => {
@@ -1151,33 +1591,68 @@ const TaskModal = {
       });
     }
 
-    // --- Toggle Merge / Separate View ---
-    document.querySelectorAll('#btn-toggle-merge-view, #btn-toggle-merge-view-2').forEach(btn => {
-      btn.addEventListener('click', () => {
-        AppState.toggleMergeChecklistAndSubtasks(taskId);
-        const drawer = document.getElementById('task-drawer');
+    // Interactive Label management
+    const addLabelBtn = document.getElementById('detail-btn-add-label');
+    const labelInput = document.getElementById('detail-new-label-input');
+    const handleAddLabel = () => {
+      const val = labelInput ? labelInput.value.trim().toLowerCase() : '';
+      if (!val) return;
+      const currentLabels = Array.isArray(task.labels) ? [...task.labels] : [];
+      if (!currentLabels.includes(val)) {
+        currentLabels.push(val);
+        AppState.updateTask(taskId, { labels: currentLabels });
+        const updated = AppState.tasks.find(t => t.id === taskId);
+        this.renderDrawerContent(drawer, updated);
+      }
+      if (labelInput) labelInput.value = '';
+    };
+
+    if (addLabelBtn && labelInput) {
+      addLabelBtn.addEventListener('click', handleAddLabel);
+      labelInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleAddLabel();
+        }
+      });
+    }
+
+    document.querySelectorAll('.del-label-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const tag = btn.dataset.label;
+        const currentLabels = (task.labels || []).filter(l => l !== tag);
+        AppState.updateTask(taskId, { labels: currentLabels });
         const updated = AppState.tasks.find(t => t.id === taskId);
         this.renderDrawerContent(drawer, updated);
       });
     });
 
-    // --- Subtask Link Navigation ---
+    // Toggle Merge / Separate View
+    document.querySelectorAll('#btn-toggle-merge-view, #btn-toggle-merge-view-2').forEach(btn => {
+      btn.addEventListener('click', () => {
+        AppState.toggleMergeChecklistAndSubtasks(taskId);
+        const updated = AppState.tasks.find(t => t.id === taskId);
+        this.renderDrawerContent(drawer, updated);
+      });
+    });
+
+    // Subtask Link Navigation
     document.querySelectorAll('.subtask-open-link').forEach(el => {
       el.addEventListener('click', () => {
         const stId = el.dataset.id;
         const actualId = stId.startsWith('chk_task_') ? stId.replace('chk_', '') : stId;
-        this.openDetail(actualId);
+        this.openDetail(actualId, true);
       });
     });
 
-    // --- SEPARATE MODE: Checklist Event Listeners ---
+    // Separate mode checklist items
     document.querySelectorAll('.chk-item-toggle').forEach(chk => {
       chk.addEventListener('change', () => {
         const itemId = chk.dataset.id;
         const isDone = chk.checked;
         const list = (task.checklist || []).map(c => c.id === itemId ? { ...c, completed: isDone } : c);
         AppState.updateTask(taskId, { checklist: list });
-        const drawer = document.getElementById('task-drawer');
         const updated = AppState.tasks.find(t => t.id === taskId);
         this.renderDrawerContent(drawer, updated);
       });
@@ -1188,7 +1663,6 @@ const TaskModal = {
         const itemId = btn.dataset.id;
         const list = (task.checklist || []).filter(c => c.id !== itemId);
         AppState.updateTask(taskId, { checklist: list });
-        const drawer = document.getElementById('task-drawer');
         const updated = AppState.tasks.find(t => t.id === taskId);
         this.renderDrawerContent(drawer, updated);
       });
@@ -1213,7 +1687,6 @@ const TaskModal = {
       });
       AppState.updateTask(taskId, { checklist: list });
       Toast.success(items.length > 1 ? `${items.length} checklist items added` : 'Checklist item added');
-      const drawer = document.getElementById('task-drawer');
       const updated = AppState.tasks.find(t => t.id === taskId);
       this.renderDrawerContent(drawer, updated);
     };
@@ -1227,13 +1700,12 @@ const TaskModal = {
       });
     }
 
-    // --- SEPARATE MODE: Subtasks Event Listeners ---
+    // Separate mode subtask items
     document.querySelectorAll('.subtask-item-toggle').forEach(chk => {
       chk.addEventListener('change', () => {
         const stId = chk.dataset.id;
         const isDone = chk.checked;
         AppState.updateTask(stId, { status: isDone ? 'done' : 'todo' });
-        const drawer = document.getElementById('task-drawer');
         const updated = AppState.tasks.find(t => t.id === taskId);
         this.renderDrawerContent(drawer, updated);
       });
@@ -1243,7 +1715,6 @@ const TaskModal = {
       btn.addEventListener('click', () => {
         const stId = btn.dataset.id;
         AppState.deleteTask(stId, true, false);
-        const drawer = document.getElementById('task-drawer');
         const updated = AppState.tasks.find(t => t.id === taskId);
         this.renderDrawerContent(drawer, updated);
       });
@@ -1273,7 +1744,6 @@ const TaskModal = {
         });
       });
       Toast.success(items.length > 1 ? `${items.length} subtasks created` : `Subtask ${lastCreated.key} created`);
-      const drawer = document.getElementById('task-drawer');
       const updated = AppState.tasks.find(t => t.id === taskId);
       this.renderDrawerContent(drawer, updated);
     };
@@ -1287,7 +1757,7 @@ const TaskModal = {
       });
     }
 
-    // --- MERGED MODE: Items Event Listeners ---
+    // Merged items event listeners
     document.querySelectorAll('.merged-item-toggle').forEach(chk => {
       chk.addEventListener('change', () => {
         const itemId = chk.dataset.id;
@@ -1313,7 +1783,6 @@ const TaskModal = {
           }
         }
 
-        const drawer = document.getElementById('task-drawer');
         const updated = AppState.tasks.find(t => t.id === taskId);
         this.renderDrawerContent(drawer, updated);
       });
@@ -1336,7 +1805,6 @@ const TaskModal = {
           }
         }
 
-        const drawer = document.getElementById('task-drawer');
         const updated = AppState.tasks.find(t => t.id === taskId);
         this.renderDrawerContent(drawer, updated);
       });
@@ -1384,7 +1852,6 @@ const TaskModal = {
       }
 
       newMergedInput.value = '';
-      const drawer = document.getElementById('task-drawer');
       const updated = AppState.tasks.find(t => t.id === taskId);
       this.renderDrawerContent(drawer, updated);
     };
@@ -1399,13 +1866,11 @@ const TaskModal = {
       });
     }
 
-    // Merged data consolidation buttons
     const btnChkToSub = document.getElementById('btn-merge-chk-to-subtasks');
     if (btnChkToSub) {
       btnChkToSub.addEventListener('click', () => {
         const count = AppState.mergeChecklistToSubtasks(taskId);
         Toast.success(`Converted ${count} checklist item(s) to subtasks`);
-        const drawer = document.getElementById('task-drawer');
         const updated = AppState.tasks.find(t => t.id === taskId);
         this.renderDrawerContent(drawer, updated);
       });
@@ -1416,7 +1881,6 @@ const TaskModal = {
       btnSubToChk.addEventListener('click', () => {
         const count = AppState.mergeSubtasksToChecklist(taskId);
         Toast.success(`Imported ${count} subtask(s) into checklist`);
-        const drawer = document.getElementById('task-drawer');
         const updated = AppState.tasks.find(t => t.id === taskId);
         this.renderDrawerContent(drawer, updated);
       });
@@ -1429,14 +1893,13 @@ const TaskModal = {
       const text = newCommInput.value.trim();
       if (!text) return;
       AppState.addComment(taskId, text);
-      const drawer = document.getElementById('task-drawer');
       const updated = AppState.tasks.find(t => t.id === taskId);
       this.renderDrawerContent(drawer, updated);
     };
     if (postCommBtn && newCommInput) {
       postCommBtn.addEventListener('click', handlePostComment);
       newCommInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || !e.shiftKey)) {
           e.preventDefault();
           handlePostComment();
         }
@@ -1464,29 +1927,78 @@ const TaskModal = {
       });
     }
 
-    // Timer Start / Pause
+    // Time tracking timer Start / Pause
     const timerBtn = document.getElementById('btn-timer-toggle');
     if (timerBtn) {
-      let isRunning = false;
+      let isRunning = !!this.activeTimerInterval;
+      if (isRunning) {
+        timerBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause Live Timer';
+        timerBtn.className = 'btn btn-primary btn-sm';
+      }
       timerBtn.addEventListener('click', () => {
         isRunning = !isRunning;
         if (isRunning) {
-          timerBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause Timer';
+          timerBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause Live Timer';
           timerBtn.className = 'btn btn-primary btn-sm';
           this.activeTimerInterval = setInterval(() => {
             const current = AppState.tasks.find(t => t.id === taskId);
             if (current) {
               AppState.updateTask(taskId, { trackedTime: (current.trackedTime || 0) + 1 });
             }
-          }, 60000); // Increment 1 min
+          }, 60000);
           Toast.info('Time tracking started');
         } else {
-          timerBtn.innerHTML = '<i class="fa-solid fa-play"></i> Start Timer';
+          timerBtn.innerHTML = '<i class="fa-solid fa-play"></i> Start Live Timer';
           timerBtn.className = 'btn btn-secondary btn-sm';
-          if (this.activeTimerInterval) clearInterval(this.activeTimerInterval);
+          if (this.activeTimerInterval) {
+            clearInterval(this.activeTimerInterval);
+            this.activeTimerInterval = null;
+          }
         }
       });
     }
+
+    // Manual Log Time button
+    const logTimeBtn = document.getElementById('btn-log-time');
+    if (logTimeBtn) {
+      logTimeBtn.addEventListener('click', () => {
+        Modal.prompt('Log Time', 'Enter minutes to log for this task:', (val) => {
+          const mins = parseInt(val, 10);
+          if (mins && mins > 0) {
+            AppState.updateTask(taskId, { trackedTime: (task.trackedTime || 0) + mins });
+            const updated = AppState.tasks.find(t => t.id === taskId);
+            this.renderDrawerContent(drawer, updated);
+            Toast.success(`Logged ${mins} minutes`);
+          }
+        }, '30');
+      });
+    }
+
+    // Keyboard shortcuts for full-page task detail navigation
+    if (this._keyNavHandler) {
+      window.removeEventListener('keydown', this._keyNavHandler);
+    }
+    this._keyNavHandler = (e) => {
+      if (!this.isOpen) return;
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+      if (e.key === 'Escape') {
+        if (!isInput) {
+          e.preventDefault();
+          this.closeDetail();
+        }
+      } else if (e.altKey && e.key === 'ArrowUp') {
+        if (prevTask) {
+          e.preventDefault();
+          this.openDetail(prevTask.id, true);
+        }
+      } else if (e.altKey && e.key === 'ArrowDown') {
+        if (nextTask) {
+          e.preventDefault();
+          this.openDetail(nextTask.id, true);
+        }
+      }
+    };
+    window.addEventListener('keydown', this._keyNavHandler);
 
     if (typeof DropdownUI !== 'undefined' && drawer) {
       DropdownUI.initAll(drawer);

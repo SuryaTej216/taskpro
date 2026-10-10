@@ -75,6 +75,26 @@ const Router = {
       }
     }
 
+    // Direct task view route handling
+    if (viewName === 'task') {
+      const taskId = params.get('id');
+      const container = document.getElementById('view-container');
+      if (container && (!container.children || container.children.length === 0)) {
+        AppState.currentView = 'tasks';
+        Sidebar.setActiveView('tasks');
+        this.renderCurrentRoute();
+      }
+      if (taskId && typeof TaskModal !== 'undefined') {
+        TaskModal.openDetail(taskId, false);
+      }
+      this.updateTopbarProjectPicker();
+      return;
+    } else {
+      if (typeof TaskModal !== 'undefined' && TaskModal.isOpen) {
+        TaskModal.closeDetail(false);
+      }
+    }
+
     AppState.currentView = viewName;
 
     // Update Topbar project selector label
