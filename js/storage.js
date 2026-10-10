@@ -557,5 +557,125 @@ const StorageService = {
    */
   wipeAllData() {
     Object.values(this.KEYS).forEach(k => this.remove(k));
+  },
+
+  /**
+   * Formats a byte size into human readable string (B, KB, MB)
+   * @param {number} bytes 
+   * @param {number} decimals 
+   * @returns {string}
+   */
+  formatBytes(bytes, decimals = 1) {
+    if (!bytes || bytes <= 0) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const formatted = parseFloat((bytes / Math.pow(k, i)).toFixed(dm));
+    return `${formatted} ${sizes[i] || 'B'}`;
+  },
+
+  /**
+   * Calculates comprehensive LocalStorage usage and limits against standard browser quota
+   * @returns {object} Detailed storage statistics and breakdowns
+   */
+  getStorageStats() {
+    const quotaBytes = 5 * 1024 * 1024; // 5,242,880 bytes (5.00 MB standard browser origin quota)
+    let totalBytes = 0;
+    let taskforgeBytes = 0;
+    const items = [];
+
+    const keyMeta = {
+      [this.KEYS.TASKS]: { label: 'Tasks, Subtasks & Checklists', icon: 'fa-solid fa-list-check', color: '#579DFF' },
+      [this.KEYS.PROJECTS]: { label: 'Projects', icon: 'fa-solid fa-diagram-project', color: '#6554C0' },
+      [this.KEYS.ACTIVITY]: { label: 'Activity & Audit Log', icon: 'fa-solid fa-clock-rotate-left', color: '#FFAB00' },
+      [this.KEYS.SPRINTS]: { label: 'Sprints & Cycles', icon: 'fa-solid fa-repeat', color: '#36B37E' },
+      [this.KEYS.EPICS]: { label: 'Feature Epics', icon: 'fa-solid fa-bolt', color: '#FF5630' },
+      [this.KEYS.GOALS]: { label: 'Strategic Goals & OKRs', icon: 'fa-solid fa-bullseye', color: '#8777D9' },
+      [this.KEYS.COMMENTS]: { label: 'Task Discussions & Comments', icon: 'fa-solid fa-comments', color: '#00B8D9' },
+      [this.KEYS.LABELS]: { label: 'Labels & Tags', icon: 'fa-solid fa-tags', color: '#00C7E5' },
+      [this.KEYS.NOTIFICATIONS]: { label: 'System Notifications', icon: 'fa-solid fa-bell', color: '#E34935' },
+      [this.KEYS.SETTINGS]: { label: 'App Settings & Preferences', icon: 'fa-solid fa-gear', color: '#9FB2C8' },
+      [this.KEYS.TIME_ENTRIES]: { label: 'Time Tracking Sessions', icon: 'fa-solid fa-stopwatch', color: '#4BCE97' },
+      [this.KEYS.TEMPLATES]: { label: 'Task Templates', icon: 'fa-solid fa-copy', color: '#F772B5' },
+      [this.KEYS.PREFERENCES]: { label: 'Saved UI Preferences', icon: 'fa-solid fa-sliders', color: '#A371F7' },
+      [this.KEYS.INITIALIZED]: { label: 'Database Init State', icon: 'fa-solid fa-shield-halved', color: '#7EE787' }
+    };
+
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        const value = localStorage.getItem(key) || '';
+        const bytes = new Blob([key, value]).size;
+        totalBytes += bytes;
+
+        if (key.startsWith('taskforge_')) {
+          taskforgeBytes += bytes;
+          let count = null;
+          try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) count = parsed.length;
+            else if (typeof parsed === 'object' && parsed !== null) count = Object.keys(parsed).length;
+          } catch (_) {}
+
+          const meta = keyMeta[key] || {
+            label: key.replace('taskforge_', '').replace(/_/g, ' '),
+            icon: 'fa-solid fa-database',
+            color: '#8C9BAB'
+          };
+
+          items.push({
+            key,
+            label: meta.label,
+            icon: meta.icon,
+            color: meta.color,
+            bytes,
+            formattedBytes: this.formatBytes(bytes),
+            count
+          });
+        }
+      }
+    } catch (e) {
+      console.error('StorageService: Error calculating storage stats', e);
+    }
+
+    // Sort items descending by bytes
+    items.sort((a, b) => b.bytes - a.bytes);
+
+    const percentUsed = Math.min(100, Math.max(0, (totalBytes / quotaBytes) * 100));
+    const remainingBytes = Math.max(0, quotaBytes - totalBytes);
+    const percentFree = Math.max(0, 100 - percentUsed);
+
+    let status = 'healthy';
+    let statusText = 'Healthy';
+    let statusColor = '#36B37E';
+    if (percentUsed >= 90) {
+      status = 'critical';
+      statusText = 'Critical (Near Limit)';
+      statusColor = '#F85149';
+    } else if (percentUsed >= 70) {
+      status = 'warning';
+      statusText = 'Warning (High Usage)';
+      statusColor = '#D29922';
+    }
+
+    return {
+      totalBytes,
+      taskforgeBytes,
+      otherBytes: Math.max(0, totalBytes - taskforgeBytes),
+      quotaBytes,
+      percentUsed: parseFloat(percentUsed.toFixed(2)),
+      percentFree: parseFloat(percentFree.toFixed(2)),
+      remainingBytes,
+      status,
+      statusText,
+      statusColor,
+      items,
+      formattedTotal: this.formatBytes(totalBytes),
+      formattedTaskforge: this.formatBytes(taskforgeBytes),
+      formattedQuota: this.formatBytes(quotaBytes),
+      formattedRemaining: this.formatBytes(remainingBytes)
+    };
   }
 };

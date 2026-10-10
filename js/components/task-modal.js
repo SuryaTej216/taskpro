@@ -270,7 +270,7 @@ const TaskModal = {
             </div>
             <div style="width: 90px;">
               <label class="form-label">Count</label>
-              <input type="number" id="bulk-count" class="form-input" min="1" max="50" value="3" style="text-align: center;">
+              <input type="number" id="bulk-count" class="form-input" min="1" value="3" style="text-align: center;">
             </div>
           </div>
         </div>
@@ -457,13 +457,14 @@ const TaskModal = {
         return;
       }
 
-      previewList.innerHTML = items.slice(0, 50).map((title, i) => `
+      const displayItems = items.length > 200 ? items.slice(0, 200) : items;
+      previewList.innerHTML = displayItems.map((title, i) => `
         <div style="display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: var(--bg-surface); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 12px;">
           ${icon}
           <span style="color: var(--text-muted); font-weight: 700; min-width: 20px;">${i + 1}.</span>
           <span style="color: var(--text-primary); font-weight: 500;">${Utils.escapeHTML(title)}</span>
         </div>
-      `).join('');
+      `).join('') + (items.length > 200 ? `<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px;">...and ${items.length - 200} more items will be created</div>` : '');
     };
 
     if (templateInput) templateInput.addEventListener('input', updatePreview);
@@ -690,7 +691,7 @@ const TaskModal = {
                   <input type="text" id="new-checklist-input" class="form-input" placeholder="e.g. Design task {}" style="font-size: 12px; padding: 6px 10px; flex: 1;">
                   <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                     <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
-                    <input type="number" id="new-checklist-count" class="form-input" min="1" max="50" value="1" style="width: 52px; font-size: 12px; padding: 6px 6px; text-align: center;">
+                    <input type="number" id="new-checklist-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk item count">
                   </div>
                   <button id="btn-add-checklist" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px; white-space: nowrap;">
                     <i class="fa-solid fa-plus"></i> Add
@@ -751,7 +752,7 @@ const TaskModal = {
                   <input type="text" id="new-subtask-input" class="form-input" placeholder="e.g. Implement feature {}" style="font-size: 12px; padding: 6px 10px; flex: 1;">
                   <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                     <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
-                    <input type="number" id="new-subtask-count" class="form-input" min="1" max="50" value="1" style="width: 52px; font-size: 12px; padding: 6px 6px; text-align: center;">
+                    <input type="number" id="new-subtask-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk subtask count">
                   </div>
                   <button id="btn-add-subtask" class="btn btn-primary btn-sm" style="font-size: 11px; height: 30px; white-space: nowrap;">
                     <i class="fa-solid fa-plus"></i> Add
@@ -825,7 +826,7 @@ const TaskModal = {
                   <input type="text" id="merged-new-input" class="form-input" placeholder="e.g. Review item {}" style="font-size: 12px; padding: 6px 10px; flex: 1; min-width: 160px;">
                   <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
                     <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
-                    <input type="number" id="merged-new-count" class="form-input" min="1" max="50" value="1" style="width: 52px; font-size: 12px; padding: 6px 6px; text-align: center;">
+                    <input type="number" id="merged-new-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk item count">
                   </div>
                   <select id="merged-new-type" class="form-select" style="width: auto; padding: 4px 8px; font-size: 11px; height: 30px;">
                     <option value="checklist">Checklist</option>
@@ -1504,13 +1505,13 @@ const TaskModal = {
    *   generateBulkItems("Task", 5)            → ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5"]
    * 
    * @param {string} template - The text template, optionally containing '{}'
-   * @param {number} count - Number of items to generate (1-50)
+   * @param {number} count - Number of items to generate
    * @returns {string[]} Array of generated item strings
    */
   generateBulkItems(template, count) {
     if (!template || !template.trim()) return [];
     const text = template.trim();
-    const n = Math.min(50, Math.max(1, count || 1));
+    const n = Math.max(1, parseInt(count, 10) || 1);
 
     // If count is 1, just return the template (clean up any stray {})
     if (n === 1) {

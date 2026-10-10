@@ -47,18 +47,41 @@ const Sidebar = {
     // Floating Tooltips for Collapsed Sidebar
     this.setupFloatingTooltips();
 
+    // Sidebar storage status indicator click to view settings
+    const storageStatusEl = document.getElementById('sidebar-storage-status');
+    if (storageStatusEl) {
+      storageStatusEl.addEventListener('click', () => {
+        Router.navigate('#/settings');
+        setTimeout(() => {
+          const el = document.getElementById('settings-storage-section');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 120);
+      });
+    }
+
     this.renderProjectShortcuts();
     this.updateCounters();
+    this.updateStorageStatus();
 
     // Listen to data mutations
     AppState.subscribe('tasks:changed', () => {
       this.updateCounters();
       this.renderProjectShortcuts();
+      this.updateStorageStatus();
     });
 
     AppState.subscribe('projects:changed', () => {
       this.renderProjectShortcuts();
       this.updateCounters();
+      this.updateStorageStatus();
+    });
+
+    AppState.subscribe('activity:changed', () => {
+      this.updateStorageStatus();
+    });
+
+    AppState.subscribe('settings:changed', () => {
+      this.updateStorageStatus();
     });
   },
 
@@ -133,6 +156,20 @@ const Sidebar = {
     const projectsCountEl = document.getElementById('sidebar-projects-count');
     if (projectsCountEl) {
       projectsCountEl.textContent = AppState.projects.length;
+    }
+  },
+
+  /**
+   * Updates sidebar storage quota and usage indicator
+   */
+  updateStorageStatus() {
+    const textEl = document.getElementById('sidebar-storage-text');
+    const container = document.getElementById('sidebar-storage-status');
+    if (!textEl || typeof StorageService === 'undefined' || !StorageService.getStorageStats) return;
+    const stats = StorageService.getStorageStats();
+    textEl.textContent = `Storage: ${stats.formattedTotal} / ${stats.formattedQuota}`;
+    if (container) {
+      container.title = `Local Storage: ${stats.formattedTotal} / ${stats.formattedQuota} (${stats.percentUsed}% used, ${stats.formattedRemaining} free) — Click to view details`;
     }
   },
 

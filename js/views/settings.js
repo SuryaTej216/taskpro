@@ -6,6 +6,7 @@
 const SettingsView = {
   render(container) {
     const settings = AppState.settings;
+    const stats = StorageService.getStorageStats();
 
     container.innerHTML = `
       <div class="view-page">
@@ -13,7 +14,7 @@ const SettingsView = {
         <div class="view-header">
           <div class="view-title-group">
             <h1><i class="fa-solid fa-gear" style="color: var(--accent-primary);"></i> Settings & Preferences</h1>
-            <p>Configure theme preferences, audio alerts, and manage browser-local data portability.</p>
+            <p>Configure theme preferences, audio alerts, and manage browser-local data portability & storage limits.</p>
           </div>
         </div>
 
@@ -64,7 +65,125 @@ const SettingsView = {
             </div>
           </div>
 
-          <!-- 4. Data Portability Section (JSON & CSV) -->
+          <!-- 4. Local Storage Usage & Limit Section -->
+          <div id="settings-storage-section" style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 22px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 38px; height: 38px; border-radius: var(--radius-md); background: rgba(87, 157, 255, 0.12); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); font-size: 16px;">
+                  <i class="fa-solid fa-hard-drive"></i>
+                </div>
+                <div>
+                  <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">Local Storage Usage & Limit</h3>
+                  <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Browser origin storage quota and live capacity breakdown</p>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="badge" style="background: ${stats.statusColor}18; color: ${stats.statusColor}; border: 1px solid ${stats.statusColor}44; font-weight: 600; padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: ${stats.statusColor}; animation: pulseGreen 2.5s infinite;"></span>
+                  ${stats.statusText} (${stats.percentFree}% Free)
+                </span>
+                <button class="btn btn-secondary btn-sm" onclick="SettingsView.refreshStorage()" title="Recalculate storage footprint" style="height: 30px; font-size: 12px;">
+                  <i class="fa-solid fa-rotate"></i> Refresh
+                </button>
+              </div>
+            </div>
+
+            <!-- Progress Meter -->
+            <div style="margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+                <div>
+                  <span style="font-size: 20px; font-weight: 700; color: var(--text-primary);">${stats.formattedTotal}</span>
+                  <span style="font-size: 13px; color: var(--text-muted); margin-left: 6px;">used of <strong style="color: var(--text-primary);">${stats.formattedQuota}</strong> limit</span>
+                </div>
+                <div style="font-size: 13px; font-weight: 700; color: ${stats.statusColor};">
+                  ${stats.percentUsed}% Quota Used
+                </div>
+              </div>
+              <div style="height: 12px; background: var(--bg-app); border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); position: relative;">
+                <div style="width: ${Math.max(1, stats.percentUsed)}%; height: 100%; background: linear-gradient(90deg, #579DFF 0%, #36B37E 100%); border-radius: 6px; transition: width 0.4s ease; box-shadow: 0 0 8px rgba(87, 157, 255, 0.4);"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+                <span>0 KB</span>
+                <span>Available: <strong style="color: var(--accent-success);">${stats.formattedRemaining}</strong></span>
+                <span>Max Quota: 5.00 MB</span>
+              </div>
+            </div>
+
+            <!-- 3 Stat Blocks Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px;">
+              <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px;">
+                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px;">
+                  <i class="fa-solid fa-database" style="color: #579DFF;"></i> Used Storage
+                </div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--text-primary);">${stats.formattedTotal}</div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${stats.percentUsed}% of total quota</div>
+              </div>
+
+              <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px;">
+                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px;">
+                  <i class="fa-solid fa-circle-check" style="color: #36B37E;"></i> Free Space
+                </div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--accent-success);">${stats.formattedRemaining}</div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${stats.percentFree}% remaining headroom</div>
+              </div>
+
+              <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px;">
+                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px;">
+                  <i class="fa-solid fa-shield-halved" style="color: #A371F7;"></i> Quota Limit
+                </div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--text-primary);">${stats.formattedQuota}</div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Browser origin LocalStorage cap</div>
+              </div>
+            </div>
+
+            <!-- Breakdown Accordion / List -->
+            <div style="border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+              <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                <span><i class="fa-solid fa-layer-group" style="color: var(--accent-primary);"></i> Storage Footprint by Entity</span>
+                <span style="font-size: 11px; font-weight: 500; color: var(--text-muted);">${stats.items.length} cached keys</span>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${stats.items.map(item => {
+                  const itemPct = stats.taskforgeBytes > 0 ? ((item.bytes / stats.taskforgeBytes) * 100).toFixed(1) : 0;
+                  return `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12px; gap: 10px;">
+                      <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+                        <span style="width: 26px; height: 26px; border-radius: 6px; background: ${item.color}15; color: ${item.color}; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">
+                          <i class="${item.icon}"></i>
+                        </span>
+                        <div style="min-width: 0; flex: 1;">
+                          <div style="font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.label}</div>
+                          <div style="font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);">${item.key}${item.count !== null ? ` · ${item.count} items` : ''}</div>
+                        </div>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+                        <div style="width: 70px; height: 6px; background: var(--bg-app); border-radius: 3px; overflow: hidden;" title="${itemPct}% of TaskForge storage">
+                          <div style="width: ${Math.max(2, itemPct)}%; height: 100%; background: ${item.color}; border-radius: 3px;"></div>
+                        </div>
+                        <span style="font-family: var(--font-mono); font-weight: 600; color: var(--text-primary); min-width: 55px; text-align: right;">${item.formattedBytes}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <!-- Optimization & Info Callout -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted);">
+                <i class="fa-solid fa-circle-info" style="color: var(--accent-primary);"></i>
+                <span>Browser origin quota: <strong>5.00 MB</strong> (5,242,880 bytes). Data resides exclusively on your device.</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-ghost btn-xs" onclick="SettingsView.pruneActivityLog()" title="Purge older audit entries to free up space" style="font-size: 11px; color: var(--text-muted);">
+                  <i class="fa-solid fa-broom"></i> Compact Activity History
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. Data Portability Section (JSON & CSV) -->
           <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 20px;">
             <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px;">
               <i class="fa-solid fa-database"></i> Data Portability & Backup
@@ -86,7 +205,7 @@ const SettingsView = {
             </div>
           </div>
 
-          <!-- 5. Danger Zone -->
+          <!-- 6. Danger Zone -->
           <div style="background: var(--bg-surface); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: var(--radius-lg); padding: 20px;">
             <h3 style="font-size: 15px; font-weight: 700; color: var(--accent-danger); margin-bottom: 12px;">
               <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
@@ -208,6 +327,31 @@ const SettingsView = {
       AppState.init();
       Router.renderCurrentRoute();
       Toast.warning('All application data cleared.');
+    });
+  },
+
+  refreshStorage() {
+    const stats = StorageService.getStorageStats();
+    if (AppState.currentView === 'settings') {
+      Router.renderCurrentRoute();
+    }
+    Toast.success(`Storage refreshed: ${stats.formattedTotal} of ${stats.formattedQuota} (${stats.percentUsed}% used)`);
+  },
+
+  pruneActivityLog() {
+    Modal.confirm('Compact Activity History', 'Keep only the 50 most recent activity entries and purge older logs to reclaim local storage space?', () => {
+      if (AppState.activity.length > 50) {
+        const removed = AppState.activity.length - 50;
+        AppState.activity = AppState.activity.slice(0, 50);
+        StorageService.set(StorageService.KEYS.ACTIVITY, AppState.activity);
+        AppState.emit('activity:changed');
+        if (AppState.currentView === 'settings') {
+          Router.renderCurrentRoute();
+        }
+        Toast.success(`Compacted activity log: Freed ${removed} historical entries.`);
+      } else {
+        Toast.info('Activity history is already compact (50 or fewer entries).');
+      }
     });
   }
 };

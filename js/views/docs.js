@@ -647,6 +647,14 @@ const DocsView = {
                   <p>Because browser local storage can be affected if you perform a complete browser cache wipe, click <strong>Export All Data (JSON)</strong> in Settings periodically to preserve offline copies of your projects.</p>
                 </div>
               </div>
+
+              <div class="docs-callout docs-callout-info" style="margin-top: 12px;">
+                <div class="docs-callout-icon"><i class="fa-solid fa-hard-drive"></i></div>
+                <div class="docs-callout-content">
+                  <h4>5.00 MB Local Storage Quota Limit & Health Monitoring</h4>
+                  <p>Modern browser engines allocate a standard synchronous <code>localStorage</code> quota limit of <strong>5.00 MB</strong> (5,242,880 bytes) per origin. You can monitor your live utilization and view a detailed entity-by-entity breakdown in the <strong>Settings &gt; Local Storage Usage &amp; Limit</strong> panel or by clicking the sidebar footer storage indicator.</p>
+                </div>
+              </div>
             </section>
 
             <!-- SECTION 7: Local Automation Engine -->
