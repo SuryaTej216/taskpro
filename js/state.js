@@ -245,6 +245,7 @@ const AppState = {
       labels: Array.isArray(taskData.labels) ? taskData.labels : [],
       dueDate: taskData.dueDate || null,
       startDate: taskData.startDate || null,
+      plannedDate: taskData.plannedDate || null,
       estimate: parseInt(taskData.estimate, 10) || 0,
       trackedTime: parseInt(taskData.trackedTime, 10) || 0,
       storyPoints: storyPoints,

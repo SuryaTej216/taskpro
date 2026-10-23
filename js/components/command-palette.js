@@ -64,6 +64,7 @@ const CommandPalette = {
     // 1. Navigation Commands
     const navCommands = [
       { id: 'nav_dash', title: 'Go to Dashboard', icon: 'fa-chart-pie', category: 'Navigation', action: () => Router.navigate('dashboard') },
+      { id: 'nav_planner', title: 'Go to Daily Planner (Today + next 2 days)', icon: 'fa-calendar-day', category: 'Navigation', action: () => Router.navigate('planner') },
       { id: 'nav_tasks', title: 'Go to Tasks (Board & List)', icon: 'fa-table-columns', category: 'Navigation', action: () => Router.navigate('tasks') },
       { id: 'nav_board', title: 'Go to Tasks: Board View', icon: 'fa-table-columns', category: 'Navigation', action: () => { if (typeof TasksView !== 'undefined') TasksView.setMode('board'); Router.navigate('tasks'); } },
       { id: 'nav_list', title: 'Go to Tasks: List View', icon: 'fa-list-check', category: 'Navigation', action: () => { if (typeof TasksView !== 'undefined') TasksView.setMode('list'); Router.navigate('tasks'); } },
