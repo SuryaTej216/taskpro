@@ -72,6 +72,9 @@ const TaskCard = {
     card.dataset.type = type;
     card.dataset.priority = task.priority || 'medium';
     card.style.setProperty('--worktype-color', typeConfig.color);
+    const project = AppState.projects.find(item => item.id === task.projectId);
+    const projectColor = project && /^#[\da-f]{3,8}$/i.test(project.color || '') ? project.color : '#579DFF';
+    card.style.setProperty('--planner-project', projectColor);
 
     const isOverdue = Utils.isOverdue(task.dueDate, task.status);
     const isDueToday = Utils.isDueToday(task.dueDate);

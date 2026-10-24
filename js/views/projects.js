@@ -7,13 +7,19 @@ const ProjectsView = {
   render(container) {
     const projects = AppState.projects;
     const tasks = AppState.tasks;
+    const portfolioTasks = tasks.filter(t => !t.archived && t.status !== 'cancelled');
+    const doneTasks = portfolioTasks.filter(t => t.status === 'done').length;
+    const openTasks = portfolioTasks.filter(t => t.status !== 'done').length;
+    const completion = portfolioTasks.length ? Math.round((doneTasks / portfolioTasks.length) * 100) : 0;
+    const activeProjects = projects.filter(p => p.status === 'active').length;
+    const ringC = 2 * Math.PI * 22;
+    const ringOffset = ringC * (1 - completion / 100);
 
     container.innerHTML = `
-      <div class="view-page">
-        <!-- View Header -->
-        <div class="view-header">
+      <div class="view-page projects-page">
+        <header class="view-header projects-header">
           <div class="view-title-group">
-            <h1><i class="fa-solid fa-folder-tree" style="color: var(--accent-primary);"></i> Projects</h1>
+            <h1><i class="fa-solid fa-folder-tree projects-title-icon"></i> Projects</h1>
             <p>Manage all your initiatives, portfolios, and personal workspaces.</p>
           </div>
           <div class="view-actions">
@@ -21,92 +27,121 @@ const ProjectsView = {
               <i class="fa-solid fa-plus"></i> New Project
             </button>
           </div>
-        </div>
+        </header>
 
-        <!-- Project Cards Grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
-          ${projects.length === 0 ? `
-            <div class="empty-state" style="grid-column: 1 / -1; padding: 60px 20px; background: var(--bg-surface); border: 1px dashed var(--border-default); border-radius: var(--radius-lg);">
-              <i class="fa-solid fa-folder-open empty-state-icon" style="color: var(--accent-primary); font-size: 48px;"></i>
-              <div class="empty-state-title" style="font-size: 18px; margin-top: 8px;">No Projects Yet</div>
-              <div class="empty-state-desc" style="max-width: 400px; margin-bottom: 20px;">
-                Create your first project to start tracking epics, user stories, sprints, and tasks in a structured workspace.
-              </div>
-              <button class="btn btn-primary" onclick="ProjectsView.openCreateModal()">
-                <i class="fa-solid fa-plus"></i> Create Your First Project
-              </button>
+        <section class="planner-summary projects-summary" aria-label="Portfolio summary">
+          <div class="planner-kpi planner-kpi-progress">
+            <svg class="planner-ring" viewBox="0 0 52 52" aria-hidden="true">
+              <circle class="planner-ring-track" cx="26" cy="26" r="22"></circle>
+              <circle class="planner-ring-fill" cx="26" cy="26" r="22"
+                style="stroke-dasharray: ${ringC.toFixed(2)}; stroke-dashoffset: ${ringOffset.toFixed(2)};"></circle>
+            </svg>
+            <div class="planner-kpi-ring-label">${completion}%</div>
+            <div class="planner-kpi-text">
+              <span class="planner-kpi-title">Portfolio progress</span>
+              <span class="planner-kpi-value">${doneTasks} <small>of ${portfolioTasks.length} done</small></span>
             </div>
-          ` : projects.map(proj => {
-            const projTasks = tasks.filter(t => t.projectId === proj.id);
-            const doneTasks = projTasks.filter(t => t.status === 'done').length;
-            const progress = projTasks.length > 0 ? Math.round((doneTasks / projTasks.length) * 100) : 0;
-            const openTasks = projTasks.length - doneTasks;
+          </div>
+          <div class="planner-kpi">
+            <div class="planner-kpi-icon kpi-blue"><i class="fa-solid fa-folder-tree"></i></div>
+            <div class="planner-kpi-text">
+              <span class="planner-kpi-title">Projects</span>
+              <span class="planner-kpi-value">${projects.length} <small>total</small></span>
+            </div>
+          </div>
+          <div class="planner-kpi">
+            <div class="planner-kpi-icon kpi-purple"><i class="fa-solid fa-bolt"></i></div>
+            <div class="planner-kpi-text">
+              <span class="planner-kpi-title">Active projects</span>
+              <span class="planner-kpi-value">${activeProjects} <small>in progress</small></span>
+            </div>
+          </div>
+          <div class="planner-kpi">
+            <div class="planner-kpi-icon ${openTasks ? 'kpi-red' : 'kpi-green'}"><i class="fa-solid ${openTasks ? 'fa-list-check' : 'fa-circle-check'}"></i></div>
+            <div class="planner-kpi-text">
+              <span class="planner-kpi-title">Open tasks</span>
+              <span class="planner-kpi-value">${openTasks} <small>${openTasks ? 'across projects' : 'all clear'}</small></span>
+            </div>
+          </div>
+        </section>
 
-            return `
-              <div class="project-card" style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; transition: all var(--transition-fast); box-shadow: var(--shadow-sm);">
-                
-                <div>
-                  <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                      <div style="width: 36px; height: 36px; border-radius: var(--radius-md); background: ${proj.color || '#388bfd'}; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px;">
-                        <i class="fa-solid ${proj.icon || 'fa-folder'}"></i>
+        <section class="projects-section" aria-label="Projects">
+          <div class="projects-section-head">
+            <h2>All projects</h2>
+            <span>${projects.length} project${projects.length === 1 ? '' : 's'}</span>
+          </div>
+          ${projects.length === 0 ? `
+            <div class="projects-empty">
+              <div class="projects-empty-icon"><i class="fa-solid fa-folder-open"></i></div>
+              <h3>No projects yet</h3>
+              <p>Create a project to organize tasks, track progress, and bring related work together.</p>
+              <span>Use <strong>New Project</strong> in the top-right corner to get started.</span>
+            </div>
+          ` : `
+            <div class="projects-grid">
+              ${projects.map(proj => {
+                const projectTasks = tasks.filter(t => t.projectId === proj.id && !t.archived && t.status !== 'cancelled');
+                const projectDone = projectTasks.filter(t => t.status === 'done').length;
+                const projectOpen = projectTasks.length - projectDone;
+                const progress = projectTasks.length ? Math.round((projectDone / projectTasks.length) * 100) : 0;
+                const accent = /^#[\da-f]{3,8}$/i.test(proj.color || '') ? proj.color : '#579DFF';
+                const status = String(proj.status || 'planning').toLowerCase();
+                const statusLabel = status.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+
+                return `
+                  <article class="project-card ${projectTasks.length && progress === 100 ? 'is-complete' : ''}" style="--project-accent: ${accent};">
+                    <header class="project-card-head">
+                      <div class="project-heading">
+                        <h3>${Utils.escapeHTML(proj.name)}</h3>
+                        <div class="project-key">${Utils.escapeHTML(proj.key)}</div>
                       </div>
-                      <div>
-                        <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.3;">${Utils.escapeHTML(proj.name)}</h3>
-                        <span style="font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--text-muted);">${proj.key}</span>
+                      <span class="project-status status-${Utils.escapeHTML(status)}">${Utils.escapeHTML(statusLabel)}</span>
+                    </header>
+
+                    <div class="project-card-progress" title="${progress}% complete">
+                      <div class="project-progress-label">
+                        <span>Task progress</span>
+                        <strong>${projectTasks.length ? `${projectDone} of ${projectTasks.length} · ${progress}%` : 'No tasks yet'}</strong>
+                      </div>
+                      <div class="project-progress-track" role="progressbar" aria-label="Task progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
+                        <div class="project-progress-fill" style="width: ${progress}%;"></div>
                       </div>
                     </div>
 
-                    <span class="badge badge-status-${proj.status}">${proj.status}</span>
-                  </div>
-
-                  <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 16px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                    ${Utils.escapeHTML(proj.description || 'No description provided.')}
-                  </p>
-                </div>
-
-                <div>
-                  <!-- Progress Bar -->
-                  <div style="margin-bottom: 14px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">
-                      <span>Completion</span>
-                      <span style="font-weight: 600; color: var(--text-primary);">${progress}%</span>
-                    </div>
-                    <div class="progress-bar-container">
-                      <div class="progress-bar-fill" style="width: ${progress}%; background: ${proj.color || 'var(--accent-primary)'};"></div>
-                    </div>
-                  </div>
-
-                  <!-- Footer Meta & Actions -->
-                  <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-subtle); padding-top: 12px; font-size: 12px;">
-                    <div style="color: var(--text-muted);">
-                      <span><strong>${openTasks}</strong> open</span> • <span><strong>${doneTasks}</strong> done</span>
+                    <div class="project-card-meta">
+                      <span><i class="fa-solid fa-list-check"></i> ${projectOpen} open task${projectOpen === 1 ? '' : 's'}</span>
+                      <span>${proj.targetDate
+                        ? `<i class="fa-regular fa-calendar"></i> Target ${Utils.escapeHTML(Utils.formatDate(proj.targetDate))}`
+                        : '<i class="fa-regular fa-calendar"></i> No target date'}</span>
                     </div>
 
-                    <div style="display: flex; gap: 6px;">
-                      <a href="#/tasks?project=${proj.id}" class="btn btn-secondary btn-sm" title="Open Tasks">
-                        <i class="fa-solid fa-table-columns"></i> Tasks
-                      </a>
-                      <button class="btn btn-ghost btn-sm" onclick="ProjectsView.openEditModal('${proj.id}')" title="Edit Project">
-                        <i class="fa-solid fa-pen"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                    <p class="project-description">${Utils.escapeHTML(proj.description || 'Add a description to clarify this project’s goal.')}</p>
 
-              </div>
-            `;
-          }).join('')}
-        </div>
-
+                    <footer class="project-card-footer">
+                      <div class="project-card-actions">
+                        <a href="#/tasks?project=${encodeURIComponent(proj.id)}" class="btn btn-secondary btn-sm" title="Open project tasks">
+                          <i class="fa-solid fa-table-columns"></i> Tasks
+                        </a>
+                        <button type="button" class="btn btn-ghost btn-sm" data-project-action="edit" data-project-id="${Utils.escapeHTML(proj.id)}" title="Edit project" aria-label="Edit ${Utils.escapeHTML(proj.name)}">
+                          <i class="fa-solid fa-pen"></i>
+                        </button>
+                      </div>
+                    </footer>
+                  </article>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </section>
       </div>
     `;
 
-    // Attach create listener
     const createBtn = container.querySelector('#btn-create-project');
-    if (createBtn) {
-      createBtn.addEventListener('click', () => this.openCreateModal());
-    }
+    if (createBtn) createBtn.addEventListener('click', () => this.openCreateModal());
+
+    container.querySelectorAll('[data-project-action="edit"]').forEach(button => {
+      button.addEventListener('click', () => this.openEditModal(button.dataset.projectId));
+    });
   },
 
   openCreateModal() {

@@ -126,6 +126,52 @@ const TasksView = {
     `;
   },
 
+  renderPlannerSummaryHTML({ totalCount, doneCount, openCount, inProgressCount, attentionCount, blockedCount, overdueCount }) {
+    const completion = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
+    const ringC = 2 * Math.PI * 22;
+    const ringOffset = ringC * (1 - completion / 100);
+    const attentionDetail = attentionCount
+      ? `${blockedCount} blocked · ${overdueCount} overdue`
+      : 'all clear';
+
+    return `
+      <section class="planner-summary tasks-summary" aria-label="Task summary">
+        <div class="planner-kpi planner-kpi-progress">
+          <svg class="planner-ring" viewBox="0 0 52 52" aria-hidden="true">
+            <circle class="planner-ring-track" cx="26" cy="26" r="22"></circle>
+            <circle class="planner-ring-fill" cx="26" cy="26" r="22" style="stroke-dasharray: ${ringC.toFixed(2)}; stroke-dashoffset: ${ringOffset.toFixed(2)};"></circle>
+          </svg>
+          <div class="planner-kpi-ring-label">${completion}%</div>
+          <div class="planner-kpi-text">
+            <span class="planner-kpi-title">Task progress</span>
+            <span class="planner-kpi-value">${doneCount} <small>of ${totalCount} done</small></span>
+          </div>
+        </div>
+        <div class="planner-kpi">
+          <div class="planner-kpi-icon kpi-blue"><i class="fa-solid fa-list-check"></i></div>
+          <div class="planner-kpi-text">
+            <span class="planner-kpi-title">Open tasks</span>
+            <span class="planner-kpi-value">${openCount}</span>
+          </div>
+        </div>
+        <div class="planner-kpi">
+          <div class="planner-kpi-icon kpi-purple"><i class="fa-solid fa-bolt"></i></div>
+          <div class="planner-kpi-text">
+            <span class="planner-kpi-title">Work in progress</span>
+            <span class="planner-kpi-value">${inProgressCount} <small>active or review</small></span>
+          </div>
+        </div>
+        <div class="planner-kpi ${attentionCount ? 'is-alert' : ''}">
+          <div class="planner-kpi-icon ${attentionCount ? 'kpi-red' : 'kpi-green'}"><i class="fa-solid ${attentionCount ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i></div>
+          <div class="planner-kpi-text">
+            <span class="planner-kpi-title">Needs attention</span>
+            <span class="planner-kpi-value">${attentionCount} <small>${attentionDetail}</small></span>
+          </div>
+        </div>
+      </section>
+    `;
+  },
+
   /**
    * Attaches click handlers to any rendered switcher tabs inside the container
    * @param {HTMLElement} container 

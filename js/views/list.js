@@ -491,6 +491,8 @@ const ListView = {
     const inProgressCount = tasks.filter(t => t.status === 'inprogress' || t.status === 'inreview').length;
     const overdueCount = tasks.filter(t => Utils.isOverdue(t.dueDate, t.status)).length;
     const completionPct = totalCount > 0 ? Math.round((doneTasks.length / totalCount) * 100) : 0;
+    const openTaskCount = tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
+    const attentionCount = tasks.filter(t => t.status === 'blocked' || Utils.isOverdue(t.dueDate, t.status)).length;
     const donePct = completionPct;
 
     const statusCounts = {
@@ -509,13 +511,13 @@ const ListView = {
     const activeSprint = AppState.sprints.find(s => s.id === AppState.activeFilters.sprintId);
 
     container.innerHTML = `
-      <div class="view-page board-view-page">
+      <div class="view-page board-view-page tasks-planner-page">
         
         <!-- ROW 1: Executive Command Header (Harmonized layout with Board View) -->
-        <div class="view-header board-executive-header">
+        <div class="view-header board-executive-header planner-header tasks-planner-header">
           <div class="view-title-group">
             <h1>
-              <i class="fa-solid fa-list-check" style="color: var(--accent-primary);"></i>
+              <i class="fa-solid fa-list-check planner-title-icon"></i>
               <span>${selectedProject ? Utils.escapeHTML(selectedProject.name) : 'All Projects'} Tasks</span>
               ${activeSprint ? `
                 <span class="board-sprint-badge" title="Active Sprint: ${Utils.escapeHTML(activeSprint.name)}">
@@ -565,6 +567,16 @@ const ListView = {
             </button>
           </div>
         </div>
+
+        ${TasksView.renderPlannerSummaryHTML({
+          totalCount,
+          doneCount: doneTasks.length,
+          openCount: openTaskCount,
+          inProgressCount,
+          attentionCount,
+          blockedCount: statusCounts.blocked,
+          overdueCount
+        })}
 
         <!-- ROW 2: Executive Overall Status Progression & Health Center -->
         <div class="board-executive-statusbar">

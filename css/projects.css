@@ -1,0 +1,94 @@
+/* ============================================================
+   TaskForge — Projects portfolio view
+   ============================================================ */
+
+.projects-page {
+  gap: 1.25rem;
+  animation: plannerFadeIn 260ms var(--easing-out, ease-out);
+}
+
+.projects-header { margin-bottom: 0; }
+
+.projects-title-icon {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.projects-summary { margin: 0; }
+
+.projects-section { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.projects-section-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.projects-section-head h2 { color: var(--text-primary); font-size: 1rem; font-weight: 700; }
+.projects-section-head > span { color: var(--text-muted); font-size: 0.75rem; }
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 15rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--project-accent, var(--accent-primary)) 10%, var(--surface-sunken)) 0%, var(--surface-sunken) 150px);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.project-card:hover { border-color: color-mix(in srgb, var(--project-accent, var(--border-bold)) 45%, var(--border)); box-shadow: 0 4px 18px color-mix(in srgb, var(--project-accent, var(--accent-primary)) 10%, transparent); }
+.project-card.is-complete { border-color: color-mix(in srgb, var(--border-success) 55%, transparent); }
+
+.project-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.project-heading { display: grid; gap: 0.125rem; min-width: 0; }
+.project-heading h3 { overflow: hidden; color: var(--text-primary); font-size: 1rem; font-weight: 700; line-height: 1.25rem; text-overflow: ellipsis; white-space: nowrap; }
+.project-key { color: var(--text-muted); font: 600 0.75rem var(--font-mono); }
+
+.project-status { display: inline-flex; align-items: center; gap: 0.3rem; flex: 0 0 auto; padding: 0 0.5rem; border-radius: var(--radius-full); font-size: 0.625rem; font-weight: 700; line-height: 1.125rem; white-space: nowrap; }
+.project-status::before { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: currentColor; content: ''; }
+.project-status.status-active { background: var(--accent-success-subtle); color: var(--text-success); }
+.project-status.status-planning { background: var(--accent-primary-subtle); color: var(--text-information); }
+.project-status.status-on-hold { background: var(--accent-warning-subtle); color: var(--text-warning); }
+.project-status.status-completed { background: var(--accent-success-subtle); color: var(--text-success); }
+.project-status.status-archived { background: var(--background-neutral); color: var(--text-muted); }
+
+.project-card-progress { margin: 0; }
+.project-progress-label { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.375rem; color: var(--text-muted); font-size: 0.6875rem; }
+.project-progress-label strong { color: var(--text-primary); font-weight: 700; text-align: right; }
+.project-progress-track { height: 0.375rem; overflow: hidden; border-radius: var(--radius-full); background: var(--background-neutral); }
+.project-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent-success), #22C55E); transition: width 500ms var(--easing-inout); }
+
+.project-card-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.375rem 0.75rem; color: var(--text-muted); font-size: 0.6875rem; }
+.project-card-meta span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.project-card-meta i { color: var(--project-accent, var(--text-muted)); }
+
+.project-description { display: -webkit-box; flex: 1; min-height: 2.5rem; overflow: hidden; color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.25rem; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+
+.project-card-footer { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+.project-card-actions { display: flex; align-items: center; gap: 0.375rem; }
+.project-card-actions .btn { white-space: nowrap; }
+
+.projects-empty { display: flex; flex-direction: column; align-items: center; gap: 0.625rem; min-height: 17rem; padding: 2.5rem 1.25rem; border: 1px dashed var(--border-bold); border-radius: var(--radius-xl); background: var(--bg-surface); text-align: center; }
+.projects-empty-icon { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: var(--radius-xl); background: var(--accent-primary-subtle); color: var(--accent-primary); font-size: 1.5rem; }
+.projects-empty h3 { color: var(--text-primary); font-size: 1rem; font-weight: 700; }
+.projects-empty p { max-width: 28rem; color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.4; }
+.projects-empty > span { color: var(--text-muted); font-size: 0.75rem; }
+.projects-empty strong { color: var(--text-primary); }
+
+@media (max-width: 860px) {
+  .projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .projects-grid { grid-template-columns: 1fr; }
+  .projects-page.view-page { padding: 1rem; }
+  .project-card { min-height: 14rem; }
+}

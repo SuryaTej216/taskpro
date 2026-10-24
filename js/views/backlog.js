@@ -4,388 +4,6 @@
  */
 
 const BacklogView = {
-  render(container) {
-    const tasks = AppState.tasks;
-    const sprints = AppState.sprints;
-    const selectedProjectId = AppState.selectedProjectId;
-
-    // Filter by selected project if active
-    // Shared sprints are visible in every project context; their task list is
-    // still scoped by filteredTasks when a single project is selected.
-    const projectSprints = selectedProjectId
-      ? sprints.filter(s => !s.projectId || s.projectId === selectedProjectId)
-      : sprints;
-    let filteredTasks = selectedProjectId ? tasks.filter(t => t.projectId === selectedProjectId) : tasks;
-
-    // Filter by selected epic if active
-    if (AppState.activeFilters.epicId) {
-      filteredTasks = filteredTasks.filter(t => t.epicId === AppState.activeFilters.epicId);
-    }
-
-    const activeSprint = projectSprints.find(s => s.status === 'active');
-    const plannedSprints = projectSprints.filter(s => s.status === 'planned');
-    const completedSprints = projectSprints.filter(s => s.status === 'completed');
-
-    // ── Meaningful Stats ──
-    // 1. Active Sprint Progress
-    let activeProgress = 0;
-    let activeSprintName = '—';
-    let activeDaysLeft = '—';
-    if (activeSprint) {
-      const activeSprintTasks = filteredTasks.filter(t => t.sprintId === activeSprint.id);
-      const doneTasks = activeSprintTasks.filter(t => t.status === 'done').length;
-      activeProgress = activeSprintTasks.length > 0 ? Math.round((doneTasks / activeSprintTasks.length) * 100) : 0;
-      activeSprintName = activeSprint.name;
-      if (activeSprint.endDate) {
-        const diffDays = Math.ceil((new Date(activeSprint.endDate) - new Date()) / (1000 * 60 * 60 * 24));
-        activeDaysLeft = diffDays > 0 ? `${diffDays}d left` : (diffDays === 0 ? 'Ends today' : `${Math.abs(diffDays)}d overdue`);
-      }
-    }
-
-    // 2. Completion Rate (across all sprints)
-    const allSprintTasks = filteredTasks.filter(t => t.sprintId);
-    const allDone = allSprintTasks.filter(t => t.status === 'done').length;
-    const completionRate = allSprintTasks.length > 0 ? Math.round((allDone / allSprintTasks.length) * 100) : 0;
-
-    // 3. Story Points
-    const totalPoints = filteredTasks.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
-    const burnedPoints = filteredTasks.filter(t => t.status === 'done').reduce((acc, t) => acc + (t.storyPoints || 0), 0);
-
-    // 4. In-Progress count (actively being worked on)
-    const inProgressCount = filteredTasks.filter(t => t.sprintId && (t.status === 'inprogress' || t.status === 'inreview')).length;
-
-    container.innerHTML = `
-      <div class="view-page">
-        <!-- View Header -->
-        <div class="view-header">
-          <div class="view-title-group">
-            <h1><i class="fa-solid fa-layer-group" style="color: var(--accent-primary);"></i> Sprint Planning</h1>
-            <p>Create, manage, and track sprints. Assign tasks and monitor velocity across sprint cycles.</p>
-          </div>
-          <div class="view-actions">
-            <button id="btn-create-sprint" class="btn btn-secondary btn-sm">
-              <i class="fa-solid fa-calendar-plus"></i> Create Sprint
-            </button>
-            <button id="btn-sprint-create-task" class="btn btn-primary btn-sm">
-              <i class="fa-solid fa-plus"></i> New Issue
-            </button>
-          </div>
-        </div>
-
-        <!-- Sprint Overview Stats Bar -->
-        <div class="sprint-stats-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
-          
-          <!-- Active Sprint Progress -->
-          <div class="sprint-stat-card" style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 16px; display: flex; align-items: center; gap: 12px;">
-            <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05)); display: flex; align-items: center; justify-content: center; position: relative;">
-              <svg width="36" height="36" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
-                <circle cx="18" cy="18" r="14" fill="none" stroke="var(--border-subtle)" stroke-width="3"/>
-                <circle cx="18" cy="18" r="14" fill="none" stroke="var(--accent-primary)" stroke-width="3" stroke-dasharray="${87.96 * activeProgress / 100} ${87.96 * (100 - activeProgress) / 100}" stroke-linecap="round"/>
-              </svg>
-              <span style="position: absolute; font-size: 9px; font-weight: 700; color: var(--accent-primary);">${activeProgress}%</span>
-            </div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Active Sprint</div>
-              <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
-                ${activeSprint ? `<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHTML(activeSprintName)}</span> <span style="color: ${activeDaysLeft.includes('overdue') ? 'var(--accent-danger)' : 'var(--accent-warning)'}; font-weight: 600; flex-shrink: 0;">· ${activeDaysLeft}</span>` : '<span style="color: var(--text-muted);">No active sprint</span>'}
-              </div>
-            </div>
-          </div>
-
-          <!-- Completion Rate -->
-          <div class="sprint-stat-card" style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 16px; display: flex; align-items: center; gap: 12px;">
-            <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05)); display: flex; align-items: center; justify-content: center;">
-              <i class="fa-solid fa-chart-pie" style="color: var(--accent-success); font-size: 18px;"></i>
-            </div>
-            <div>
-              <div style="font-size: 22px; font-weight: 700; color: var(--text-primary);">${completionRate}<span style="font-size: 13px; font-weight: 500; color: var(--text-muted);">%</span></div>
-              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Completion Rate</div>
-            </div>
-          </div>
-
-          <!-- Story Points Burned -->
-          <div class="sprint-stat-card" style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 16px; display: flex; align-items: center; gap: 12px;">
-            <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05)); display: flex; align-items: center; justify-content: center;">
-              <i class="fa-solid fa-fire-flame-curved" style="color: var(--accent-warning); font-size: 18px;"></i>
-            </div>
-            <div>
-              <div style="font-size: 22px; font-weight: 700; color: var(--text-primary);">${burnedPoints}<span style="font-size: 13px; font-weight: 500; color: var(--text-muted);">/${totalPoints} pts</span></div>
-              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Points Burned</div>
-            </div>
-          </div>
-
-          <!-- In Progress -->
-          <div class="sprint-stat-card" style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 16px; display: flex; align-items: center; gap: 12px;">
-            <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(168, 85, 247, 0.05)); display: flex; align-items: center; justify-content: center;">
-              <i class="fa-solid fa-spinner" style="color: var(--accent-purple); font-size: 18px;"></i>
-            </div>
-            <div>
-              <div style="font-size: 22px; font-weight: 700; color: var(--text-primary);">${inProgressCount}</div>
-              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">In Progress</div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Sprint Containers -->
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-          
-          <!-- 1. Active Sprint Container -->
-          ${activeSprint ? this.renderSprintContainer(activeSprint, filteredTasks.filter(t => t.sprintId === activeSprint.id), true, plannedSprints) : `
-            <div style="background: var(--bg-surface); border: 2px dashed var(--border-default); border-radius: var(--radius-lg); padding: 40px; text-align: center; color: var(--text-muted);">
-              <div style="width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08)); display: flex; align-items: center; justify-content: center;">
-                <i class="fa-solid fa-person-running" style="font-size: 24px; color: var(--accent-primary);"></i>
-              </div>
-              <div style="font-weight: 700; font-size: 16px; color: var(--text-primary); margin-bottom: 6px;">No Active Sprint</div>
-              <div style="font-size: 13px; max-width: 400px; margin: 0 auto 16px; line-height: 1.5;">Start a planned sprint to begin tracking progress and velocity across your team's sprint cycle.</div>
-              ${plannedSprints.length > 0 ? `
-                <button class="btn btn-primary btn-sm" onclick="BacklogView.startSprint('${plannedSprints[0].id}')">
-                  <i class="fa-solid fa-play"></i> Start ${Utils.escapeHTML(plannedSprints[0].name)}
-                </button>
-              ` : `
-                <button class="btn btn-primary btn-sm" onclick="BacklogView.openCreateSprintModal()">
-                  <i class="fa-solid fa-plus"></i> Create Your First Sprint
-                </button>
-              `}
-            </div>
-          `}
-
-          <!-- 2. Planned Sprints -->
-          ${plannedSprints.length > 0 ? `
-            <div style="margin-top: 4px;">
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding-left: 2px;">
-                <i class="fa-solid fa-clipboard-list" style="color: var(--text-secondary); font-size: 13px;"></i>
-                <span style="font-weight: 600; font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Planned Sprints</span>
-                <span class="badge" style="background: var(--bg-app); border: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-muted);">${plannedSprints.length}</span>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 16px;">
-                ${plannedSprints.map(s => this.renderSprintContainer(s, filteredTasks.filter(t => t.sprintId === s.id), false)).join('')}
-              </div>
-            </div>
-          ` : ''}
-
-          <!-- 3. Completed Sprints (collapsible) -->
-          ${completedSprints.length > 0 ? `
-            <div style="margin-top: 4px;">
-              <button id="btn-toggle-completed" class="btn btn-ghost btn-sm" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-bottom: 8px; width: fit-content;">
-                <i class="fa-solid fa-chevron-right" id="completed-chevron" style="font-size: 10px; transition: transform 0.2s ease;"></i>
-                <i class="fa-solid fa-archive" style="color: var(--text-secondary); font-size: 13px;"></i>
-                <span style="font-weight: 600; font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Completed Sprints</span>
-                <span class="badge" style="background: var(--bg-app); border: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-muted);">${completedSprints.length}</span>
-              </button>
-              <div id="completed-sprints-list" style="display: none; flex-direction: column; gap: 16px;">
-                ${completedSprints.map(s => this.renderCompletedSprintRow(s, filteredTasks.filter(t => t.sprintId === s.id))).join('')}
-              </div>
-            </div>
-          ` : ''}
-
-          <!-- Empty State (no sprints at all) -->
-          ${projectSprints.length === 0 ? `
-            <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 60px 40px; text-align: center;">
-              <div style="width: 72px; height: 72px; margin: 0 auto 20px; border-radius: 50%; background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1)); display: flex; align-items: center; justify-content: center;">
-                <i class="fa-solid fa-layer-group" style="font-size: 28px; color: var(--accent-primary);"></i>
-              </div>
-              <div style="font-weight: 700; font-size: 18px; color: var(--text-primary); margin-bottom: 8px;">Start Sprint Planning</div>
-              <div style="font-size: 14px; color: var(--text-secondary); max-width: 440px; margin: 0 auto 24px; line-height: 1.6;">
-                Sprints are time-boxed iterations that help your team deliver work in focused cycles. Create your first sprint to organize and track tasks.
-              </div>
-              <div style="display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
-                <button class="btn btn-primary" onclick="BacklogView.openCreateSprintModal()">
-                  <i class="fa-solid fa-calendar-plus"></i> Create First Sprint
-                </button>
-                <button class="btn btn-secondary" id="btn-sprint-create-task-empty">
-                  <i class="fa-solid fa-plus"></i> Create a Task First
-                </button>
-              </div>
-            </div>
-          ` : ''}
-
-        </div>
-      </div>
-    `;
-
-    this.attachListeners(container);
-  },
-
-  renderSprintContainer(sprint, sprintTasks, isActive, plannedSprints = []) {
-    const totalPoints = sprintTasks.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
-    const donePoints = sprintTasks.filter(t => t.status === 'done').reduce((acc, t) => acc + (t.storyPoints || 0), 0);
-    const progress = totalPoints > 0 ? Math.round((donePoints / totalPoints) * 100) : 0;
-
-    // Task status breakdown
-    const statusBreakdown = {
-      todo: sprintTasks.filter(t => t.status === 'todo' || t.status === 'backlog').length,
-      inprogress: sprintTasks.filter(t => t.status === 'inprogress').length,
-      inreview: sprintTasks.filter(t => t.status === 'inreview').length,
-      done: sprintTasks.filter(t => t.status === 'done').length
-    };
-    const totalStatusCount = statusBreakdown.todo + statusBreakdown.inprogress + statusBreakdown.inreview + statusBreakdown.done;
-
-    // Days remaining for active sprint
-    let daysInfo = '';
-    if (isActive && sprint.endDate) {
-      const now = new Date();
-      const end = new Date(sprint.endDate);
-      const diffDays = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
-      if (diffDays > 0) {
-        daysInfo = `<span style="font-size: 11px; color: var(--accent-warning); font-weight: 600;"><i class="fa-regular fa-clock" style="margin-right: 3px;"></i>${diffDays}d remaining</span>`;
-      } else if (diffDays === 0) {
-        daysInfo = `<span style="font-size: 11px; color: var(--accent-danger); font-weight: 600;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 3px;"></i>Ends today</span>`;
-      } else {
-        daysInfo = `<span style="font-size: 11px; color: var(--accent-danger); font-weight: 600;"><i class="fa-solid fa-triangle-exclamation" style="margin-right: 3px;"></i>Overdue by ${Math.abs(diffDays)}d</span>`;
-      }
-    }
-
-    const accentBorder = isActive ? 'border-left: 3px solid var(--accent-primary);' : '';
-
-    return `
-      <div class="sprint-container" data-sprint-id="${sprint.id}" style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); overflow: hidden; transition: border-color var(--transition-fast); ${accentBorder}">
-        <!-- Sprint Header -->
-        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: flex-start; justify-content: space-between; background: var(--bg-surface-elevated); flex-wrap: wrap; gap: 10px;">
-          <div style="flex: 1; min-width: 260px;">
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              ${isActive ? '<span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-success); animation: pulse 2s infinite;"></span>' : ''}
-              <span style="font-weight: 700; font-size: 15px; color: var(--text-primary);">${Utils.escapeHTML(sprint.name)}</span>
-              ${!sprint.projectId ? '<span class="badge" style="font-size: 10px; background: var(--accent-primary-subtle); color: var(--accent-primary);">ALL PROJECTS</span>' : ''}
-              <span class="badge ${isActive ? 'badge-status-inprogress' : 'badge-status-backlog'}" style="font-size: 10px;">${isActive ? 'ACTIVE' : 'PLANNED'}</span>
-              <span style="font-size: 12px; color: var(--text-muted);">${Utils.formatDate(sprint.startDate)} — ${Utils.formatDate(sprint.endDate)}</span>
-              ${daysInfo}
-            </div>
-            ${sprint.goal ? `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;"><i class="fa-solid fa-bullseye" style="font-size: 10px; margin-right: 4px; color: var(--accent-primary);"></i>Goal: ${Utils.escapeHTML(sprint.goal)}</div>` : ''}
-            
-            <!-- Progress Bar (for active sprints) -->
-            ${isActive ? `
-              <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
-                <div style="flex: 1; height: 6px; background: var(--bg-app); border-radius: 3px; overflow: hidden;">
-                  <div style="height: 100%; width: ${progress}%; background: linear-gradient(90deg, var(--accent-primary), var(--accent-success)); border-radius: 3px; transition: width 0.5s ease;"></div>
-                </div>
-                <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary); min-width: 32px;">${progress}%</span>
-              </div>
-            ` : ''}
-          </div>
-
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <!-- Status Mini-Badges -->
-            ${totalStatusCount > 0 ? `
-              <div style="display: flex; align-items: center; gap: 4px; margin-right: 4px;">
-                ${statusBreakdown.todo > 0 ? `<span class="badge" style="background: var(--status-todo-bg, rgba(59, 130, 246, 0.12)); color: var(--status-todo, #3b82f6); font-size: 10px; padding: 2px 6px;">${statusBreakdown.todo} To Do</span>` : ''}
-                ${statusBreakdown.inprogress > 0 ? `<span class="badge" style="background: var(--status-inprogress-bg, rgba(245, 158, 11, 0.12)); color: var(--status-inprogress, #f59e0b); font-size: 10px; padding: 2px 6px;">${statusBreakdown.inprogress} Active</span>` : ''}
-                ${statusBreakdown.inreview > 0 ? `<span class="badge" style="background: var(--status-inreview-bg, rgba(168, 85, 247, 0.12)); color: var(--status-inreview, #a855f7); font-size: 10px; padding: 2px 6px;">${statusBreakdown.inreview} Review</span>` : ''}
-                ${statusBreakdown.done > 0 ? `<span class="badge" style="background: var(--status-done-bg, rgba(34, 197, 94, 0.12)); color: var(--status-done, #22c55e); font-size: 10px; padding: 2px 6px;">${statusBreakdown.done} Done</span>` : ''}
-              </div>
-            ` : ''}
-
-            <span class="badge" style="background: var(--bg-app); border: 1px solid var(--border-subtle); color: var(--text-muted); font-size: 11px;">
-              <i class="fa-solid fa-star" style="font-size: 9px; margin-right: 2px;"></i> ${donePoints}/${totalPoints} pts
-            </span>
-
-            <!-- Add Existing Tasks Button -->
-            <button class="btn btn-ghost btn-sm btn-add-existing" data-sprint-id="${sprint.id}" title="Add existing tasks to this sprint" style="color: var(--accent-primary);">
-              <i class="fa-solid fa-link"></i> Add Existing
-            </button>
-
-            <button class="btn btn-ghost btn-sm" onclick="TaskModal.openCreate({ sprintId: '${sprint.id}', projectId: '${sprint.projectId || ''}' })" title="Create new issue in this sprint">
-              <i class="fa-solid fa-plus"></i> New
-            </button>
-
-            ${isActive ? `
-              <button class="btn btn-secondary btn-sm" onclick="BacklogView.completeSprint('${sprint.id}')">
-                <i class="fa-solid fa-flag-checkered"></i> Complete
-              </button>
-            ` : `
-              <button class="btn btn-primary btn-sm" onclick="BacklogView.startSprint('${sprint.id}')">
-                <i class="fa-solid fa-play"></i> Start
-              </button>
-            `}
-
-            <button class="btn btn-ghost btn-sm" onclick="BacklogView.openEditSprintModal('${sprint.id}')" title="Edit Sprint">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            <button class="btn btn-ghost btn-sm" onclick="AppState.deleteSprint('${sprint.id}')" style="color: var(--accent-danger);" title="Delete Sprint">
-              <i class="fa-regular fa-trash-can"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Sprint Task Rows & Drop Zone -->
-        <div class="sprint-drop-zone" data-sprint-id="${sprint.id}" style="padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 80px; transition: background var(--transition-fast);">
-          ${sprintTasks.length === 0 ? `
-            <div style="padding: 28px; text-align: center; color: var(--text-muted); font-size: 13px;">
-              <i class="fa-solid fa-arrows-to-dot" style="font-size: 20px; display: block; margin-bottom: 8px; color: var(--border-strong);"></i>
-              Drag tasks here, click <strong>+ New</strong> to create, or <strong><i class="fa-solid fa-link"></i> Add Existing</strong> to assign tasks to this sprint.
-            </div>
-          ` : sprintTasks.map(t => this.renderSprintTaskItem(t, sprint.id, isActive)).join('')}
-        </div>
-      </div>
-    `;
-  },
-
-  renderCompletedSprintRow(sprint, sprintTasks) {
-    const totalPoints = sprintTasks.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
-    const donePoints = sprintTasks.filter(t => t.status === 'done').reduce((acc, t) => acc + (t.storyPoints || 0), 0);
-    const progress = totalPoints > 0 ? Math.round((donePoints / totalPoints) * 100) : 0;
-
-    return `
-      <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; opacity: 0.75; transition: opacity var(--transition-fast); gap: 12px; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 200px;">
-          <i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i>
-          <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">${Utils.escapeHTML(sprint.name)}</span>
-          <span style="font-size: 12px; color: var(--text-muted);">${Utils.formatDate(sprint.startDate)} — ${Utils.formatDate(sprint.endDate)}</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <span style="font-size: 12px; color: var(--text-muted);">${sprintTasks.length} issues</span>
-          <span style="font-size: 12px; color: var(--text-muted);">${donePoints}/${totalPoints} pts</span>
-          <div style="width: 80px; height: 4px; background: var(--bg-app); border-radius: 2px; overflow: hidden;">
-            <div style="height: 100%; width: ${progress}%; background: var(--accent-success); border-radius: 2px;"></div>
-          </div>
-          <span style="font-size: 11px; font-weight: 600; color: var(--accent-success);">${progress}%</span>
-          <button class="btn btn-ghost btn-sm" onclick="AppState.deleteSprint('${sprint.id}')" style="color: var(--accent-danger); padding: 2px 6px;" title="Delete Sprint">
-            <i class="fa-regular fa-trash-can"></i>
-          </button>
-        </div>
-      </div>
-    `;
-  },
-
-  renderSprintTaskItem(task, currentSprintId, isActiveSprint) {
-    let typeIcon = 'fa-square-check';
-    if (task.type === 'bug') typeIcon = 'fa-circle-dot';
-    if (task.type === 'story') typeIcon = 'fa-bookmark';
-    if (task.type === 'epic') typeIcon = 'fa-bolt';
-    if (task.type === 'subtask') typeIcon = 'fa-network-wired';
-
-    const subtasks = AppState.tasks.filter(t => t.parentId === task.id);
-    const completedSubtasks = subtasks.filter(st => st.status === 'done').length;
-
-    return `
-      <div class="backlog-item-row" draggable="true" data-task-id="${task.id}" data-current-sprint="${currentSprintId || ''}" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); font-size: 13px; cursor: grab; transition: all var(--transition-fast); gap: 12px;">
-        <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
-          <i class="fa-solid fa-grip-vertical" style="color: var(--border-strong); cursor: grab; font-size: 11px;"></i>
-          <span class="type-icon type-${task.type}"><i class="fa-solid ${typeIcon}"></i></span>
-          <span style="font-family: var(--font-mono); font-weight: 600; font-size: 12px; color: var(--text-muted); cursor: pointer;" onclick="TaskModal.openDetail('${task.id}')">${task.key}</span>
-          <span style="color: var(--text-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; flex: 1;" onclick="TaskModal.openDetail('${task.id}')">${Utils.escapeHTML(task.title)}</span>
-          
-          ${subtasks.length > 0 ? `
-            <span class="badge" title="Subtasks: ${completedSubtasks}/${subtasks.length} completed" style="background: var(--bg-app); border: 1px solid var(--border-subtle); font-size: 10px; color: ${completedSubtasks === subtasks.length ? 'var(--accent-success)' : 'var(--text-muted)'};">
-              <i class="fa-solid fa-network-wired"></i> ${completedSubtasks}/${subtasks.length}
-            </span>
-          ` : ''}
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
-          <span class="badge badge-status-${task.status}">${task.status}</span>
-          <span class="badge-priority priority-${task.priority}"><i class="fa-solid fa-angles-up"></i></span>
-          ${task.storyPoints > 0 ? `<span class="card-story-points" title="Story Points">${task.storyPoints}</span>` : ''}
-
-          <!-- Remove from sprint -->
-          <button class="btn btn-ghost btn-sm btn-remove-from-sprint" data-task-id="${task.id}" title="Remove from sprint" style="padding: 2px 6px; font-size: 11px; color: var(--text-muted);">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-      </div>
-    `;
-  },
-
   attachListeners(container) {
     const createBtn = container.querySelector('#btn-sprint-create-task');
     if (createBtn) createBtn.addEventListener('click', () => TaskModal.openCreate());
@@ -404,9 +22,11 @@ const BacklogView = {
         const chevron = container.querySelector('#completed-chevron');
         if (list.style.display === 'none') {
           list.style.display = 'flex';
+          toggleBtn.setAttribute('aria-expanded', 'true');
           chevron.style.transform = 'rotate(90deg)';
         } else {
           list.style.display = 'none';
+          toggleBtn.setAttribute('aria-expanded', 'false');
           chevron.style.transform = 'rotate(0deg)';
         }
       });
@@ -850,5 +470,308 @@ const BacklogView = {
         }
       ]
     });
+  },
+
+  render(container) {
+    if (!container) return;
+
+    const tasks = AppState.tasks;
+    const selectedProjectId = AppState.selectedProjectId;
+    const projectSprints = selectedProjectId
+      ? AppState.sprints.filter(s => !s.projectId || s.projectId === selectedProjectId)
+      : AppState.sprints;
+    let filteredTasks = selectedProjectId ? tasks.filter(t => t.projectId === selectedProjectId) : tasks;
+
+    if (AppState.activeFilters.epicId) {
+      filteredTasks = filteredTasks.filter(t => t.epicId === AppState.activeFilters.epicId);
+    }
+
+    const activeSprint = projectSprints.find(s => s.status === 'active');
+    const plannedSprints = projectSprints.filter(s => s.status === 'planned');
+    const completedSprints = projectSprints.filter(s => s.status === 'completed');
+    const activeTasks = activeSprint ? filteredTasks.filter(t => t.sprintId === activeSprint.id) : [];
+    const activeDone = activeTasks.filter(t => t.status === 'done').length;
+    const activeProgress = activeTasks.length ? Math.round((activeDone / activeTasks.length) * 100) : 0;
+    const activeDaysLeft = activeSprint && activeSprint.endDate
+      ? (() => {
+          const diff = Math.ceil((new Date(activeSprint.endDate) - new Date()) / 86400000);
+          return diff > 0 ? `${diff}d left` : diff === 0 ? 'Ends today' : `${Math.abs(diff)}d overdue`;
+        })()
+      : 'No end date';
+    const allSprintTasks = filteredTasks.filter(t => t.sprintId);
+    const allDone = allSprintTasks.filter(t => t.status === 'done').length;
+    const completionRate = allSprintTasks.length ? Math.round((allDone / allSprintTasks.length) * 100) : 0;
+    const totalPoints = allSprintTasks.reduce((sum, task) => sum + (Number(task.storyPoints) || 0), 0);
+    const burnedPoints = allSprintTasks.filter(t => t.status === 'done').reduce((sum, task) => sum + (Number(task.storyPoints) || 0), 0);
+    const inProgressCount = filteredTasks.filter(t => t.sprintId && (t.status === 'inprogress' || t.status === 'inreview')).length;
+    const ringC = 2 * Math.PI * 22;
+    const ringOffset = ringC * (1 - activeProgress / 100);
+    const selectedProject = selectedProjectId ? AppState.projects.find(p => p.id === selectedProjectId) : null;
+
+    container.innerHTML = ` 
+      <div class="view-page planner-page backlog-page">
+        <header class="view-header planner-header backlog-header">
+          <div class="view-title-group">
+            <h1><i class="fa-solid fa-layer-group planner-title-icon"></i> Sprint Planning</h1>
+            <p>Plan sprint work, track delivery, and manage the backlog${selectedProject ? ` · <strong>${Utils.escapeHTML(selectedProject.name)}</strong>` : ''}.</p>
+          </div>
+          <div class="view-actions">
+            <button id="btn-create-sprint" class="btn btn-secondary"><i class="fa-solid fa-calendar-plus"></i> Create Sprint</button>
+            <button id="btn-sprint-create-task" class="btn btn-primary"><i class="fa-solid fa-plus"></i> New Issue</button>
+          </div>
+        </header>
+
+        <section class="planner-summary backlog-summary" aria-label="Sprint summary">
+          <div class="planner-kpi planner-kpi-progress">
+            <svg class="planner-ring" viewBox="0 0 52 52" aria-hidden="true">
+              <circle class="planner-ring-track" cx="26" cy="26" r="22"></circle>
+              <circle class="planner-ring-fill" cx="26" cy="26" r="22" style="stroke-dasharray: ${ringC.toFixed(2)}; stroke-dashoffset: ${ringOffset.toFixed(2)};"></circle>
+            </svg>
+            <div class="planner-kpi-ring-label">${activeProgress}%</div>
+            <div class="planner-kpi-text">
+              <span class="planner-kpi-title">Active sprint</span>
+              <span class="planner-kpi-value backlog-kpi-name">${activeSprint ? Utils.escapeHTML(activeSprint.name) : 'None'}</span>
+              <small class="backlog-kpi-detail">${activeSprint ? Utils.escapeHTML(activeDaysLeft) : 'Start a planned sprint'}</small>
+            </div>
+          </div>
+          <div class="planner-kpi">
+            <div class="planner-kpi-icon kpi-green"><i class="fa-solid fa-chart-pie"></i></div>
+            <div class="planner-kpi-text">
+              <span class="planner-kpi-title">Assigned tasks done</span>
+              <span class="planner-kpi-value">${completionRate}% <small>${allDone} of ${allSprintTasks.length}</small></span>
+            </div>
+          </div>
+          <div class="planner-kpi">
+            <div class="planner-kpi-icon kpi-blue"><i class="fa-solid fa-fire-flame-curved"></i></div>
+            <div class="planner-kpi-text">
+              <span class="planner-kpi-title">Points burned</span>
+              <span class="planner-kpi-value">${burnedPoints} <small>of ${totalPoints} pts</small></span>
+            </div>
+          </div>
+          <div class="planner-kpi">
+            <div class="planner-kpi-icon kpi-purple"><i class="fa-solid fa-spinner"></i></div>
+            <div class="planner-kpi-text">
+              <span class="planner-kpi-title">Work in progress</span>
+              <span class="planner-kpi-value">${inProgressCount} <small>active or review</small></span>
+            </div>
+          </div>
+        </section>
+
+        ${projectSprints.length === 0 ? `
+          <section class="projects-empty backlog-empty">
+            <div class="projects-empty-icon"><i class="fa-solid fa-layer-group"></i></div>
+            <h3>Start Sprint Planning</h3>
+            <p>Create a sprint to organize work into a focused cycle, then add existing tasks or create new issues as you plan.</p>
+            <div class="backlog-empty-actions">
+              <button class="btn btn-primary" onclick="BacklogView.openCreateSprintModal()"><i class="fa-solid fa-calendar-plus"></i> Create First Sprint</button>
+              <button class="btn btn-secondary" id="btn-sprint-create-task-empty"><i class="fa-solid fa-plus"></i> Create a Task First</button>
+            </div>
+          </section>
+        ` : `
+          <div class="backlog-sections">
+            <section class="backlog-section">
+              <div class="projects-section-head backlog-section-head">
+                <h2>Active sprint</h2>
+                <span>${activeSprint ? 'Current cycle' : 'No sprint running'}</span>
+              </div>
+              ${activeSprint
+                ? this.renderPlannerSprint(activeSprint, activeTasks, true, plannedSprints)
+                : this.renderSprintPlanningEmpty(plannedSprints)}
+            </section>
+
+            ${plannedSprints.length ? `
+              <section class="backlog-section">
+                <div class="projects-section-head backlog-section-head">
+                  <h2>Planned sprints</h2>
+                  <span>${plannedSprints.length} sprint${plannedSprints.length === 1 ? '' : 's'}</span>
+                </div>
+                <div class="backlog-sprint-list">
+                  ${plannedSprints.map(sprint => this.renderPlannerSprint(sprint, filteredTasks.filter(t => t.sprintId === sprint.id), false)).join('')}
+                </div>
+              </section>
+            ` : ''}
+
+            ${completedSprints.length ? `
+              <section class="backlog-section backlog-completed-section">
+                <button id="btn-toggle-completed" class="btn btn-ghost backlog-completed-toggle" aria-expanded="false">
+                  <i class="fa-solid fa-chevron-right" id="completed-chevron"></i>
+                  <i class="fa-solid fa-box-archive"></i>
+                  <span>Completed sprints</span>
+                  <span class="planner-count-pill">${completedSprints.length}</span>
+                </button>
+                <div id="completed-sprints-list" class="backlog-completed-list" style="display: none;">
+                  ${completedSprints.map(sprint => this.renderPlannerCompletedSprint(sprint, filteredTasks.filter(t => t.sprintId === sprint.id))).join('')}
+                </div>
+              </section>
+            ` : ''}
+          </div>
+        `}
+      </div>
+    `;
+
+    this.attachListeners(container);
+  },
+
+  renderSprintPlanningEmpty(plannedSprints) {
+    return `
+      <div class="planner-empty backlog-active-empty">
+        <i class="fa-solid fa-person-running"></i>
+        <strong>No active sprint</strong>
+        <span>Start a planned sprint to track progress through the current cycle.</span>
+        ${plannedSprints.length
+          ? `<button class="btn btn-primary btn-sm" onclick="BacklogView.startSprint('${plannedSprints[0].id}')"><i class="fa-solid fa-play"></i> Start ${Utils.escapeHTML(plannedSprints[0].name)}</button>`
+          : '<button class="btn btn-primary btn-sm" onclick="BacklogView.openCreateSprintModal()"><i class="fa-solid fa-plus"></i> Create a sprint</button>'}
+      </div>
+    `;
+  },
+
+  renderPlannerSprint(sprint, sprintTasks, isActive) {
+    const doneTasks = sprintTasks.filter(task => task.status === 'done').length;
+    const progress = sprintTasks.length ? Math.round((doneTasks / sprintTasks.length) * 100) : 0;
+    const totalPoints = sprintTasks.reduce((sum, task) => sum + (Number(task.storyPoints) || 0), 0);
+    const donePoints = sprintTasks.filter(task => task.status === 'done').reduce((sum, task) => sum + (Number(task.storyPoints) || 0), 0);
+    const breakdown = {
+      todo: sprintTasks.filter(task => task.status === 'todo' || task.status === 'backlog').length,
+      inprogress: sprintTasks.filter(task => task.status === 'inprogress').length,
+      inreview: sprintTasks.filter(task => task.status === 'inreview').length,
+      blocked: sprintTasks.filter(task => task.status === 'blocked').length,
+      done: doneTasks,
+      cancelled: sprintTasks.filter(task => task.status === 'cancelled').length
+    };
+    let daysInfo = '';
+    if (sprint.endDate) {
+      const diff = Math.ceil((new Date(sprint.endDate) - new Date()) / 86400000);
+      daysInfo = diff > 0 ? `${diff}d left` : diff === 0 ? 'Ends today' : `${Math.abs(diff)}d overdue`;
+    }
+
+    return `
+      <article class="sprint-container planner-day ${isActive ? 'is-today' : ''} ${sprintTasks.length && doneTasks === sprintTasks.length ? 'is-complete' : ''}" data-sprint-id="${Utils.escapeHTML(sprint.id)}">
+        <header class="planner-day-header sprint-card-header">
+          <div class="planner-day-title">
+            <div class="planner-day-label">
+              ${Utils.escapeHTML(sprint.name)}
+              ${isActive
+                ? '<span class="planner-now-pill"><span class="planner-now-dot"></span>Active</span>'
+                : '<span class="sprint-state-pill">Planned</span>'}
+              ${!sprint.projectId ? '<span class="sprint-shared-pill">All projects</span>' : ''}
+            </div>
+            <div class="planner-day-date">${Utils.formatDate(sprint.startDate)} – ${Utils.formatDate(sprint.endDate)}${daysInfo ? ` · ${Utils.escapeHTML(daysInfo)}` : ''}</div>
+          </div>
+          <div class="planner-day-count" title="${doneTasks} of ${sprintTasks.length} tasks done">${doneTasks}/${sprintTasks.length}</div>
+        </header>
+
+        ${sprint.goal ? `<div class="sprint-goal"><i class="fa-solid fa-bullseye"></i><span>${Utils.escapeHTML(sprint.goal)}</span></div>` : ''}
+
+        <div class="planner-day-progress" title="${progress}% of tasks complete" role="progressbar" aria-label="Sprint task progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
+          <div class="planner-day-progress-fill" style="width: ${progress}%;"></div>
+        </div>
+
+        <div class="planner-day-load sprint-card-load">
+          <span><i class="fa-solid fa-star"></i> ${donePoints} of ${totalPoints} points burned</span>
+          <span>${sprintTasks.length} task${sprintTasks.length === 1 ? '' : 's'}</span>
+        </div>
+
+        <div class="sprint-status-summary" aria-label="Task status breakdown">
+          <span class="sprint-status-todo">${breakdown.todo} backlog / to do</span>
+          <span class="sprint-status-active">${breakdown.inprogress} active</span>
+          <span class="sprint-status-review">${breakdown.inreview} review</span>
+          <span class="sprint-status-blocked">${breakdown.blocked} blocked</span>
+          <span class="sprint-status-done">${breakdown.done} done</span>
+          ${breakdown.cancelled ? `<span class="sprint-status-cancelled">${breakdown.cancelled} cancelled</span>` : ''}
+        </div>
+
+        <div class="sprint-card-actions">
+          <button class="btn btn-ghost btn-sm btn-add-existing" data-sprint-id="${Utils.escapeHTML(sprint.id)}" title="Add existing tasks"><i class="fa-solid fa-link"></i> Add existing</button>
+          <button class="btn btn-ghost btn-sm" onclick="TaskModal.openCreate({ sprintId: '${sprint.id}', projectId: '${sprint.projectId || ''}' })" title="Create an issue in this sprint"><i class="fa-solid fa-plus"></i> New issue</button>
+          ${isActive
+            ? `<button class="btn btn-secondary btn-sm" onclick="BacklogView.completeSprint('${sprint.id}')"><i class="fa-solid fa-flag-checkered"></i> Complete sprint</button>`
+            : `<button class="btn btn-primary btn-sm" onclick="BacklogView.startSprint('${sprint.id}')"><i class="fa-solid fa-play"></i> Start sprint</button>`}
+          <button class="btn btn-ghost btn-sm sprint-icon-action" onclick="BacklogView.openEditSprintModal('${sprint.id}')" title="Edit sprint"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-ghost btn-sm sprint-icon-action is-danger" onclick="AppState.deleteSprint('${sprint.id}')" title="Delete sprint"><i class="fa-regular fa-trash-can"></i></button>
+        </div>
+
+        <div class="planner-day-list sprint-drop-zone" data-sprint-id="${Utils.escapeHTML(sprint.id)}">
+          ${sprintTasks.length
+            ? sprintTasks.map(task => this.renderPlannerSprintTask(task, sprint.id)).join('')
+            : '<div class="planner-empty sprint-drop-empty"><i class="fa-solid fa-arrows-to-dot"></i><span>Drag a task here or use Add existing / New issue above.</span></div>'}
+        </div>
+      </article>
+    `;
+  },
+
+  renderPlannerSprintTask(task, sprintId) {
+    const priorityIcon = {
+      critical: 'fa-solid fa-angles-up',
+      highest: 'fa-solid fa-angles-up',
+      high: 'fa-solid fa-angle-up',
+      medium: 'fa-solid fa-equals',
+      low: 'fa-solid fa-angle-down',
+      lowest: 'fa-solid fa-angles-down'
+    }[task.priority] || 'fa-solid fa-equals';
+    const typeIcon = {
+      bug: 'fa-circle-dot',
+      story: 'fa-bookmark',
+      epic: 'fa-bolt',
+      subtask: 'fa-network-wired'
+    }[task.type] || 'fa-square-check';
+    const subtasks = AppState.tasks.filter(item => item.parentId === task.id);
+    const completedSubtasks = subtasks.filter(item => item.status === 'done').length;
+    const statusLabel = {
+      backlog: 'Backlog',
+      todo: 'To Do',
+      inprogress: 'In Progress',
+      inreview: 'In Review',
+      blocked: 'Blocked',
+      done: 'Done',
+      cancelled: 'Cancelled'
+    }[task.status] || task.status;
+
+    return `
+      <div class="planner-task backlog-item-row sprint-task-card status-${Utils.escapeHTML(task.status)} ${task.status === 'done' ? 'is-done' : ''}" draggable="true" data-task-id="${Utils.escapeHTML(task.id)}" data-current-sprint="${Utils.escapeHTML(sprintId)}" style="--planner-project: ${PlannerView.getProjectColor(task)};">
+        <span class="sprint-drag-handle" title="Drag to another sprint"><i class="fa-solid fa-grip-vertical"></i></span>
+        <span class="type-icon type-${Utils.escapeHTML(task.type)}"><i class="fa-solid ${typeIcon}"></i></span>
+        <div class="planner-task-body" onclick="TaskModal.openDetail('${task.id}')" title="Open task details">
+          <div class="planner-task-title">${Utils.escapeHTML(task.title)}</div>
+          <div class="planner-task-meta">
+            <span class="planner-task-key">${Utils.escapeHTML(task.key)}</span>
+            <span class="planner-status status-${Utils.escapeHTML(task.status)}">${Utils.escapeHTML(statusLabel)}</span>
+            <span class="planner-prio prio-${Utils.escapeHTML(task.priority)}" title="${Utils.escapeHTML(task.priority)} priority"><i class="${priorityIcon}"></i></span>
+            ${task.storyPoints > 0 ? `<span class="card-story-points" title="Story points">${task.storyPoints} pts</span>` : ''}
+            ${subtasks.length ? `<span class="planner-count-pill" title="${completedSubtasks} of ${subtasks.length} subtasks complete"><i class="fa-solid fa-network-wired"></i> ${completedSubtasks}/${subtasks.length}</span>` : ''}
+          </div>
+        </div>
+        <div class="planner-task-actions">
+          <button class="planner-icon-btn btn-remove-from-sprint" data-task-id="${Utils.escapeHTML(task.id)}" title="Remove from sprint" aria-label="Remove ${Utils.escapeHTML(task.key)} from sprint"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+    `;
+  },
+
+  renderPlannerCompletedSprint(sprint, sprintTasks) {
+    const doneTasks = sprintTasks.filter(task => task.status === 'done').length;
+    const totalPoints = sprintTasks.reduce((sum, task) => sum + (Number(task.storyPoints) || 0), 0);
+    const donePoints = sprintTasks.filter(task => task.status === 'done').reduce((sum, task) => sum + (Number(task.storyPoints) || 0), 0);
+    const progress = sprintTasks.length ? Math.round((doneTasks / sprintTasks.length) * 100) : 0;
+
+    return `
+      <article class="sprint-completed-row">
+        <div class="sprint-completed-main">
+          <span class="sprint-completed-icon"><i class="fa-solid fa-circle-check"></i></span>
+          <div class="sprint-completed-title">
+            <strong>${Utils.escapeHTML(sprint.name)}</strong>
+            <span>${Utils.formatDate(sprint.startDate)} – ${Utils.formatDate(sprint.endDate)}</span>
+          </div>
+        </div>
+        <div class="sprint-completed-stats">
+          <span>${doneTasks}/${sprintTasks.length} tasks</span>
+          <span>${donePoints}/${totalPoints} points</span>
+          <div class="project-progress-track" role="progressbar" aria-label="Completed sprint task progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
+            <div class="project-progress-fill" style="width: ${progress}%;"></div>
+          </div>
+          <strong>${progress}%</strong>
+          <button class="btn btn-ghost btn-sm sprint-icon-action is-danger" onclick="AppState.deleteSprint('${sprint.id}')" title="Delete sprint"><i class="fa-regular fa-trash-can"></i></button>
+        </div>
+      </article>
+    `;
   }
 };

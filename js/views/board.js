@@ -159,6 +159,8 @@ const BoardView = {
     const inProgressCount = activeTasks.filter(t => t.status === 'inprogress' || t.status === 'inreview').length;
     const overdueCount = activeTasks.filter(t => Utils.isOverdue(t.dueDate, t.status)).length;
     const completionPct = totalCount > 0 ? Math.round((doneTasks.length / totalCount) * 100) : 0;
+    const openTaskCount = activeTasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
+    const attentionCount = activeTasks.filter(t => t.status === 'blocked' || Utils.isOverdue(t.dueDate, t.status)).length;
 
     // Progression bar segment counts
     const statusCounts = {
@@ -175,13 +177,13 @@ const BoardView = {
     const activeFilterCount = this.getActiveFilterCount();
 
     container.innerHTML = `
-      <div class="view-page board-view-page" style="display: flex; flex-direction: column; height: 100%;">
+      <div class="view-page board-view-page tasks-planner-page" style="display: flex; flex-direction: column; height: 100%;">
         
         <!-- Standard TaskForge Page Header (Matching other tabs) -->
-        <div class="view-header" style="margin-bottom: 12px;">
+        <div class="view-header planner-header tasks-planner-header">
           <div class="view-title-group">
             <h1>
-              <i class="fa-solid fa-table-columns" style="color: var(--accent-primary);"></i>
+              <i class="fa-solid fa-table-columns planner-title-icon"></i>
               <span>${selectedProject ? Utils.escapeHTML(selectedProject.name) : 'All Projects'} Tasks</span>
               ${activeSprint ? `
                 <span class="board-sprint-badge" title="Active Sprint: ${Utils.escapeHTML(activeSprint.name)}">
@@ -231,6 +233,16 @@ const BoardView = {
             </button>
           </div>
         </div>
+
+        ${TasksView.renderPlannerSummaryHTML({
+          totalCount,
+          doneCount: doneTasks.length,
+          openCount: openTaskCount,
+          inProgressCount,
+          attentionCount,
+          blockedCount: statusCounts.blocked,
+          overdueCount
+        })}
 
         <!-- ROW 2: Executive Overall Status Progression & Health Center -->
         <div class="board-executive-statusbar">
