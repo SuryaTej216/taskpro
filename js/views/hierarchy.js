@@ -19,6 +19,9 @@ const HierarchyView = {
   search: '',
   statusFilter: new Set(), // empty = all statuses
   zoom: 1,
+  _hasCentered: false,
+  _resizeObserver: null,
+  _resizeHandler: null,
 
   TYPE_ICON: {
     bug: 'fa-circle-dot',
@@ -228,39 +231,71 @@ const HierarchyView = {
         </section>
 
         <section class="hier-toolbar" aria-label="Hierarchy filters">
-          <label class="hier-search">
-            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-            <input type="search" id="hier-search-input" placeholder="Search key, title, label…" value="${esc(this.search)}" autocomplete="off" aria-label="Search tasks in hierarchy">
-          </label>
-          <div class="hier-legend" role="group" aria-label="Filter by status">
-            ${StatusControl.ORDER.map(s => `
-              <button type="button" class="hier-legend-chip ${this.statusFilter.has(s) ? 'is-active' : ''} ${this.statusFilter.size && !this.statusFilter.has(s) ? 'is-muted' : ''}"
-                id="hier-filter-${s}" data-hier-action="filter-status" data-status="${s}" style="--chip-color: var(--status-${s});"
-                title="${this.statusFilter.has(s) ? 'Remove' : 'Show only'} ${StatusControl.label(s)}" aria-pressed="${this.statusFilter.has(s)}">
-                <span class="hier-legend-dot"></span>${StatusControl.label(s)}<span class="hier-legend-count">${st.counts[s] || 0}</span>
+          <div class="hier-toolbar-row">
+            <div class="hier-project-tabs" role="group" aria-label="Project Scope">
+              <button type="button" class="hier-proj-pill ${!AppState.selectedProjectId ? 'is-active' : ''}" data-hier-action="select-project" data-project-id="" title="All Projects">
+                <i class="fa-solid fa-diagram-project"></i> All Projects
               </button>
-            `).join('')}
+              ${AppState.projects.map(p => `
+                <button type="button" class="hier-proj-pill ${AppState.selectedProjectId === p.id ? 'is-active' : ''}" data-hier-action="select-project" data-project-id="${esc(p.id)}" title="${esc(p.name)}">
+                  <span class="hier-proj-dot" style="background: ${p.color || '#579DFF'};"></span>
+                  <span>${esc(p.name)}</span>
+                </button>
+              `).join('')}
+            </div>
+
+            <label class="hier-search">
+              <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+              <input type="search" id="hier-search-input" placeholder="Search key, title, label…" value="${esc(this.search)}" autocomplete="off" aria-label="Search tasks in hierarchy">
+            </label>
           </div>
-          <div class="hier-toolbar-actions">
-            ${this.hasActiveFilters() ? `<button type="button" id="hier-clear-filters" class="btn btn-ghost btn-sm" data-hier-action="clear-filters"><i class="fa-solid fa-filter-circle-xmark"></i> Clear</button>` : ''}
-            <button type="button" id="hier-expand-all" class="btn btn-ghost btn-sm" data-hier-action="expand-all" title="Expand all"><i class="fa-solid fa-angles-down"></i> Expand</button>
-            <button type="button" id="hier-collapse-all" class="btn btn-ghost btn-sm" data-hier-action="collapse-all" title="Collapse all"><i class="fa-solid fa-angles-up"></i> Collapse</button>
-            ${this.layout === 'chart' ? `
-              <div class="hier-zoom" role="group" aria-label="Zoom">
-                <button type="button" id="hier-zoom-out" class="hier-zoom-btn" data-hier-action="zoom" data-delta="-0.1" title="Zoom out"><i class="fa-solid fa-minus"></i></button>
-                <button type="button" id="hier-zoom-reset" class="hier-zoom-btn hier-zoom-value" data-hier-action="zoom-reset" title="Reset zoom">${Math.round(this.zoom * 100)}%</button>
-                <button type="button" id="hier-zoom-in" class="hier-zoom-btn" data-hier-action="zoom" data-delta="0.1" title="Zoom in"><i class="fa-solid fa-plus"></i></button>
-              </div>` : ''}
+
+          <div class="hier-toolbar-row hier-toolbar-controls">
+            <div class="hier-legend" role="group" aria-label="Filter by status">
+              ${StatusControl.ORDER.map(s => `
+                <button type="button" class="hier-legend-chip ${this.statusFilter.has(s) ? 'is-active' : ''} ${this.statusFilter.size && !this.statusFilter.has(s) ? 'is-muted' : ''}"
+                  id="hier-filter-${s}" data-hier-action="filter-status" data-status="${s}" style="--chip-color: var(--status-${s});"
+                  title="${this.statusFilter.has(s) ? 'Remove' : 'Show only'} ${StatusControl.label(s)}" aria-pressed="${this.statusFilter.has(s)}">
+                  <span class="hier-legend-dot"></span>${StatusControl.label(s)}<span class="hier-legend-count">${st.counts[s] || 0}</span>
+                </button>
+              `).join('')}
+            </div>
+            <div class="hier-toolbar-actions">
+              ${this.hasActiveFilters() ? `<button type="button" id="hier-clear-filters" class="btn btn-ghost btn-sm" data-hier-action="clear-filters"><i class="fa-solid fa-filter-circle-xmark"></i> Clear</button>` : ''}
+              <button type="button" id="hier-expand-all" class="btn btn-ghost btn-sm" data-hier-action="expand-all" title="Expand all branches"><i class="fa-solid fa-angles-down"></i> Expand</button>
+              <button type="button" id="hier-collapse-all" class="btn btn-ghost btn-sm" data-hier-action="collapse-all" title="Collapse all branches"><i class="fa-solid fa-angles-up"></i> Collapse</button>
+              ${this.layout === 'chart' ? `
+                <div class="hier-zoom" role="group" aria-label="Zoom">
+                  <button type="button" id="hier-zoom-out" class="hier-zoom-btn" data-hier-action="zoom" data-delta="-0.1" title="Zoom out"><i class="fa-solid fa-minus"></i></button>
+                  <button type="button" id="hier-zoom-reset" class="hier-zoom-btn hier-zoom-value" data-hier-action="zoom-reset" title="Reset zoom">${Math.round(this.zoom * 100)}%</button>
+                  <button type="button" id="hier-zoom-in" class="hier-zoom-btn" data-hier-action="zoom" data-delta="0.1" title="Zoom in"><i class="fa-solid fa-plus"></i></button>
+                </div>` : ''}
+            </div>
           </div>
         </section>
 
         ${tree.length === 0 ? this.renderEmpty(tasks.length) : `
           <section class="hier-canvas ${this.layout === 'chart' ? 'is-chart' : 'is-tree'}" id="hier-canvas" aria-label="Task hierarchy">
-            <div class="hier-zoom-layer" style="${this.layout === 'chart' ? `zoom: ${this.zoom};` : ''}">
-              <ul class="hier-tree hier-root" role="tree">
-                ${tree.map(n => this.renderNode(n, 0)).join('')}
-              </ul>
-            </div>
+            ${this.layout === 'chart' ? `
+              <div class="hier-chart-viewport" id="hier-chart-viewport" style="${this.zoom !== 1 ? `transform: scale(${this.zoom}); transform-origin: top center;` : ''}">
+                <svg class="hier-chart-svg" id="hier-chart-svg" aria-hidden="true"></svg>
+                <div class="hier-chart-container" id="hier-chart-container">
+                  ${tree.map(projectNode => `
+                    <div class="hier-chart-project-tree" data-project-tree="${esc(projectNode.key)}">
+                      <ul class="hier-tree hier-root" role="tree">
+                        ${this.renderNode(projectNode, 0)}
+                      </ul>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : `
+              <div class="hier-tree-viewport">
+                <ul class="hier-tree hier-root" role="tree">
+                  ${tree.map(n => this.renderNode(n, 0)).join('')}
+                </ul>
+              </div>
+            `}
           </section>
           ${this.hasActiveFilters() ? `<p class="hier-filter-note"><i class="fa-solid fa-circle-info"></i> Showing ${visibleCount} matching item${visibleCount === 1 ? '' : 's'} with their parents for context. Dimmed cards don't match the filter.</p>` : ''}
         `}
@@ -268,6 +303,21 @@ const HierarchyView = {
     `;
 
     this.attachListeners(container);
+
+    if (this.layout === 'chart') {
+      const needsCenter = !this._hasCentered;
+      requestAnimationFrame(() => {
+        this.updateChartSvg();
+        if (needsCenter) {
+          this.centerChart();
+          this._hasCentered = true;
+        }
+      });
+      setTimeout(() => {
+        this.updateChartSvg();
+        if (needsCenter) this.centerChart();
+      }, 80);
+    }
   },
 
   depthOf(nodes) {
@@ -354,19 +404,31 @@ const HierarchyView = {
     const esc = Utils.escapeHTML;
     const p = node.project;
     const tasks = this.collectTasks(node);
+    const hasKids = node.children.length > 0;
     return `
       <div class="hier-card hier-card-project" style="--hc-color: ${p.color || '#579DFF'};" data-project-id="${esc(p.id)}">
-        ${this.renderToggle(node, collapsed)}
-        <span class="hier-project-icon"><i class="fa-solid ${esc(p.icon || 'fa-folder')}"></i></span>
+        <div class="hier-card-left">
+          ${this.renderToggle(node, collapsed)}
+          <span class="hier-project-icon"><i class="fa-solid ${esc(p.icon || 'fa-folder-tree')}"></i></span>
+        </div>
         <div class="hier-card-body">
-          <div class="hier-card-kicker">Project · ${esc(p.key || '')}</div>
+          <div class="hier-card-kicker">
+            <span class="hier-badge-type project-badge"><i class="fa-solid fa-cube"></i> Project</span>
+            <span class="hier-key">${esc(p.key || '')}</span>
+            <span class="hier-count-pill">${tasks.length} task${tasks.length === 1 ? '' : 's'}</span>
+          </div>
           <div class="hier-card-title">${esc(p.name)}</div>
           ${this.renderDistribution(tasks)}
         </div>
         <div class="hier-card-actions">
-          ${tasks.length ? `<button type="button" class="hier-icon-btn" data-hier-action="branch-status" title="Set status for all ${tasks.length} tasks in project"><i class="fa-solid fa-layer-group"></i></button>` : ''}
+          ${tasks.length ? `<button type="button" class="hier-icon-btn" data-hier-action="branch-status" title="Set status for all ${tasks.length} tasks in ${esc(p.name)}"><i class="fa-solid fa-layer-group"></i></button>` : ''}
           <button type="button" class="hier-icon-btn" data-hier-action="add-task" title="Add task to ${esc(p.name)}"><i class="fa-solid fa-plus"></i></button>
         </div>
+        ${hasKids ? `
+          <button type="button" class="hier-chart-toggle-badge" data-hier-action="toggle" title="${collapsed ? 'Expand project branch' : 'Collapse project branch'}">
+            <i class="fa-solid ${collapsed ? 'fa-chevron-down' : 'fa-chevron-up'}"></i>
+            <span>${tasks.length}</span>
+          </button>` : ''}
       </div>
     `;
   },
@@ -377,18 +439,30 @@ const HierarchyView = {
     const isGroup = node.kind === 'group';
     const color = isGroup ? 'var(--border-bold)' : (node.epic.color || 'var(--accent-purple)');
     const title = isGroup ? node.label : node.epic.title;
+    const hasKids = node.children.length > 0;
     return `
       <div class="hier-card hier-card-epic ${isGroup ? 'is-group' : ''}" style="--hc-color: ${color};" data-project-id="${esc(node.project.id)}">
-        ${this.renderToggle(node, collapsed)}
-        <span class="hier-epic-icon"><i class="fa-solid ${isGroup ? 'fa-inbox' : 'fa-bolt'}"></i></span>
+        <div class="hier-card-left">
+          ${this.renderToggle(node, collapsed)}
+          <span class="hier-epic-icon"><i class="fa-solid ${isGroup ? 'fa-inbox' : 'fa-bolt'}"></i></span>
+        </div>
         <div class="hier-card-body">
-          <div class="hier-card-kicker">${isGroup ? 'Ungrouped' : 'Epic'} · ${tasks.length} task${tasks.length === 1 ? '' : 's'}</div>
+          <div class="hier-card-kicker">
+            <span class="hier-badge-type epic-badge"><i class="fa-solid ${isGroup ? 'fa-layer-group' : 'fa-bolt'}"></i> ${isGroup ? 'Ungrouped' : 'Epic'}</span>
+            <span class="hier-count-pill">${tasks.length} task${tasks.length === 1 ? '' : 's'}</span>
+          </div>
           <div class="hier-card-title">${esc(title)}</div>
           ${this.renderDistribution(tasks)}
         </div>
         <div class="hier-card-actions">
-          <button type="button" class="hier-icon-btn" data-hier-action="branch-status" title="Set status for all ${tasks.length} tasks"><i class="fa-solid fa-layer-group"></i></button>
+          <button type="button" class="hier-icon-btn" data-hier-action="branch-status" title="Set status for all ${tasks.length} tasks in this epic"><i class="fa-solid fa-layer-group"></i></button>
+          <button type="button" class="hier-icon-btn" data-hier-action="add-task" title="Add task to this epic"><i class="fa-solid fa-plus"></i></button>
         </div>
+        ${hasKids ? `
+          <button type="button" class="hier-chart-toggle-badge" data-hier-action="toggle" title="${collapsed ? 'Expand epic branch' : 'Collapse epic branch'}">
+            <i class="fa-solid ${collapsed ? 'fa-chevron-down' : 'fa-chevron-up'}"></i>
+            <span>${tasks.length}</span>
+          </button>` : ''}
       </div>
     `;
   },
@@ -399,6 +473,7 @@ const HierarchyView = {
     const isDone = t.status === 'done';
     const nextStatus = StatusControl.next(t.status);
     const descendants = this.collectTasks(node).slice(1);
+    const hasKids = node.children.length > 0;
     const typeIcon = this.TYPE_ICON[t.type] || 'fa-square-check';
 
     let dueChip = '';
@@ -412,27 +487,40 @@ const HierarchyView = {
     return `
       <div class="hier-card hier-card-task status-${esc(t.status)} ${isDone ? 'is-done' : ''} ${node.match === false ? 'is-context' : ''}"
         style="--hc-color: var(--status-${esc(t.status)});" data-task-id="${esc(t.id)}" tabindex="-1">
-        ${this.renderToggle(node, collapsed)}
-        <button type="button" class="hier-check" data-hier-action="toggle-done" aria-pressed="${isDone}" title="${isDone ? 'Reopen' : 'Mark as done'}"><i class="fa-solid fa-check"></i></button>
+        <div class="hier-card-left">
+          ${this.renderToggle(node, collapsed)}
+          <button type="button" class="hier-check" data-hier-action="toggle-done" aria-pressed="${isDone}" title="${isDone ? 'Reopen task' : 'Mark as done'}">
+            <i class="fa-solid fa-check"></i>
+          </button>
+        </div>
         <div class="hier-card-body">
           <div class="hier-card-kicker">
             <span class="type-icon type-${esc(t.type)}"><i class="fa-solid ${typeIcon}"></i></span>
             <span class="hier-key">${esc(t.key)}</span>
             <span class="planner-prio prio-${esc(t.priority)}" title="${esc(t.priority)} priority"><i class="${this.PRIORITY_ICON[t.priority] || 'fa-solid fa-equals'}"></i></span>
           </div>
-          <div class="hier-card-title hier-task-title" data-hier-action="open" title="Open ${esc(t.key)}">${esc(t.title)}</div>
+          <div class="hier-card-title hier-task-title" data-hier-action="open" title="Click to view details: ${esc(t.title)}">${esc(t.title)}</div>
           <div class="hier-card-meta">
             ${StatusControl.pillHTML(t, 'hier-status-pill')}
-            ${t.storyPoints > 0 ? `<span class="hier-chip" title="Story points"><i class="fa-solid fa-star"></i> ${t.storyPoints}</span>` : ''}
+            ${t.storyPoints > 0 ? `<span class="hier-chip" title="Story points"><i class="fa-solid fa-star"></i> ${t.storyPoints} pts</span>` : ''}
             ${dueChip}
           </div>
           ${descendants.length ? this.renderDistribution(descendants) : ''}
         </div>
         <div class="hier-card-actions">
-          ${!isDone && t.status !== 'cancelled' ? `<button type="button" class="hier-icon-btn hier-advance" data-hier-action="advance" title="Move to ${StatusControl.label(nextStatus)}"><i class="fa-solid fa-forward-step"></i></button>` : ''}
+          ${!isDone && t.status !== 'cancelled' ? `
+            <button type="button" class="hier-advance-btn" data-hier-action="advance" title="Advance to ${StatusControl.label(nextStatus)}">
+              <span>${StatusControl.label(nextStatus)}</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>` : ''}
           ${descendants.length ? `<button type="button" class="hier-icon-btn" data-hier-action="branch-status" title="Set status for ${t.key} + ${descendants.length} subtask${descendants.length === 1 ? '' : 's'}"><i class="fa-solid fa-layer-group"></i></button>` : ''}
-          <button type="button" class="hier-icon-btn" data-hier-action="add-subtask" title="Add subtask"><i class="fa-solid fa-plus"></i></button>
+          <button type="button" class="hier-icon-btn" data-hier-action="add-subtask" title="Add child subtask"><i class="fa-solid fa-plus"></i></button>
         </div>
+        ${hasKids ? `
+          <button type="button" class="hier-chart-toggle-badge" data-hier-action="toggle" title="${collapsed ? `Expand ${descendants.length} subtasks` : 'Collapse subtasks'}">
+            <i class="fa-solid ${collapsed ? 'fa-chevron-down' : 'fa-chevron-up'}"></i>
+            <span>${descendants.length}</span>
+          </button>` : ''}
       </div>
     `;
   },
@@ -453,10 +541,10 @@ const HierarchyView = {
     return found;
   },
 
-  rerender() {
+  rerender(preserveScroll = true) {
     const container = document.getElementById('view-container');
     const canvas = container && container.querySelector('#hier-canvas');
-    const scroll = canvas ? { left: canvas.scrollLeft, top: canvas.scrollTop } : null;
+    const scroll = (preserveScroll && canvas) ? { left: canvas.scrollLeft, top: canvas.scrollTop } : null;
     this.render(container);
     const nextCanvas = container && container.querySelector('#hier-canvas');
     if (scroll && nextCanvas) {
@@ -488,8 +576,19 @@ const HierarchyView = {
       switch (action) {
         case 'layout':
           this.layout = actionEl.dataset.layout === 'chart' ? 'chart' : 'tree';
-          this.rerender();
+          this._hasCentered = false;
+          this.rerender(false);
           break;
+        case 'select-project': {
+          const pid = actionEl.dataset.projectId || null;
+          AppState.selectedProjectId = pid;
+          this._hasCentered = false;
+          if (window.Router && typeof Router.updateTopbarProjectPicker === 'function') {
+            Router.updateTopbarProjectPicker();
+          }
+          this.rerender(false);
+          break;
+        }
         case 'create':
           TaskModal.openCreate();
           break;
@@ -528,11 +627,11 @@ const HierarchyView = {
           break;
         case 'zoom':
           this.zoom = Math.min(1.5, Math.max(0.4, Math.round((this.zoom + parseFloat(actionEl.dataset.delta)) * 10) / 10));
-          this.rerender();
+          this.applyZoom();
           break;
         case 'zoom-reset':
           this.zoom = 1;
-          this.rerender();
+          this.applyZoom();
           break;
         case 'open':
           if (taskId) TaskModal.openDetail(taskId);
@@ -623,5 +722,120 @@ const HierarchyView = {
       canvas.addEventListener('pointerup', end);
       canvas.addEventListener('pointercancel', end);
     }
+
+    // Auto-update curves on window resize & viewport resize
+    if (!this._resizeHandler) {
+      this._resizeHandler = () => {
+        if (this.layout === 'chart') this.updateChartSvg();
+      };
+      window.addEventListener('resize', this._resizeHandler);
+    }
+    const vp = root.querySelector('#hier-chart-viewport');
+    if (vp && window.ResizeObserver) {
+      if (!this._resizeObserver) {
+        this._resizeObserver = new ResizeObserver(() => {
+          if (this.layout === 'chart') this.updateChartSvg();
+        });
+      }
+      this._resizeObserver.observe(vp);
+    }
+  },
+
+  applyZoom() {
+    const vp = document.getElementById('hier-chart-viewport');
+    const lbl = document.getElementById('hier-zoom-reset');
+    if (vp) {
+      vp.style.transform = this.zoom !== 1 ? `scale(${this.zoom})` : '';
+      vp.style.transformOrigin = 'top center';
+    }
+    if (lbl) lbl.textContent = `${Math.round(this.zoom * 100)}%`;
+    this.updateChartSvg();
+  },
+
+  centerChart() {
+    const canvas = document.getElementById('hier-canvas');
+    const container = document.getElementById('hier-chart-container');
+    if (!canvas || !container) return;
+    requestAnimationFrame(() => {
+      const rootCard = container.querySelector('.hier-card-project, .hier-card-epic');
+      if (rootCard) {
+        const cRect = canvas.getBoundingClientRect();
+        const rRect = rootCard.getBoundingClientRect();
+        canvas.scrollLeft += (rRect.left + rRect.width / 2) - (cRect.left + cRect.width / 2);
+      } else if (container.scrollWidth > canvas.clientWidth) {
+        canvas.scrollLeft = (container.scrollWidth - canvas.clientWidth) / 2;
+      }
+      canvas.scrollTop = 0;
+    });
+  },
+
+  updateChartSvg() {
+    if (this.layout !== 'chart') return;
+    const canvas = document.getElementById('hier-canvas');
+    const viewport = document.getElementById('hier-chart-viewport');
+    const container = document.getElementById('hier-chart-container');
+    const svg = document.getElementById('hier-chart-svg');
+    if (!canvas || !viewport || !container || !svg) return;
+
+    const vpRect = viewport.getBoundingClientRect();
+    const scale = this.zoom || 1;
+
+    const totalW = Math.max(viewport.scrollWidth, viewport.offsetWidth, container.offsetWidth);
+    const totalH = Math.max(viewport.scrollHeight, viewport.offsetHeight, container.offsetHeight);
+
+    svg.setAttribute('width', totalW);
+    svg.setAttribute('height', totalH);
+    svg.setAttribute('viewBox', `0 0 ${totalW} ${totalH}`);
+
+    const parentNodes = container.querySelectorAll('.hier-node.has-children:not(.is-collapsed)');
+    let paths = '';
+    let dots = '';
+
+    parentNodes.forEach(parentNode => {
+      const parentCard = parentNode.querySelector(':scope > .hier-card');
+      if (!parentCard) return;
+
+      const childNodes = parentNode.querySelectorAll(':scope > .hier-children > .hier-node');
+      if (!childNodes.length) return;
+
+      const pRect = parentCard.getBoundingClientRect();
+      const badge = parentCard.querySelector('.hier-chart-toggle-badge');
+      const bRect = badge ? badge.getBoundingClientRect() : null;
+
+      const x1 = ((pRect.left + pRect.right) / 2 - vpRect.left) / scale;
+      const y1 = ((bRect ? bRect.bottom - 1 : pRect.bottom) - vpRect.top) / scale;
+
+      childNodes.forEach(childNode => {
+        const childCard = childNode.querySelector(':scope > .hier-card');
+        if (!childCard) return;
+
+        const cRect = childCard.getBoundingClientRect();
+        const x2 = ((cRect.left + cRect.right) / 2 - vpRect.left) / scale;
+        const y2 = (cRect.top - vpRect.top) / scale;
+
+        const dy = y2 - y1;
+        const childColor = childCard.style.getPropertyValue('--hc-color') || 'var(--border-bold)';
+
+        // Smooth Cubic Bezier curve
+        const cy1 = y1 + Math.max(18, dy * 0.48);
+        const cy2 = y2 - Math.max(18, dy * 0.48);
+
+        const d = `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${x1.toFixed(1)} ${cy1.toFixed(1)}, ${x2.toFixed(1)} ${cy2.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+
+        paths += `
+          <path d="${d}" class="hier-edge-bg" stroke="rgba(0,0,0,0.4)" stroke-width="4.5" fill="none" stroke-linecap="round" />
+          <path d="${d}" class="hier-edge-path" stroke="${childColor}" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.85" />
+        `;
+
+        dots += `<circle cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="3.5" fill="${childColor}" stroke="var(--bg-surface)" stroke-width="1.5" />`;
+      });
+
+      dots += `<circle cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="3.5" fill="var(--border-bold)" stroke="var(--bg-surface)" stroke-width="1.5" />`;
+    });
+
+    svg.innerHTML = `
+      <g class="hier-edges-paths">${paths}</g>
+      <g class="hier-edges-dots">${dots}</g>
+    `;
   }
 };
