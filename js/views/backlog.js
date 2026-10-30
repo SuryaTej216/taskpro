@@ -112,6 +112,51 @@ const BacklogView = {
         Toast.info('Removed task from sprint');
       });
     });
+
+    // 3. Task card status controls (delegated on the page root, which is re-created each render)
+    const pageRoot = container.querySelector('.backlog-page');
+    if (pageRoot) {
+      pageRoot.addEventListener('click', (e) => {
+        const menuBtn = e.target.closest('[data-status-action="menu"]');
+        if (menuBtn && pageRoot.contains(menuBtn)) {
+          e.stopPropagation();
+          StatusControl.openMenu(menuBtn, menuBtn.dataset.taskId);
+          return;
+        }
+
+        const actionEl = e.target.closest('[data-sprint-action]');
+        if (!actionEl || !pageRoot.contains(actionEl)) return;
+        const card = actionEl.closest('.sprint-task-card');
+        const taskId = card ? card.dataset.taskId : null;
+        if (!taskId) return;
+        e.stopPropagation();
+
+        switch (actionEl.dataset.sprintAction) {
+          case 'open':
+            TaskModal.openDetail(taskId);
+            break;
+          case 'toggle-done':
+            StatusControl.toggleDone(taskId);
+            break;
+          case 'advance':
+            StatusControl.advance(taskId);
+            break;
+          case 'set-status':
+            StatusControl.setStatus(taskId, actionEl.dataset.status);
+            break;
+        }
+      });
+
+      // Right-click on a card → full context menu (status, sprint, duplicate, delete…)
+      pageRoot.addEventListener('contextmenu', (e) => {
+        const card = e.target.closest('.sprint-task-card');
+        if (!card || typeof ContextMenu === 'undefined') return;
+        const task = AppState.tasks.find(t => t.id === card.dataset.taskId);
+        if (!task) return;
+        e.preventDefault();
+        ContextMenu.open(e.clientX, e.clientY, task);
+      });
+    }
   },
 
   // ── Add Existing Tasks Modal ──
@@ -700,6 +745,7 @@ const BacklogView = {
   },
 
   renderPlannerSprintTask(task, sprintId) {
+    const esc = Utils.escapeHTML;
     const priorityIcon = {
       critical: 'fa-solid fa-angles-up',
       highest: 'fa-solid fa-angles-up',
@@ -716,32 +762,71 @@ const BacklogView = {
     }[task.type] || 'fa-square-check';
     const subtasks = AppState.tasks.filter(item => item.parentId === task.id);
     const completedSubtasks = subtasks.filter(item => item.status === 'done').length;
-    const statusLabel = {
-      backlog: 'Backlog',
-      todo: 'To Do',
-      inprogress: 'In Progress',
-      inreview: 'In Review',
-      blocked: 'Blocked',
-      done: 'Done',
-      cancelled: 'Cancelled'
-    }[task.status] || task.status;
+    const subPct = subtasks.length ? Math.round((completedSubtasks / subtasks.length) * 100) : 0;
+    const isDone = task.status === 'done';
+    const statusMeta = StatusControl.meta(task.status);
+    const nextStatus = StatusControl.next(task.status);
+    const project = AppState.projects.find(p => p.id === task.projectId);
+
+    // Due date chip
+    let dueChip = '';
+    if (task.dueDate) {
+      const due = new Date(task.dueDate);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const overdue = !isDone && task.status !== 'cancelled' && due < today;
+      dueChip = `<span class="stc-chip ${overdue ? 'is-overdue' : ''}" title="Due ${Utils.formatDate(task.dueDate)}"><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(task.dueDate)}</span>`;
+    }
+
+    // Progress stepper (main flow). Blocked / cancelled shown as special state.
+    const flow = ['todo', 'inprogress', 'inreview', 'done'];
+    const flowIndex = task.status === 'backlog' ? -1 : flow.indexOf(task.status);
+    const stepper = flow.map((s, i) => `
+      <button type="button" class="stc-step ${flowIndex >= i ? 'is-filled' : ''} ${task.status === s ? 'is-current' : ''}"
+        data-sprint-action="set-status" data-status="${s}" title="Set to ${StatusControl.label(s)}" aria-label="Set ${esc(task.key)} to ${StatusControl.label(s)}">
+        <span class="stc-step-bar"></span>
+        <span class="stc-step-label">${StatusControl.label(s)}</span>
+      </button>
+    `).join('');
 
     return `
-      <div class="planner-task backlog-item-row sprint-task-card status-${Utils.escapeHTML(task.status)} ${task.status === 'done' ? 'is-done' : ''}" draggable="true" data-task-id="${Utils.escapeHTML(task.id)}" data-current-sprint="${Utils.escapeHTML(sprintId)}" style="--planner-project: ${PlannerView.getProjectColor(task)};">
-        <span class="sprint-drag-handle" title="Drag to another sprint"><i class="fa-solid fa-grip-vertical"></i></span>
-        <span class="type-icon type-${Utils.escapeHTML(task.type)}"><i class="fa-solid ${typeIcon}"></i></span>
-        <div class="planner-task-body" onclick="TaskModal.openDetail('${task.id}')" title="Open task details">
-          <div class="planner-task-title">${Utils.escapeHTML(task.title)}</div>
-          <div class="planner-task-meta">
-            <span class="planner-task-key">${Utils.escapeHTML(task.key)}</span>
-            <span class="planner-status status-${Utils.escapeHTML(task.status)}">${Utils.escapeHTML(statusLabel)}</span>
-            <span class="planner-prio prio-${Utils.escapeHTML(task.priority)}" title="${Utils.escapeHTML(task.priority)} priority"><i class="${priorityIcon}"></i></span>
-            ${task.storyPoints > 0 ? `<span class="card-story-points" title="Story points">${task.storyPoints} pts</span>` : ''}
-            ${subtasks.length ? `<span class="planner-count-pill" title="${completedSubtasks} of ${subtasks.length} subtasks complete"><i class="fa-solid fa-network-wired"></i> ${completedSubtasks}/${subtasks.length}</span>` : ''}
+      <div class="sprint-task-card backlog-item-row status-${esc(task.status)} ${isDone ? 'is-done' : ''}"
+        draggable="true" data-task-id="${esc(task.id)}" data-current-sprint="${esc(sprintId)}"
+        style="--stc-status: var(--status-${esc(task.status)}); --stc-project: ${PlannerView.getProjectColor(task)};">
+        <div class="stc-main">
+          <span class="sprint-drag-handle" title="Drag to another sprint"><i class="fa-solid fa-grip-vertical"></i></span>
+          <button type="button" class="stc-check" data-sprint-action="toggle-done" aria-pressed="${isDone}" title="${isDone ? 'Reopen task' : 'Mark as done'}">
+            <i class="fa-solid fa-check"></i>
+          </button>
+          <div class="stc-body" data-sprint-action="open" title="Open task details">
+            <div class="stc-topline">
+              <span class="type-icon type-${esc(task.type)}"><i class="fa-solid ${typeIcon}"></i></span>
+              <span class="stc-key">${esc(task.key)}</span>
+              ${project ? `<span class="stc-project"><span class="stc-project-dot"></span>${esc(project.key || project.name)}</span>` : ''}
+              <span class="planner-prio prio-${esc(task.priority)}" title="${esc(task.priority)} priority"><i class="${priorityIcon}"></i></span>
+            </div>
+            <div class="stc-title">${esc(task.title)}</div>
+            <div class="stc-meta">
+              ${task.storyPoints > 0 ? `<span class="stc-chip" title="Story points"><i class="fa-solid fa-star"></i> ${task.storyPoints} pts</span>` : ''}
+              ${subtasks.length ? `
+                <span class="stc-chip stc-subtasks" title="${completedSubtasks} of ${subtasks.length} subtasks complete">
+                  <i class="fa-solid fa-network-wired"></i> ${completedSubtasks}/${subtasks.length}
+                  <span class="stc-mini-track"><span style="width: ${subPct}%;"></span></span>
+                </span>` : ''}
+              ${dueChip}
+            </div>
           </div>
+          <div class="stc-side">
+            ${StatusControl.pillHTML(task)}
+            ${!isDone && task.status !== 'cancelled' ? `
+              <button type="button" class="stc-advance" data-sprint-action="advance" title="Move to ${StatusControl.label(nextStatus)}">
+                <span>${StatusControl.label(nextStatus)}</span><i class="fa-solid fa-arrow-right"></i>
+              </button>` : ''}
+          </div>
+          <button type="button" class="stc-remove btn-remove-from-sprint" data-task-id="${esc(task.id)}" title="Remove from sprint" aria-label="Remove ${esc(task.key)} from sprint"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="planner-task-actions">
-          <button class="planner-icon-btn btn-remove-from-sprint" data-task-id="${Utils.escapeHTML(task.id)}" title="Remove from sprint" aria-label="Remove ${Utils.escapeHTML(task.key)} from sprint"><i class="fa-solid fa-xmark"></i></button>
+        <div class="stc-stepper ${task.status === 'blocked' ? 'is-blocked' : ''} ${task.status === 'cancelled' ? 'is-cancelled' : ''}" role="group" aria-label="Quick status">
+          ${stepper}
+          ${task.status === 'blocked' || task.status === 'cancelled' ? `<span class="stc-state-flag"><i class="${statusMeta.icon}"></i> ${statusMeta.label}</span>` : ''}
         </div>
       </div>
     `;

@@ -69,6 +69,7 @@ const CommandPalette = {
       { id: 'nav_board', title: 'Go to Tasks: Board View', icon: 'fa-table-columns', category: 'Navigation', action: () => { if (typeof TasksView !== 'undefined') TasksView.setMode('board'); Router.navigate('tasks'); } },
       { id: 'nav_list', title: 'Go to Tasks: List View', icon: 'fa-list-check', category: 'Navigation', action: () => { if (typeof TasksView !== 'undefined') TasksView.setMode('list'); Router.navigate('tasks'); } },
       { id: 'nav_backlog', title: 'Go to Backlog & Sprints', icon: 'fa-layer-group', category: 'Navigation', action: () => Router.navigate('backlog') },
+      { id: 'nav_hierarchy', title: 'Go to Task Hierarchy', icon: 'fa-sitemap', category: 'Navigation', action: () => Router.navigate('hierarchy') },
       { id: 'nav_projects', title: 'Go to Projects', icon: 'fa-folder-tree', category: 'Navigation', action: () => Router.navigate('projects') },
       { id: 'nav_settings', title: 'Go to Settings', icon: 'fa-gear', category: 'Navigation', action: () => Router.navigate('settings') },
       { id: 'nav_docs', title: 'Go to Documentation & Guide', icon: 'fa-book-open', category: 'Navigation', action: () => Router.navigate('docs') }

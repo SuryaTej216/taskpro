@@ -1,0 +1,51 @@
+/* ============================================================
+   TaskForge — Shared Status Pill (StatusControl component)
+   Used by Sprint Planning cards and the Task Hierarchy view.
+   ============================================================ */
+
+.status-pill {
+  --sp-color: var(--status-todo);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.625rem;
+  padding: 0 0.5rem 0 0.5625rem;
+  border: 1px solid color-mix(in srgb, var(--sp-color) 38%, transparent);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--sp-color) 13%, var(--bg-surface));
+  color: color-mix(in srgb, var(--sp-color) 72%, var(--text-primary));
+  font: 700 0.6875rem/1 var(--font-sans);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.status-pill:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--sp-color) 20%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--sp-color) 60%, transparent);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--sp-color) 22%, transparent);
+}
+
+.status-pill:focus-visible { outline: 2px solid var(--border-focused); outline-offset: 2px; }
+.status-pill.is-open { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sp-color) 25%, transparent); }
+
+.status-pill > i:first-child { font-size: 0.6875rem; color: var(--sp-color); }
+.status-pill-chevron { font-size: 0.5rem; opacity: 0.65; transition: transform var(--transition-fast); }
+.status-pill.is-open .status-pill-chevron { transform: rotate(180deg); }
+
+.status-pill-inprogress > i:first-child { animation: statusSpin 2.4s linear infinite; }
+@keyframes statusSpin { to { transform: rotate(360deg); } }
+
+.status-pill-backlog    { --sp-color: var(--status-backlog); }
+.status-pill-todo       { --sp-color: var(--status-todo); }
+.status-pill-inprogress { --sp-color: var(--status-inprogress); }
+.status-pill-inreview   { --sp-color: var(--status-inreview); }
+.status-pill-blocked    { --sp-color: var(--status-blocked); }
+.status-pill-done       { --sp-color: var(--status-done); }
+.status-pill-cancelled  { --sp-color: var(--status-cancelled); }
+
+@media (prefers-reduced-motion: reduce) {
+  .status-pill-inprogress > i:first-child { animation: none; }
+}

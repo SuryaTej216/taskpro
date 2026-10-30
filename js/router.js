@@ -29,7 +29,8 @@ const Router = {
       settings: typeof SettingsView !== 'undefined' ? SettingsView : null,
       focus: typeof FocusView !== 'undefined' ? FocusView : null,
       docs: typeof DocsView !== 'undefined' ? DocsView : null,
-      planner: typeof PlannerView !== 'undefined' ? PlannerView : null
+      planner: typeof PlannerView !== 'undefined' ? PlannerView : null,
+      hierarchy: typeof HierarchyView !== 'undefined' ? HierarchyView : null
     };
     return routes[viewName] || routes['dashboard'];
   },
