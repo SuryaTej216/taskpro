@@ -260,17 +260,21 @@ const TaskModal = {
         </div>
 
         <div id="bulk-template-section">
-          <div style="display: flex; gap: 10px; align-items: flex-end;">
-            <div style="flex: 1;">
+          <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 180px;">
               <label class="form-label">Title Template <span class="required">*</span></label>
-              <input type="text" id="bulk-title-template" class="form-input" placeholder='e.g. "Design page {}" or "Setup module {}"' autofocus>
+              <input type="text" id="bulk-title-template" class="form-input" placeholder='e.g. "Design page {}" or "Task {2..5}"' autofocus>
               <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 3px;">
-                Use <code style="background: var(--bg-surface-elevated); padding: 1px 5px; border-radius: 3px; font-size: 11px;">{}</code> as a number placeholder, or it auto-appends.
+                Use <code style="background: var(--bg-surface-elevated); padding: 1px 5px; border-radius: 3px; font-size: 11px;">{}</code> as number placeholder, range like <code>{2..5}</code>, or set Start &amp; End.
               </span>
             </div>
-            <div style="width: 90px;">
-              <label class="form-label">Count</label>
-              <input type="number" id="bulk-count" class="form-input" min="1" value="3" style="text-align: center;">
+            <div style="width: 76px;">
+              <label class="form-label">Start #</label>
+              <input type="number" id="bulk-start" class="form-input" min="0" value="1" style="text-align: center;" title="Start number (e.g. 2)">
+            </div>
+            <div style="width: 76px;">
+              <label class="form-label">End #</label>
+              <input type="number" id="bulk-end" class="form-input" min="0" value="3" style="text-align: center;" title="End number (e.g. 4)">
             </div>
           </div>
         </div>
@@ -420,7 +424,8 @@ const TaskModal = {
 
     // Live preview
     const templateInput = document.getElementById('bulk-title-template');
-    const countInput = document.getElementById('bulk-count');
+    const startInput = document.getElementById('bulk-start');
+    const endInput = document.getElementById('bulk-end');
     const multilineInput = document.getElementById('bulk-multiline-input');
     const previewList = document.getElementById('bulk-preview-list');
     const previewCount = document.getElementById('bulk-preview-count');
@@ -441,8 +446,9 @@ const TaskModal = {
       let items = [];
       if (currentMode === 'template') {
         const tmpl = templateInput ? templateInput.value.trim() : '';
-        const cnt = countInput ? parseInt(countInput.value, 10) || 1 : 1;
-        if (tmpl) items = this.generateBulkItems(tmpl, cnt);
+        const startVal = startInput ? parseInt(startInput.value, 10) : 1;
+        const endVal = endInput ? parseInt(endInput.value, 10) : 3;
+        if (tmpl) items = this.generateBulkItems(tmpl, startVal, endVal);
       } else {
         const txt = multilineInput ? multilineInput.value : '';
         items = txt.split('\n').map(l => l.trim()).filter(Boolean);
@@ -453,7 +459,7 @@ const TaskModal = {
       previewCount.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
 
       if (items.length === 0) {
-        previewList.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); padding: 6px; text-align: center;"><i class="fa-solid fa-circle-info"></i> ' + (currentMode === 'template' ? 'Enter a template and count to see preview' : 'Enter task titles (one per line)') + '</div>';
+        previewList.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); padding: 6px; text-align: center;"><i class="fa-solid fa-circle-info"></i> ' + (currentMode === 'template' ? 'Enter a template and start/end numbers to see preview' : 'Enter task titles (one per line)') + '</div>';
         return;
       }
 
@@ -468,7 +474,8 @@ const TaskModal = {
     };
 
     if (templateInput) templateInput.addEventListener('input', updatePreview);
-    if (countInput) countInput.addEventListener('input', updatePreview);
+    if (startInput) startInput.addEventListener('input', updatePreview);
+    if (endInput) endInput.addEventListener('input', updatePreview);
     if (multilineInput) multilineInput.addEventListener('input', updatePreview);
     if (typeSelect) typeSelect.addEventListener('change', updatePreview);
 
@@ -485,11 +492,13 @@ const TaskModal = {
 
     if (currentMode === 'template') {
       const templateEl = document.getElementById('bulk-title-template');
-      const countEl = document.getElementById('bulk-count');
+      const startEl = document.getElementById('bulk-start');
+      const endEl = document.getElementById('bulk-end');
       const template = templateEl ? templateEl.value.trim() : '';
-      const count = countEl ? parseInt(countEl.value, 10) || 1 : 1;
+      const startVal = startEl ? parseInt(startEl.value, 10) : 1;
+      const endVal = endEl ? parseInt(endEl.value, 10) : 3;
       if (!template) { Toast.warning('Please enter a title template.'); return; }
-      titles = this.generateBulkItems(template, count);
+      titles = this.generateBulkItems(template, startVal, endVal);
     } else {
       const textEl = document.getElementById('bulk-multiline-input');
       const text = textEl ? textEl.value : '';
@@ -1116,9 +1125,16 @@ const TaskModal = {
                       ${chkPct}%
                     </span>
                   </div>
-                  <button id="btn-toggle-merge-view" class="btn btn-ghost btn-sm" title="Merge Checklist and Subtasks into a unified view" style="font-size: 11px;">
-                    <i class="fa-solid fa-arrows-split-up-and-left fa-rotate-90"></i> Switch to Unified View
-                  </button>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    ${totalChecklist > 0 ? `
+                      <button id="btn-renumber-checklist" class="btn btn-ghost btn-sm" title="Renumber all checklist items with custom start number (e.g. task 2, task 3...)" style="font-size: 11px;">
+                        <i class="fa-solid fa-arrow-down-1-9"></i> Renumber
+                      </button>
+                    ` : ''}
+                    <button id="btn-toggle-merge-view" class="btn btn-ghost btn-sm" title="Merge Checklist and Subtasks into a unified view" style="font-size: 11px;">
+                      <i class="fa-solid fa-arrows-split-up-and-left fa-rotate-90"></i> Switch to Unified View
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Checklist Progress Bar -->
@@ -1145,19 +1161,24 @@ const TaskModal = {
                   `).join('')}
                 </div>
 
-                <!-- Add Checklist Item Bar (Bulk enabled with no 50 limit) -->
+                <!-- Add Checklist Item Bar with Custom Start & End Numbering -->
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="new-checklist-input" class="form-input" placeholder="e.g. Design checklist step {}" style="font-size: 13px; padding: 7px 12px; flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                      <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
-                      <input type="number" id="new-checklist-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk item count">
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <input type="text" id="new-checklist-input" class="form-input" placeholder="e.g. task {} or step {2..4}" style="font-size: 13px; padding: 7px 12px; flex: 1; min-width: 170px;">
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; background: var(--bg-surface-elevated); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                      <label for="new-checklist-start" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Start:</label>
+                      <input type="number" id="new-checklist-start" class="form-input" min="0" value="1" style="width: 50px; font-size: 12px; padding: 3px 4px; text-align: center; height: 26px;" title="Start number (e.g. 2)">
+                      <label for="new-checklist-end" style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-left: 4px;">End:</label>
+                      <input type="number" id="new-checklist-end" class="form-input" min="0" value="1" style="width: 50px; font-size: 12px; padding: 3px 4px; text-align: center; height: 26px;" title="End number (e.g. 4)">
                     </div>
                     <button id="btn-add-checklist" class="btn btn-primary btn-sm" style="font-size: 12px; height: 32px; white-space: nowrap;">
                       <i class="fa-solid fa-plus"></i> Add
                     </button>
                   </div>
-                  <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk creation: use <code style='background:var(--bg-surface-elevated);padding:1px 4px;border-radius:3px;'>{}</code> as number placeholder &amp; set count. E.g. "Check {}" × 5 → Check 1 … Check 5</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--text-muted);">
+                    <span id="new-checklist-preview" style="color: var(--accent-primary); font-weight: 600; font-family: var(--font-mono);"></span>
+                    <span><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Custom numbering: set <b>Start</b> &amp; <b>End</b> (e.g. 2 to 4 → task 2, task 3, task 4) or type <code>task {2..4}</code></span>
+                  </div>
                 </div>
               </div>
 
@@ -1172,9 +1193,16 @@ const TaskModal = {
                       ${stPct}%
                     </span>
                   </div>
-                  <button id="btn-toggle-merge-view-2" class="btn btn-ghost btn-sm" title="Merge Checklist and Subtasks into a unified view" style="font-size: 11px;">
-                    <i class="fa-solid fa-arrows-split-up-and-left fa-rotate-90"></i> Switch to Unified View
-                  </button>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    ${totalSubtasks > 0 ? `
+                      <button id="btn-renumber-subtasks" class="btn btn-ghost btn-sm" title="Renumber all subtasks with custom start number (e.g. task 2, task 3...)" style="font-size: 11px;">
+                        <i class="fa-solid fa-arrow-down-1-9"></i> Renumber
+                      </button>
+                    ` : ''}
+                    <button id="btn-toggle-merge-view-2" class="btn btn-ghost btn-sm" title="Merge Checklist and Subtasks into a unified view" style="font-size: 11px;">
+                      <i class="fa-solid fa-arrows-split-up-and-left fa-rotate-90"></i> Switch to Unified View
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Subtasks Progress Bar -->
@@ -1206,19 +1234,24 @@ const TaskModal = {
                   `).join('')}
                 </div>
 
-                <!-- Add Subtask Bar (Bulk enabled with no 50 limit) -->
+                <!-- Add Subtask Bar with Custom Start & End Numbering -->
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="text" id="new-subtask-input" class="form-input" placeholder="e.g. Implement module {}" style="font-size: 13px; padding: 7px 12px; flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                      <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
-                      <input type="number" id="new-subtask-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk subtask count">
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <input type="text" id="new-subtask-input" class="form-input" placeholder="e.g. task {} or module {2..5}" style="font-size: 13px; padding: 7px 12px; flex: 1; min-width: 170px;">
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; background: var(--bg-surface-elevated); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                      <label for="new-subtask-start" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Start:</label>
+                      <input type="number" id="new-subtask-start" class="form-input" min="0" value="1" style="width: 50px; font-size: 12px; padding: 3px 4px; text-align: center; height: 26px;" title="Start number (e.g. 2)">
+                      <label for="new-subtask-end" style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-left: 4px;">End:</label>
+                      <input type="number" id="new-subtask-end" class="form-input" min="0" value="1" style="width: 50px; font-size: 12px; padding: 3px 4px; text-align: center; height: 26px;" title="End number (e.g. 4)">
                     </div>
                     <button id="btn-add-subtask" class="btn btn-primary btn-sm" style="font-size: 12px; height: 32px; white-space: nowrap;">
                       <i class="fa-solid fa-plus"></i> Add Subtask
                     </button>
                   </div>
-                  <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk creation: use <code style='background:var(--bg-surface-elevated);padding:1px 4px;border-radius:3px;'>{}</code> as number placeholder &amp; set count. E.g. "Task {}" × 5 → Task 1 … Task 5</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--text-muted);">
+                    <span id="new-subtask-preview" style="color: var(--accent-primary); font-weight: 600; font-family: var(--font-mono);"></span>
+                    <span><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Custom numbering: set <b>Start</b> &amp; <b>End</b> (e.g. 2 to 4 → task 2, task 3, task 4) or type <code>task {2..4}</code></span>
+                  </div>
                 </div>
               </div>
             ` : `
@@ -1233,9 +1266,16 @@ const TaskModal = {
                       ${mergedPct}%
                     </span>
                   </div>
-                  <button id="btn-toggle-merge-view" class="btn btn-ghost btn-sm" title="Separate into independent sections" style="font-size: 11px;">
-                    <i class="fa-solid fa-arrows-split-up-and-left"></i> Switch to Separate Lists
-                  </button>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    ${totalMerged > 0 ? `
+                      <button id="btn-renumber-merged" class="btn btn-ghost btn-sm" title="Renumber all items with custom start number (e.g. task 2, task 3...)" style="font-size: 11px;">
+                        <i class="fa-solid fa-arrow-down-1-9"></i> Renumber
+                      </button>
+                    ` : ''}
+                    <button id="btn-toggle-merge-view" class="btn btn-ghost btn-sm" title="Separate into independent sections" style="font-size: 11px;">
+                      <i class="fa-solid fa-arrows-split-up-and-left"></i> Switch to Separate Lists
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Unified Progress Bar -->
@@ -1280,23 +1320,28 @@ const TaskModal = {
                   `).join('')}
                 </div>
 
-                <!-- Unified Inline Creator -->
+                <!-- Unified Inline Creator with Custom Start & End Numbering -->
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
                   <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                    <input type="text" id="merged-new-input" class="form-input" placeholder="e.g. Review component {}" style="font-size: 13px; padding: 7px 12px; flex: 1; min-width: 180px;">
-                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                      <label style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">×</label>
-                      <input type="number" id="merged-new-count" class="form-input" min="1" value="1" style="width: 58px; font-size: 12px; padding: 6px 6px; text-align: center;" title="Bulk item count">
+                    <input type="text" id="merged-new-input" class="form-input" placeholder="e.g. task {} or step {2..4}" style="font-size: 13px; padding: 7px 12px; flex: 1; min-width: 170px;">
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; background: var(--bg-surface-elevated); padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                      <label for="merged-new-start" style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Start:</label>
+                      <input type="number" id="merged-new-start" class="form-input" min="0" value="1" style="width: 50px; font-size: 12px; padding: 3px 4px; text-align: center; height: 26px;" title="Start number (e.g. 2)">
+                      <label for="merged-new-end" style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-left: 4px;">End:</label>
+                      <input type="number" id="merged-new-end" class="form-input" min="0" value="1" style="width: 50px; font-size: 12px; padding: 3px 4px; text-align: center; height: 26px;" title="End number (e.g. 4)">
                     </div>
-                    <select id="merged-new-type" class="form-select" style="width: auto; padding: 6px 10px; font-size: 12px; height: 34px;">
+                    <select id="merged-new-type" class="form-select" style="width: auto; padding: 6px 10px; font-size: 12px; height: 32px;">
                       <option value="checklist">Checklist Step</option>
                       <option value="subtask">Tracked Subtask</option>
                     </select>
-                    <button id="merged-btn-add" class="btn btn-primary btn-sm" style="font-size: 12px; height: 34px; white-space: nowrap;">
+                    <button id="merged-btn-add" class="btn btn-primary btn-sm" style="font-size: 12px; height: 32px; white-space: nowrap;">
                       <i class="fa-solid fa-plus"></i> Add Item
                     </button>
                   </div>
-                  <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Bulk creation: use <code style='background:var(--bg-surface-elevated);padding:1px 4px;border-radius:3px;'>{}</code> as number placeholder &amp; set count. E.g. "Item {}" × 4 → Item 1 … Item 4</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--text-muted);">
+                    <span id="merged-new-preview" style="color: var(--accent-primary); font-weight: 600; font-family: var(--font-mono);"></span>
+                    <span><i class="fa-solid fa-lightbulb" style="color: var(--accent-warning);"></i> Custom numbering: set <b>Start</b> &amp; <b>End</b> (e.g. 2 to 4 → task 2, task 3, task 4) or type <code>task {2..4}</code></span>
+                  </div>
                 </div>
 
                 <!-- Consolidation actions -->
@@ -1984,14 +2029,52 @@ const TaskModal = {
       });
     });
 
+    // Separate mode checklist items
     const addChkBtn = document.getElementById('btn-add-checklist');
     const newChkInput = document.getElementById('new-checklist-input');
-    const newChkCount = document.getElementById('new-checklist-count');
+    const newChkStart = document.getElementById('new-checklist-start');
+    const newChkEnd = document.getElementById('new-checklist-end');
+    const newChkPreview = document.getElementById('new-checklist-preview');
+
+    const updateChkPreview = () => {
+      if (!newChkPreview) return;
+      const tmpl = newChkInput ? newChkInput.value.trim() : '';
+      if (!tmpl) {
+        newChkPreview.textContent = '';
+        return;
+      }
+      const s = newChkStart ? parseInt(newChkStart.value, 10) : 1;
+      const e = newChkEnd ? parseInt(newChkEnd.value, 10) : 1;
+      const items = this.generateBulkItems(tmpl, s, e);
+      if (items.length === 0) {
+        newChkPreview.textContent = '';
+      } else if (items.length === 1) {
+        newChkPreview.textContent = `Preview: "${items[0]}"`;
+      } else {
+        const previewStr = items.slice(0, 3).join(', ') + (items.length > 3 ? `, ... (+${items.length - 3} more)` : '');
+        newChkPreview.textContent = `Preview (${items.length} items): ${previewStr}`;
+      }
+    };
+
+    if (newChkInput) newChkInput.addEventListener('input', updateChkPreview);
+    if (newChkStart) {
+      newChkStart.addEventListener('input', () => {
+        const s = parseInt(newChkStart.value, 10);
+        const e = newChkEnd ? parseInt(newChkEnd.value, 10) : 1;
+        if (!isNaN(s) && newChkEnd && e < s) {
+          newChkEnd.value = s;
+        }
+        updateChkPreview();
+      });
+    }
+    if (newChkEnd) newChkEnd.addEventListener('input', updateChkPreview);
+
     const handleAddChecklist = () => {
       const template = newChkInput ? newChkInput.value.trim() : '';
       if (!template) return;
-      const count = newChkCount ? parseInt(newChkCount.value, 10) || 1 : 1;
-      const items = this.generateBulkItems(template, count);
+      const start = newChkStart ? parseInt(newChkStart.value, 10) : 1;
+      const end = newChkEnd ? parseInt(newChkEnd.value, 10) : 1;
+      const items = this.generateBulkItems(template, start, end);
       if (items.length === 0) return;
       const list = [...(task.checklist || [])];
       items.forEach(text => {
@@ -2002,7 +2085,9 @@ const TaskModal = {
         });
       });
       AppState.updateTask(taskId, { checklist: list });
-      Toast.success(items.length > 1 ? `${items.length} checklist items added` : 'Checklist item added');
+      Toast.success(items.length > 1 ? `${items.length} checklist items added (${items[0]} ... ${items[items.length - 1]})` : 'Checklist item added');
+      newChkInput.value = '';
+      if (newChkPreview) newChkPreview.textContent = '';
       const updated = AppState.tasks.find(t => t.id === taskId);
       this.renderDrawerContent(drawer, updated);
     };
@@ -2013,6 +2098,13 @@ const TaskModal = {
           e.preventDefault();
           handleAddChecklist();
         }
+      });
+    }
+
+    const btnRenumberChk = document.getElementById('btn-renumber-checklist');
+    if (btnRenumberChk) {
+      btnRenumberChk.addEventListener('click', () => {
+        this.openRenumberModal(taskId, 'checklist');
       });
     }
 
@@ -2038,12 +2130,49 @@ const TaskModal = {
 
     const addStBtn = document.getElementById('btn-add-subtask');
     const newStInput = document.getElementById('new-subtask-input');
-    const newStCount = document.getElementById('new-subtask-count');
+    const newStStart = document.getElementById('new-subtask-start');
+    const newStEnd = document.getElementById('new-subtask-end');
+    const newStPreview = document.getElementById('new-subtask-preview');
+
+    const updateStPreview = () => {
+      if (!newStPreview) return;
+      const tmpl = newStInput ? newStInput.value.trim() : '';
+      if (!tmpl) {
+        newStPreview.textContent = '';
+        return;
+      }
+      const s = newStStart ? parseInt(newStStart.value, 10) : 1;
+      const e = newStEnd ? parseInt(newStEnd.value, 10) : 1;
+      const items = this.generateBulkItems(tmpl, s, e);
+      if (items.length === 0) {
+        newStPreview.textContent = '';
+      } else if (items.length === 1) {
+        newStPreview.textContent = `Preview: "${items[0]}"`;
+      } else {
+        const previewStr = items.slice(0, 3).join(', ') + (items.length > 3 ? `, ... (+${items.length - 3} more)` : '');
+        newStPreview.textContent = `Preview (${items.length} subtasks): ${previewStr}`;
+      }
+    };
+
+    if (newStInput) newStInput.addEventListener('input', updateStPreview);
+    if (newStStart) {
+      newStStart.addEventListener('input', () => {
+        const s = parseInt(newStStart.value, 10);
+        const e = newStEnd ? parseInt(newStEnd.value, 10) : 1;
+        if (!isNaN(s) && newStEnd && e < s) {
+          newStEnd.value = s;
+        }
+        updateStPreview();
+      });
+    }
+    if (newStEnd) newStEnd.addEventListener('input', updateStPreview);
+
     const handleAddSubtask = () => {
       const template = newStInput ? newStInput.value.trim() : '';
       if (!template) return;
-      const count = newStCount ? parseInt(newStCount.value, 10) || 1 : 1;
-      const items = this.generateBulkItems(template, count);
+      const start = newStStart ? parseInt(newStStart.value, 10) : 1;
+      const end = newStEnd ? parseInt(newStEnd.value, 10) : 1;
+      const items = this.generateBulkItems(template, start, end);
       if (items.length === 0) return;
       let lastCreated = null;
       items.forEach(title => {
@@ -2059,7 +2188,9 @@ const TaskModal = {
           storyPoints: 1
         });
       });
-      Toast.success(items.length > 1 ? `${items.length} subtasks created` : `Subtask ${lastCreated.key} created`);
+      Toast.success(items.length > 1 ? `${items.length} subtasks created (${items[0]} ... ${items[items.length - 1]})` : `Subtask ${lastCreated ? lastCreated.key : ''} created`);
+      newStInput.value = '';
+      if (newStPreview) newStPreview.textContent = '';
       const updated = AppState.tasks.find(t => t.id === taskId);
       this.renderDrawerContent(drawer, updated);
     };
@@ -2070,6 +2201,13 @@ const TaskModal = {
           e.preventDefault();
           handleAddSubtask();
         }
+      });
+    }
+
+    const btnRenumberSt = document.getElementById('btn-renumber-subtasks');
+    if (btnRenumberSt) {
+      btnRenumberSt.addEventListener('click', () => {
+        this.openRenumberModal(taskId, 'subtasks');
       });
     }
 
@@ -2128,20 +2266,57 @@ const TaskModal = {
 
     const addMergedBtn = document.getElementById('merged-btn-add');
     const newMergedInput = document.getElementById('merged-new-input');
-    const newMergedCount = document.getElementById('merged-new-count');
+    const newMergedStart = document.getElementById('merged-new-start');
+    const newMergedEnd = document.getElementById('merged-new-end');
     const newMergedType = document.getElementById('merged-new-type');
+    const newMergedPreview = document.getElementById('merged-new-preview');
+
+    const updateMergedPreview = () => {
+      if (!newMergedPreview) return;
+      const tmpl = newMergedInput ? newMergedInput.value.trim() : '';
+      if (!tmpl) {
+        newMergedPreview.textContent = '';
+        return;
+      }
+      const s = newMergedStart ? parseInt(newMergedStart.value, 10) : 1;
+      const e = newMergedEnd ? parseInt(newMergedEnd.value, 10) : 1;
+      const items = this.generateBulkItems(tmpl, s, e);
+      if (items.length === 0) {
+        newMergedPreview.textContent = '';
+      } else if (items.length === 1) {
+        newMergedPreview.textContent = `Preview: "${items[0]}"`;
+      } else {
+        const previewStr = items.slice(0, 3).join(', ') + (items.length > 3 ? `, ... (+${items.length - 3} more)` : '');
+        newMergedPreview.textContent = `Preview (${items.length} items): ${previewStr}`;
+      }
+    };
+
+    if (newMergedInput) newMergedInput.addEventListener('input', updateMergedPreview);
+    if (newMergedStart) {
+      newMergedStart.addEventListener('input', () => {
+        const s = parseInt(newMergedStart.value, 10);
+        const e = newMergedEnd ? parseInt(newMergedEnd.value, 10) : 1;
+        if (!isNaN(s) && newMergedEnd && e < s) {
+          newMergedEnd.value = s;
+        }
+        updateMergedPreview();
+      });
+    }
+    if (newMergedEnd) newMergedEnd.addEventListener('input', updateMergedPreview);
 
     const handleAddMerged = () => {
       const template = newMergedInput ? newMergedInput.value.trim() : '';
       if (!template) return;
-      const count = newMergedCount ? parseInt(newMergedCount.value, 10) || 1 : 1;
-      const items = this.generateBulkItems(template, count);
+      const start = newMergedStart ? parseInt(newMergedStart.value, 10) : 1;
+      const end = newMergedEnd ? parseInt(newMergedEnd.value, 10) : 1;
+      const items = this.generateBulkItems(template, start, end);
       if (items.length === 0) return;
       const itemType = newMergedType ? newMergedType.value : 'checklist';
 
       if (itemType === 'subtask') {
+        let lastCreated = null;
         items.forEach(title => {
-          AppState.createTask({
+          lastCreated = AppState.createTask({
             title,
             parentId: taskId,
             projectId: task.projectId,
@@ -2153,7 +2328,7 @@ const TaskModal = {
             storyPoints: 1
           });
         });
-        Toast.success(items.length > 1 ? `${items.length} subtasks created` : 'Subtask created');
+        Toast.success(items.length > 1 ? `${items.length} subtasks created (${items[0]} ... ${items[items.length - 1]})` : `Subtask ${lastCreated ? lastCreated.key : ''} created`);
       } else {
         const list = [...(task.checklist || [])];
         items.forEach(text => {
@@ -2164,10 +2339,11 @@ const TaskModal = {
           });
         });
         AppState.updateTask(taskId, { checklist: list });
-        Toast.success(items.length > 1 ? `${items.length} checklist items added` : 'Checklist item added');
+        Toast.success(items.length > 1 ? `${items.length} checklist items added (${items[0]} ... ${items[items.length - 1]})` : 'Checklist item added');
       }
 
       newMergedInput.value = '';
+      if (newMergedPreview) newMergedPreview.textContent = '';
       const updated = AppState.tasks.find(t => t.id === taskId);
       this.renderDrawerContent(drawer, updated);
     };
@@ -2179,6 +2355,13 @@ const TaskModal = {
           e.preventDefault();
           handleAddMerged();
         }
+      });
+    }
+
+    const btnRenumberMerged = document.getElementById('btn-renumber-merged');
+    if (btnRenumberMerged) {
+      btnRenumberMerged.addEventListener('click', () => {
+        this.openRenumberModal(taskId, 'merged');
       });
     }
 
@@ -2335,41 +2518,287 @@ const TaskModal = {
   },
 
   /**
-   * Generates an array of item names from a template and count.
-   * If the template contains '{}', it replaces it with the number (1, 2, 3...).
-   * If count is 1, returns the template as-is (with {} removed if present).
+   * Generates an array of item names from a template with custom start and end numbering.
+   * Supports:
+   *  - Explicit start and end params: generateBulkItems("task", 2, 4) -> ["task 2", "task 3", "task 4"]
+   *  - Placeholder pattern: generateBulkItems("task {}", 2, 4) -> ["task 2", "task 3", "task 4"]
+   *  - Inline range brackets: generateBulkItems("task {2..4}") -> ["task 2", "task 3", "task 4"]
+   *  - Inline range brackets with dash: generateBulkItems("step {2-4}") -> ["step 2", "step 3", "step 4"]
+   *  - Inline range square brackets: generateBulkItems("subtask [2..4]") -> ["subtask 2", "subtask 3", "subtask 4"]
+   *  - Trailing range syntax: generateBulkItems("task 2..4") -> ["task 2", "task 3", "task 4"]
+   *  - Single item without numbers: generateBulkItems("Buy groceries", 1, 1) -> ["Buy groceries"]
+   *  - Single item with explicit placeholder: generateBulkItems("task {}", 1, 1) -> ["task 1"]
+   *  - Single item with custom start: generateBulkItems("task", 3, 3) -> ["task 3"]
+   *  - Legacy count syntax: generateBulkItems("task", 3) -> ["task 1", "task 2", "task 3"]
    * 
-   * Examples:
-   *   generateBulkItems("Design task {}", 3)  → ["Design task 1", "Design task 2", "Design task 3"]
-   *   generateBulkItems("Module {} setup", 4) → ["Module 1 setup", "Module 2 setup", "Module 3 setup", "Module 4 setup"]
-   *   generateBulkItems("Buy groceries", 1)   → ["Buy groceries"]
-   *   generateBulkItems("Task", 5)            → ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5"]
-   * 
-   * @param {string} template - The text template, optionally containing '{}'
-   * @param {number} count - Number of items to generate
-   * @returns {string[]} Array of generated item strings
+   * @param {string} template 
+   * @param {number} [startParam=1]
+   * @param {number|null} [endParam=null]
+   * @returns {string[]}
    */
-  generateBulkItems(template, count) {
+  generateBulkItems(template, startParam = 1, endParam = null) {
     if (!template || !template.trim()) return [];
-    const text = template.trim();
-    const n = Math.max(1, parseInt(count, 10) || 1);
+    let text = template.trim();
 
-    // If count is 1, just return the template (clean up any stray {})
-    if (n === 1) {
-      return [text.replace(/\{\}/g, '').replace(/\s{2,}/g, ' ').trim() || text];
-    }
+    let start = 1;
+    let end = 1;
+    let hasInlineRange = false;
 
-    // If template contains {}, replace with number
-    const hasPlaceholder = text.includes('{}');
-    const items = [];
-    for (let i = 1; i <= n; i++) {
-      if (hasPlaceholder) {
-        items.push(text.replace(/\{\}/g, String(i)));
+    // Check for inline range inside curly braces: e.g. {2..5} or {2-5}
+    const curlyRangeMatch = text.match(/\{(\d+)\s*(?:\.\.|\-)\s*(\d+)\}/);
+    if (curlyRangeMatch) {
+      start = parseInt(curlyRangeMatch[1], 10);
+      end = parseInt(curlyRangeMatch[2], 10);
+      text = text.replace(curlyRangeMatch[0], '{}');
+      hasInlineRange = true;
+    } else {
+      // Check for inline range inside square brackets: e.g. [2..5] or [2-5]
+      const squareRangeMatch = text.match(/\[(\d+)\s*(?:\.\.|\-)\s*(\d+)\]/);
+      if (squareRangeMatch) {
+        start = parseInt(squareRangeMatch[1], 10);
+        end = parseInt(squareRangeMatch[2], 10);
+        text = text.replace(squareRangeMatch[0], '{}');
+        hasInlineRange = true;
       } else {
-        // No placeholder — append number at the end
-        items.push(`${text} ${i}`);
+        // Check for trailing range: e.g. "task 2..5" or "item 2-5"
+        const trailingRangeMatch = text.match(/\s+(\d+)\s*(?:\.\.|\-)\s*(\d+)$/);
+        if (trailingRangeMatch) {
+          start = parseInt(trailingRangeMatch[1], 10);
+          end = parseInt(trailingRangeMatch[2], 10);
+          text = text.replace(trailingRangeMatch[0], '').trim();
+          hasInlineRange = true;
+        }
       }
     }
+
+    if (!hasInlineRange) {
+      if (endParam !== null && endParam !== undefined && !isNaN(endParam)) {
+        start = isNaN(startParam) ? 1 : parseInt(startParam, 10);
+        end = parseInt(endParam, 10);
+      } else if (startParam !== null && startParam !== undefined && !isNaN(startParam)) {
+        // Legacy single count parameter
+        start = 1;
+        end = Math.max(1, parseInt(startParam, 10) || 1);
+      }
+    }
+
+    const hasPlaceholder = text.includes('{}');
+
+    // Single item edge case
+    if (start === end) {
+      if (hasPlaceholder) {
+        return [text.replace(/\{\}/g, String(start))];
+      }
+      if (start !== 1) {
+        return [`${text} ${start}`];
+      }
+      return [text];
+    }
+
+    // Safety limit to prevent memory/performance issues
+    const count = Math.min(Math.abs(end - start) + 1, 500);
+    const items = [];
+
+    if (start <= end) {
+      for (let i = start; i <= end && items.length < count; i++) {
+        if (hasPlaceholder) {
+          items.push(text.replace(/\{\}/g, String(i)));
+        } else {
+          items.push(`${text} ${i}`);
+        }
+      }
+    } else {
+      for (let i = start; i >= end && items.length < count; i--) {
+        if (hasPlaceholder) {
+          items.push(text.replace(/\{\}/g, String(i)));
+        } else {
+          items.push(`${text} ${i}`);
+        }
+      }
+    }
+
     return items;
+  },
+
+  /**
+   * Opens a modal to renumber existing checklist items or subtasks with custom start number and pattern
+   * @param {string} taskId 
+   * @param {'checklist'|'subtasks'|'merged'} type 
+   */
+  openRenumberModal(taskId, type = 'checklist') {
+    const task = AppState.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const drawer = document.getElementById('task-detail-drawer');
+    const isChecklist = type === 'checklist';
+    const isSubtask = type === 'subtasks';
+
+    // Get current items
+    const checklistItems = [...(task.checklist || [])];
+    const subtaskItems = AppState.tasks.filter(t => t.parentId === taskId);
+
+    const totalCount = isChecklist ? checklistItems.length : (isSubtask ? subtaskItems.length : (checklistItems.length + subtaskItems.length));
+    if (totalCount === 0) {
+      Toast.warning('No items available to renumber.');
+      return;
+    }
+
+    const modalBody = `
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+          Renumber all existing <b>${isChecklist ? 'checklist items' : isSubtask ? 'child subtasks' : 'items'}</b> with a uniform custom numbering sequence (e.g. <code>task 2, task 3, task 4...</code>).
+        </div>
+
+        <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: grid; grid-template-columns: 1fr 100px 100px; gap: 10px;">
+            <div>
+              <label class="form-label" style="font-size: 12px;">Naming Pattern <span class="required">*</span></label>
+              <input type="text" id="renumber-pattern" class="form-input" value="task {}" placeholder="e.g. task {} or step {}" style="font-size: 13px; height: 34px;">
+              <span style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: block;">Use <code>{}</code> where number goes, or leave as prefix (e.g. <code>task</code>)</span>
+            </div>
+            <div>
+              <label class="form-label" style="font-size: 12px;">Start #</label>
+              <input type="number" id="renumber-start" class="form-input" min="0" value="2" style="font-size: 13px; height: 34px; text-align: center;">
+              <span style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: block;">Start (e.g. 2)</span>
+            </div>
+            <div>
+              <label class="form-label" style="font-size: 12px;">End # (Auto)</label>
+              <input type="text" id="renumber-end" class="form-input" readonly style="font-size: 13px; height: 34px; text-align: center; background: var(--bg-surface-active); color: var(--accent-primary); font-weight: 700;">
+              <span style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: block;">${totalCount} items</span>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="renumber-keep-title" style="cursor: pointer; width: 14px; height: 14px; accent-color: var(--accent-primary);">
+            <label for="renumber-keep-title" style="font-size: 12px; color: var(--text-primary); cursor: pointer; user-select: none;">
+              Append original titles after number (e.g. <code>task 2 - Old Name</code>)
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-weight: 600; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Live Preview</span>
+            <span id="renumber-preview-count" style="font-size: 11px; color: var(--text-muted);"></span>
+          </div>
+          <div id="renumber-preview-list" style="max-height: 220px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+          </div>
+        </div>
+      </div>
+    `;
+
+    Modal.open({
+      title: `<i class="fa-solid fa-arrow-down-1-9" style="color: var(--accent-primary);"></i> Renumber ${isChecklist ? 'Checklist Items' : isSubtask ? 'Child Subtasks' : 'Items'}`,
+      body: modalBody,
+      size: 'md',
+      footerButtons: [
+        {
+          text: 'Cancel',
+          class: 'btn-secondary',
+          action: () => Modal.close()
+        },
+        {
+          text: '<i class="fa-solid fa-check"></i> Apply Renumbering',
+          class: 'btn-primary',
+          action: () => {
+            const patternInput = document.getElementById('renumber-pattern');
+            const startInput = document.getElementById('renumber-start');
+            const keepTitleChk = document.getElementById('renumber-keep-title');
+
+            const pattern = (patternInput ? patternInput.value.trim() : '') || 'task {}';
+            const startNum = startInput ? parseInt(startInput.value, 10) || 1 : 1;
+            const keepOriginal = keepTitleChk ? keepTitleChk.checked : false;
+
+            const formatItem = (originalTitle, index) => {
+              const num = startNum + index;
+              let base = pattern.includes('{}') ? pattern.replace(/\{\}/g, String(num)) : `${pattern} ${num}`;
+              if (keepOriginal && originalTitle) {
+                const cleanOriginal = originalTitle.replace(/^(task\s*\d+|step\s*\d+|\d+[\.\)\-\:]\s*)\s*[-:]?\s*/i, '').trim() || originalTitle;
+                return `${base} - ${cleanOriginal}`;
+              }
+              return base;
+            };
+
+            if (isChecklist) {
+              const updatedChecklist = checklistItems.map((item, idx) => ({
+                ...item,
+                text: formatItem(item.text, idx)
+              }));
+              AppState.updateTask(taskId, { checklist: updatedChecklist });
+              Toast.success(`Renumbered ${updatedChecklist.length} checklist items (${formatItem('', 0)} ... ${formatItem('', updatedChecklist.length - 1)})`);
+            } else if (isSubtask) {
+              subtaskItems.forEach((st, idx) => {
+                const newTitle = formatItem(st.title, idx);
+                AppState.updateTask(st.id, { title: newTitle });
+              });
+              Toast.success(`Renumbered ${subtaskItems.length} subtasks (${formatItem('', 0)} ... ${formatItem('', subtaskItems.length - 1)})`);
+            } else {
+              let globalIdx = 0;
+              const updatedChecklist = checklistItems.map((item) => ({
+                ...item,
+                text: formatItem(item.text, globalIdx++)
+              }));
+              AppState.updateTask(taskId, { checklist: updatedChecklist });
+              subtaskItems.forEach((st) => {
+                const newTitle = formatItem(st.title, globalIdx++);
+                AppState.updateTask(st.id, { title: newTitle });
+              });
+              Toast.success(`Renumbered ${globalIdx} items (${formatItem('', 0)} ... ${formatItem('', globalIdx - 1)})`);
+            }
+
+            Modal.close();
+            const updatedTask = AppState.tasks.find(t => t.id === taskId);
+            if (drawer && updatedTask) {
+              this.renderDrawerContent(drawer, updatedTask);
+            }
+          }
+        }
+      ]
+    });
+
+    const patternEl = document.getElementById('renumber-pattern');
+    const startEl = document.getElementById('renumber-start');
+    const endEl = document.getElementById('renumber-end');
+    const keepTitleEl = document.getElementById('renumber-keep-title');
+    const previewListEl = document.getElementById('renumber-preview-list');
+    const previewCountEl = document.getElementById('renumber-preview-count');
+
+    const updateRenumberPreview = () => {
+      if (!previewListEl) return;
+      const pattern = (patternEl ? patternEl.value.trim() : '') || 'task {}';
+      const startNum = startEl ? parseInt(startEl.value, 10) || 1 : 1;
+      const keepOriginal = keepTitleEl ? keepTitleEl.checked : false;
+
+      const endNum = startNum + totalCount - 1;
+      if (endEl) endEl.value = endNum;
+
+      if (previewCountEl) {
+        previewCountEl.textContent = `${totalCount} item${totalCount !== 1 ? 's' : ''} (start: ${startNum}, end: ${endNum})`;
+      }
+
+      const itemsToDisplay = isChecklist ? checklistItems.map(c => c.text) : (isSubtask ? subtaskItems.map(s => s.title) : [...checklistItems.map(c => c.text), ...subtaskItems.map(s => s.title)]);
+
+      previewListEl.innerHTML = itemsToDisplay.slice(0, 50).map((orig, idx) => {
+        const num = startNum + idx;
+        let base = pattern.includes('{}') ? pattern.replace(/\{\}/g, String(num)) : `${pattern} ${num}`;
+        if (keepOriginal && orig) {
+          const cleanOriginal = orig.replace(/^(task\s*\d+|step\s*\d+|\d+[\.\)\-\:]\s*)\s*[-:]?\s*/i, '').trim() || orig;
+          base = `${base} - ${cleanOriginal}`;
+        }
+        return `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; background: var(--bg-surface-elevated); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 12px;">
+            <span style="color: var(--text-muted); text-decoration: line-through; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHTML(orig)}</span>
+            <i class="fa-solid fa-arrow-right" style="color: var(--accent-primary); font-size: 10px;"></i>
+            <span style="color: var(--accent-primary); font-weight: 600; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHTML(base)}</span>
+          </div>
+        `;
+      }).join('') + (totalCount > 50 ? `<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 4px;">...and ${totalCount - 50} more items</div>` : '');
+    };
+
+    if (patternEl) patternEl.addEventListener('input', updateRenumberPreview);
+    if (startEl) startEl.addEventListener('input', updateRenumberPreview);
+    if (keepTitleEl) keepTitleEl.addEventListener('change', updateRenumberPreview);
+
+    updateRenumberPreview();
   }
 };
