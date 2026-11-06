@@ -4,6 +4,9 @@
  */
 
 const BacklogView = {
+  showCompletedSection: true,
+  expandedCompletedIds: null,
+
   attachListeners(container) {
     const createBtn = container.querySelector('#btn-sprint-create-task');
     if (createBtn) createBtn.addEventListener('click', () => TaskModal.openCreate());
@@ -14,13 +17,14 @@ const BacklogView = {
     const createSprintBtn = container.querySelector('#btn-create-sprint');
     if (createSprintBtn) createSprintBtn.addEventListener('click', () => this.openCreateSprintModal());
 
-    // Toggle completed sprints
+    // Toggle completed sprints section
     const toggleBtn = container.querySelector('#btn-toggle-completed');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => {
         const list = container.querySelector('#completed-sprints-list');
         const chevron = container.querySelector('#completed-chevron');
-        if (list.style.display === 'none') {
+        this.showCompletedSection = list.style.display === 'none';
+        if (this.showCompletedSection) {
           list.style.display = 'flex';
           toggleBtn.setAttribute('aria-expanded', 'true');
           chevron.style.transform = 'rotate(90deg)';
@@ -31,6 +35,27 @@ const BacklogView = {
         }
       });
     }
+
+    // Toggle individual completed sprint details card
+    container.querySelectorAll('[data-toggle-completed-sprint]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('button:not([data-toggle-completed-sprint])')) return;
+        const sprintId = el.dataset.toggleCompletedSprint;
+        if (!sprintId) return;
+        if (!this.expandedCompletedIds) this.expandedCompletedIds = new Set();
+        const card = container.querySelector(`.sprint-completed-card[data-sprint-id="${sprintId}"]`);
+        const details = card ? card.querySelector('.sprint-completed-details') : null;
+        if (this.expandedCompletedIds.has(sprintId)) {
+          this.expandedCompletedIds.delete(sprintId);
+          if (card) card.classList.remove('is-expanded');
+          if (details) details.style.display = 'none';
+        } else {
+          this.expandedCompletedIds.add(sprintId);
+          if (card) card.classList.add('is-expanded');
+          if (details) details.style.display = 'flex';
+        }
+      });
+    });
 
     // Add Existing Tasks buttons
     container.querySelectorAll('.btn-add-existing').forEach(btn => {
@@ -116,6 +141,13 @@ const BacklogView = {
         if (menuBtn && pageRoot.contains(menuBtn)) {
           e.stopPropagation();
           StatusControl.openMenu(menuBtn, menuBtn.dataset.taskId);
+          return;
+        }
+
+        const openCompletedEl = e.target.closest('[data-completed-task-open]');
+        if (openCompletedEl && pageRoot.contains(openCompletedEl)) {
+          e.stopPropagation();
+          TaskModal.openDetail(openCompletedEl.dataset.completedTaskOpen);
           return;
         }
 
@@ -437,16 +469,62 @@ const BacklogView = {
     if (!sprint) return;
 
     const sprintTasks = AppState.tasks.filter(t => t.sprintId === sprintId);
+    const completed = sprintTasks.filter(t => t.status === 'done');
     const incomplete = sprintTasks.filter(t => t.status !== 'done');
-    const nextPlanned = AppState.sprints.find(s => s.status === 'planned' && s.id !== sprintId);
+    const plannedSprints = AppState.sprints.filter(s => s.status === 'planned' && s.id !== sprintId);
+    const nextPlanned = plannedSprints[0] || null;
 
-    Modal.confirm(
-      'Complete Sprint',
-      `Sprint "${sprint.name}" contains ${incomplete.length} uncompleted issues. Would you like to complete this sprint and move remaining issues to ${nextPlanned ? `"${nextPlanned.name}"` : 'unassigned'}?`,
-      () => {
-        AppState.completeSprint(sprintId, nextPlanned ? nextPlanned.id : null);
-      }
-    );
+    const donePts = completed.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+    const openPts = incomplete.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+
+    const bodyHTML = `
+      <div class="complete-sprint-modal-body">
+        <p style="margin: 0 0 12px; color: var(--text-secondary); font-size: 13px;">
+          Review the delivery summary for <strong>${Utils.escapeHTML(sprint.name)}</strong> before completing the cycle:
+        </p>
+        <div class="complete-sprint-summary-grid">
+          <div class="complete-sprint-stat is-success">
+            <span class="complete-sprint-stat-label"><i class="fa-solid fa-circle-check"></i> Completed Issues</span>
+            <strong>${completed.length} <small>task${completed.length === 1 ? '' : 's'} · ${donePts} pts</small></strong>
+          </div>
+          <div class="complete-sprint-stat ${incomplete.length ? 'is-warning' : ''}">
+            <span class="complete-sprint-stat-label"><i class="fa-solid fa-clock-rotate-left"></i> Incomplete Issues</span>
+            <strong>${incomplete.length} <small>task${incomplete.length === 1 ? '' : 's'} · ${openPts} pts</small></strong>
+          </div>
+        </div>
+        ${incomplete.length > 0 ? `
+          <div class="form-group" style="margin-top: 14px;">
+            <label class="form-label">Move ${incomplete.length} incomplete issue${incomplete.length === 1 ? '' : 's'} to:</label>
+            <select id="complete-sprint-move-target" class="form-select">
+              ${plannedSprints.map((ps, idx) => `<option value="${Utils.escapeHTML(ps.id)}" ${idx === 0 ? 'selected' : ''}>Planned Sprint: ${Utils.escapeHTML(ps.name)}</option>`).join('')}
+              <option value="" ${!nextPlanned ? 'selected' : ''}>Backlog (Unassigned)</option>
+            </select>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    Modal.open({
+      title: `<i class="fa-solid fa-flag-checkered" style="color: var(--accent-success);"></i> Complete Sprint: ${Utils.escapeHTML(sprint.name)}`,
+      body: bodyHTML,
+      size: 'md',
+      footerButtons: [
+        { text: 'Cancel', class: 'btn-secondary', onClick: () => Modal.close() },
+        {
+          text: 'Complete Sprint',
+          class: 'btn-primary',
+          onClick: () => {
+            const selectEl = document.getElementById('complete-sprint-move-target');
+            const targetId = selectEl ? (selectEl.value || null) : (nextPlanned ? nextPlanned.id : null);
+            if (!this.expandedCompletedIds) this.expandedCompletedIds = new Set();
+            this.expandedCompletedIds.add(sprintId);
+            this.showCompletedSection = true;
+            AppState.completeSprint(sprintId, targetId);
+            Modal.close();
+          }
+        }
+      ]
+    });
   },
 
   openCreateSprintModal() {
@@ -702,14 +780,19 @@ const BacklogView = {
 
             ${completedSprints.length ? `
               <section class="backlog-section backlog-completed-section">
-                <button id="btn-toggle-completed" class="btn btn-ghost backlog-completed-toggle" aria-expanded="false">
-                  <i class="fa-solid fa-chevron-right" id="completed-chevron"></i>
+                <button id="btn-toggle-completed" class="btn btn-ghost backlog-completed-toggle" aria-expanded="${this.showCompletedSection ? 'true' : 'false'}">
+                  <i class="fa-solid fa-chevron-right" id="completed-chevron" style="transform: ${this.showCompletedSection ? 'rotate(90deg)' : 'rotate(0deg)'};"></i>
                   <i class="fa-solid fa-box-archive"></i>
                   <span>Completed sprints</span>
                   <span class="planner-count-pill">${completedSprints.length}</span>
                 </button>
-                <div id="completed-sprints-list" class="backlog-completed-list" style="display: none;">
-                  ${completedSprints.map(sprint => this.renderPlannerCompletedSprint(sprint, filteredTasks.filter(t => t.sprintId === sprint.id))).join('')}
+                <div id="completed-sprints-list" class="backlog-completed-list" style="display: ${this.showCompletedSection ? 'flex' : 'none'};">
+                  ${(() => {
+                    if (!this.expandedCompletedIds) {
+                      this.expandedCompletedIds = new Set([completedSprints[completedSprints.length - 1].id]);
+                    }
+                    return completedSprints.map(sprint => this.renderPlannerCompletedSprint(sprint, filteredTasks.filter(t => t.sprintId === sprint.id))).join('');
+                  })()}
                 </div>
               </section>
             ` : ''}
@@ -896,31 +979,538 @@ const BacklogView = {
     `;
   },
 
+  _analyzeCompletedSprint(sprint, currentSprintTasks) {
+    const snap = sprint.completionSnapshot || null;
+    const taskMap = new Map();
+
+    // 1. Include tasks currently assigned to this sprint
+    (currentSprintTasks || []).forEach(t => taskMap.set(t.id, t));
+
+    // 2. Include any snapshot tasks (e.g., incomplete tasks that were moved out on completion)
+    if (snap && Array.isArray(snap.committedTaskIds)) {
+      snap.committedTaskIds.forEach(id => {
+        if (!taskMap.has(id)) {
+          const found = AppState.tasks.find(t => t.id === id);
+          if (found && (!AppState.selectedProjectId || found.projectId === AppState.selectedProjectId)) {
+            taskMap.set(id, found);
+          }
+        }
+      });
+    }
+
+    const allTasks = [...taskMap.values()].sort((a, b) => this._sortByItemId(a, b));
+    const rolledOverIdSet = new Set(snap && Array.isArray(snap.incompleteTaskIds) ? snap.incompleteTaskIds : []);
+
+    const completedTasks = allTasks.filter(t => !rolledOverIdSet.has(t.id) && (t.status === 'done' || t.sprintId === sprint.id && t.status === 'done'));
+    const incompleteTasks = allTasks.filter(t => rolledOverIdSet.has(t.id) || (t.sprintId === sprint.id && t.status !== 'done'));
+
+    const committedCount = snap && !AppState.selectedProjectId ? Math.max(snap.committedCount || 0, allTasks.length) : allTasks.length;
+    const completedCount = completedTasks.length;
+    const incompleteCount = incompleteTasks.length;
+    const completionPct = committedCount ? Math.round((completedCount / committedCount) * 100) : 0;
+
+    const completedPoints = completedTasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+    const incompletePoints = incompleteTasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+    const committedPoints = completedPoints + incompletePoints;
+    const pointsPct = committedPoints ? Math.round((completedPoints / committedPoints) * 100) : (completionPct || 0);
+
+    const totalTracked = allTasks.reduce((s, t) => s + (Number(t.trackedTime) || 0), 0);
+    const totalEstimate = allTasks.reduce((s, t) => s + (Number(t.estimate) || 0), 0);
+
+    // Cycle duration
+    let durationDays = 14;
+    if (sprint.startDate && sprint.endDate) {
+      const d = Math.round((new Date(sprint.endDate) - new Date(sprint.startDate)) / 86400000);
+      if (!isNaN(d) && d > 0) durationDays = d;
+    }
+
+    const completedAtIso = sprint.completedAt || (snap && snap.completedAt) || sprint.endDate;
+    const completedAtLabel = completedAtIso ? Utils.formatDate(completedAtIso) : 'Completed';
+    const movedToSprint = snap && snap.movedToSprintId ? AppState.sprints.find(s => s.id === snap.movedToSprintId) : null;
+
+    // Issue Type breakdown
+    const typeCounts = {};
+    allTasks.forEach(t => {
+      const k = t.type || 'task';
+      typeCounts[k] = (typeCounts[k] || 0) + 1;
+    });
+
+    // Priority breakdown
+    const prioCounts = {};
+    allTasks.forEach(t => {
+      const k = t.priority || 'medium';
+      prioCounts[k] = (prioCounts[k] || 0) + 1;
+    });
+
+    // Project breakdown
+    const projGroups = this._groupTasksByProject(allTasks);
+    const projectBreakdown = projGroups.map(g => {
+      const doneInProj = g.tasks.filter(t => !rolledOverIdSet.has(t.id) && t.status === 'done');
+      const ptsTotal = g.tasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+      const ptsDone = doneInProj.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+      const tracked = g.tasks.reduce((s, t) => s + (Number(t.trackedTime) || 0), 0);
+      return {
+        project: g.project,
+        total: g.tasks.length,
+        done: doneInProj.length,
+        pct: g.tasks.length ? Math.round((doneInProj.length / g.tasks.length) * 100) : 0,
+        ptsTotal,
+        ptsDone,
+        tracked
+      };
+    });
+
+    return {
+      allTasks,
+      completedTasks,
+      incompleteTasks,
+      committedCount,
+      completedCount,
+      incompleteCount,
+      completionPct,
+      committedPoints,
+      completedPoints,
+      incompletePoints,
+      pointsPct,
+      totalTracked,
+      totalEstimate,
+      durationDays,
+      completedAtLabel,
+      movedToSprint,
+      typeCounts,
+      prioCounts,
+      projectBreakdown
+    };
+  },
+
   renderPlannerCompletedSprint(sprint, sprintTasks) {
-    const doneTasks = sprintTasks.filter(task => task.status === 'done').length;
-    const totalPoints = sprintTasks.reduce((sum, task) => sum + (Number(task.storyPoints) || 0), 0);
-    const donePoints = sprintTasks.filter(task => task.status === 'done').reduce((sum, task) => sum + (Number(task.storyPoints) || 0), 0);
-    const progress = sprintTasks.length ? Math.round((doneTasks / sprintTasks.length) * 100) : 0;
+    const esc = Utils.escapeHTML;
+    const stats = this._analyzeCompletedSprint(sprint, sprintTasks);
+    const isExpanded = this.expandedCompletedIds && this.expandedCompletedIds.has(sprint.id);
+    const sprintProject = sprint.projectId ? AppState.projects.find(p => p.id === sprint.projectId) : null;
+    const completedGroups = this._groupTasksByProject(stats.completedTasks);
+    const incompleteGroups = this._groupTasksByProject(stats.incompleteTasks);
+
+    const typeIcons = {
+      story: 'fa-bookmark',
+      task: 'fa-square-check',
+      bug: 'fa-circle-dot',
+      epic: 'fa-bolt',
+      subtask: 'fa-network-wired'
+    };
 
     return `
-      <article class="sprint-completed-row">
-        <div class="sprint-completed-main">
-          <span class="sprint-completed-icon"><i class="fa-solid fa-circle-check"></i></span>
-          <div class="sprint-completed-title">
-            <strong>${Utils.escapeHTML(sprint.name)}</strong>
-            <span>${Utils.formatDate(sprint.startDate)} – ${Utils.formatDate(sprint.endDate)}</span>
+      <article class="sprint-completed-card ${isExpanded ? 'is-expanded' : ''}" data-sprint-id="${esc(sprint.id)}">
+        <!-- Summary Header (Clickable to expand/collapse) -->
+        <header class="sprint-completed-header" data-toggle-completed-sprint="${esc(sprint.id)}">
+          <div class="sprint-completed-main">
+            <span class="sprint-completed-expand-icon" aria-hidden="true">
+              <i class="fa-solid fa-chevron-right"></i>
+            </span>
+            <span class="sprint-completed-icon"><i class="fa-solid fa-circle-check"></i></span>
+            <div class="sprint-completed-title">
+              <div class="sprint-completed-name-row">
+                <strong>${esc(sprint.name)}</strong>
+                <span class="sprint-completed-badge"><i class="fa-solid fa-flag-checkered"></i> Completed</span>
+                ${sprintProject
+                  ? `<span class="sprint-scope-pill" style="--proj-color:${sprintProject.color || '#388bfd'}"><span class="sprint-scope-dot" style="background:${sprintProject.color || '#388bfd'}"></span>${esc(sprintProject.name)}</span>`
+                  : '<span class="sprint-shared-pill">All projects</span>'}
+              </div>
+              <div class="sprint-completed-submeta">
+                <span><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(sprint.startDate)} – ${Utils.formatDate(sprint.endDate)} (${stats.durationDays}d cycle)</span>
+                <span>·</span>
+                <span>Completed ${esc(stats.completedAtLabel)}</span>
+                ${sprint.goal ? `<span>·</span><span class="sprint-completed-goal-inline" title="${esc(sprint.goal)}"><i class="fa-solid fa-bullseye"></i> ${esc(sprint.goal)}</span>` : ''}
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="sprint-completed-stats">
-          <span>${doneTasks}/${sprintTasks.length} tasks</span>
-          <span>${donePoints}/${totalPoints} points</span>
-          <div class="project-progress-track" role="progressbar" aria-label="Completed sprint task progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
-            <div class="project-progress-fill" style="width: ${progress}%;"></div>
+
+          <div class="sprint-completed-stats">
+            <div class="sprint-completed-metric-pills">
+              <span class="sc-metric-pill" title="Tasks completed vs committed">
+                <i class="fa-solid fa-check-double"></i>
+                <b>${stats.completedCount}/${stats.committedCount}</b> tasks
+              </span>
+              <span class="sc-metric-pill is-points" title="Story points burned vs committed">
+                <i class="fa-solid fa-fire-flame-curved"></i>
+                <b>${stats.completedPoints}/${stats.committedPoints}</b> pts
+              </span>
+              ${stats.totalTracked > 0 ? `
+                <span class="sc-metric-pill" title="Total time logged">
+                  <i class="fa-regular fa-clock"></i>
+                  <b>${Utils.formatMinutes(stats.totalTracked)}</b>
+                </span>
+              ` : ''}
+            </div>
+
+            <div class="sprint-completed-progress-wrap" title="${stats.completionPct}% of committed tasks completed">
+              <div class="project-progress-track" role="progressbar" aria-label="Completed sprint task progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${stats.completionPct}">
+                <div class="project-progress-fill" style="width: ${stats.completionPct}%;"></div>
+              </div>
+              <strong>${stats.completionPct}%</strong>
+            </div>
+
+            <div class="sprint-completed-actions">
+              <button type="button" class="btn btn-secondary btn-sm" data-toggle-completed-sprint="${esc(sprint.id)}" title="Toggle sprint details">
+                <i class="fa-solid fa-list-check"></i> Details
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="BacklogView.openSprintReportModal('${esc(sprint.id)}')" title="Open Full Sprint Retrospective Report">
+                <i class="fa-solid fa-chart-pie"></i> Report
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm sprint-icon-action" onclick="AppState.reopenSprint('${esc(sprint.id)}')" title="Reopen sprint as Planned">
+                <i class="fa-solid fa-rotate-left"></i>
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm sprint-icon-action" onclick="BacklogView.openEditSprintModal('${esc(sprint.id)}')" title="Edit sprint metadata">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm sprint-icon-action is-danger" onclick="AppState.deleteSprint('${esc(sprint.id)}')" title="Delete sprint">
+                <i class="fa-regular fa-trash-can"></i>
+              </button>
+            </div>
           </div>
-          <strong>${progress}%</strong>
-          <button class="btn btn-ghost btn-sm sprint-icon-action is-danger" onclick="AppState.deleteSprint('${sprint.id}')" title="Delete sprint"><i class="fa-regular fa-trash-can"></i></button>
+        </header>
+
+        <!-- Detailed Expandable Body -->
+        <div class="sprint-completed-details" style="display: ${isExpanded ? 'flex' : 'none'};">
+          ${sprint.goal ? `
+            <div class="sc-goal-banner">
+              <i class="fa-solid fa-bullseye"></i>
+              <div>
+                <span class="sc-goal-label">Sprint Goal</span>
+                <p>${esc(sprint.goal)}</p>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- 4-Card Retrospective KPI Grid -->
+          <div class="sc-kpi-grid">
+            <div class="sc-kpi-card">
+              <span class="sc-kpi-label"><i class="fa-solid fa-circle-check tone-success"></i> Delivery Rate</span>
+              <strong class="sc-kpi-value">${stats.completionPct}% <small>(${stats.completedCount} of ${stats.committedCount} issues)</small></strong>
+              <span class="sc-kpi-sub">${stats.incompleteCount > 0 ? `${stats.incompleteCount} issue(s) rolled over ${stats.movedToSprint ? `to ${esc(stats.movedToSprint.name)}` : 'to Backlog'}` : '100% of committed scope delivered'}</span>
+            </div>
+
+            <div class="sc-kpi-card">
+              <span class="sc-kpi-label"><i class="fa-solid fa-fire-flame-curved tone-brand"></i> Velocity & Points</span>
+              <strong class="sc-kpi-value">${stats.completedPoints} <small>of ${stats.committedPoints} pts (${stats.pointsPct}%)</small></strong>
+              <span class="sc-kpi-sub">${stats.incompletePoints > 0 ? `${stats.incompletePoints} pts carried over` : 'All story points burned'}</span>
+            </div>
+
+            <div class="sc-kpi-card">
+              <span class="sc-kpi-label"><i class="fa-solid fa-stopwatch tone-violet"></i> Time Logged vs Est.</span>
+              <strong class="sc-kpi-value">${Utils.formatMinutes(stats.totalTracked)} <small>${stats.totalEstimate ? `/ ${Utils.formatMinutes(stats.totalEstimate)} est.` : 'logged'}</small></strong>
+              <span class="sc-kpi-sub">${stats.totalEstimate > 0 ? `${Math.round((stats.totalTracked / stats.totalEstimate) * 100)}% of estimated effort` : 'Tracked across sprint issues'}</span>
+            </div>
+
+            <div class="sc-kpi-card">
+              <span class="sc-kpi-label"><i class="fa-solid fa-calendar-check tone-warning"></i> Cycle & Projects</span>
+              <strong class="sc-kpi-value">${stats.durationDays} days <small>· ${stats.projectBreakdown.length} project${stats.projectBreakdown.length === 1 ? '' : 's'}</small></strong>
+              <span class="sc-kpi-sub">${Utils.formatDate(sprint.startDate)} → ${esc(stats.completedAtLabel)}</span>
+            </div>
+          </div>
+
+          <!-- Breakdown Chips Bar: Projects, Issue Types & Priorities -->
+          ${stats.allTasks.length > 0 ? `
+            <div class="sc-breakdown-bar">
+              <div class="sc-breakdown-group">
+                <span class="sc-breakdown-title">By Project:</span>
+                ${stats.projectBreakdown.map(pb => `
+                  <span class="sc-breakdown-chip">
+                    <span class="sc-dot" style="background:${pb.project.color || '#388bfd'}"></span>
+                    <b>${esc(pb.project.name)}</b>: ${pb.done}/${pb.total} (${pb.ptsDone}/${pb.ptsTotal} pts)
+                  </span>
+                `).join('')}
+              </div>
+
+              <div class="sc-breakdown-group">
+                <span class="sc-breakdown-title">By Type:</span>
+                ${Object.entries(stats.typeCounts).map(([type, count]) => `
+                  <span class="sc-breakdown-chip">
+                    <span class="type-icon type-${esc(type)}"><i class="fa-solid ${typeIcons[type] || 'fa-square-check'}"></i></span>
+                    <b>${count}</b> ${esc(type)}${count === 1 ? '' : 's'}
+                  </span>
+                `).join('')}
+              </div>
+
+              <div class="sc-breakdown-group">
+                <span class="sc-breakdown-title">By Priority:</span>
+                ${Object.entries(stats.prioCounts).map(([prio, count]) => `
+                  <span class="sc-breakdown-chip prio-chip-${esc(prio)}">
+                    <b>${count}</b> ${esc(prio)}
+                  </span>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Completed Issues List (Segregated by Project & Sorted by Item ID) -->
+          <div class="sc-tasks-section">
+            <div class="sc-tasks-section-head">
+              <h4><i class="fa-solid fa-circle-check" style="color: var(--status-done);"></i> Completed Issues (${stats.completedTasks.length})</h4>
+              <span>Segregated by project · Sorted by item ID</span>
+            </div>
+
+            ${completedGroups.length > 0 ? `
+              <div class="sc-project-groups">
+                ${completedGroups.map(group => {
+                  const p = group.project;
+                  const pColor = p.color || '#388bfd';
+                  const grpPoints = group.tasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+                  return `
+                    <div class="sc-project-group">
+                      <div class="sc-project-group-header" style="--project-accent: ${pColor};">
+                        <div class="sc-project-group-left">
+                          <span class="sc-dot" style="background: ${pColor};"></span>
+                          <strong>${esc(p.name)}</strong>
+                          ${p.key ? `<span class="sc-proj-key">${esc(p.key)}</span>` : ''}
+                        </div>
+                        <span class="sc-proj-meta">${group.tasks.length} issue${group.tasks.length === 1 ? '' : 's'} · ${grpPoints} pts</span>
+                      </div>
+                      <div class="sc-task-list">
+                        ${group.tasks.map(t => this._renderCompletedSprintTaskRow(t, false)).join('')}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : `
+              <div class="sc-empty-box">No completed issues recorded in this sprint.</div>
+            `}
+          </div>
+
+          <!-- Rolled-Over / Incomplete Issues Section (if any) -->
+          ${incompleteGroups.length > 0 ? `
+            <div class="sc-tasks-section sc-incomplete-section">
+              <div class="sc-tasks-section-head">
+                <h4><i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-warning);"></i> Incomplete / Rolled-Over Issues (${stats.incompleteTasks.length})</h4>
+                <span>${stats.movedToSprint ? `Moved to ${esc(stats.movedToSprint.name)}` : 'Returned to Backlog / Reassigned'}</span>
+              </div>
+              <div class="sc-project-groups">
+                ${incompleteGroups.map(group => {
+                  const p = group.project;
+                  const pColor = p.color || '#6B6E76';
+                  return `
+                    <div class="sc-project-group">
+                      <div class="sc-project-group-header" style="--project-accent: ${pColor};">
+                        <div class="sc-project-group-left">
+                          <span class="sc-dot" style="background: ${pColor};"></span>
+                          <strong>${esc(p.name)}</strong>
+                          ${p.key ? `<span class="sc-proj-key">${esc(p.key)}</span>` : ''}
+                        </div>
+                        <span class="sc-proj-meta">${group.tasks.length} issue${group.tasks.length === 1 ? '' : 's'}</span>
+                      </div>
+                      <div class="sc-task-list">
+                        ${group.tasks.map(t => this._renderCompletedSprintTaskRow(t, true)).join('')}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
         </div>
       </article>
     `;
+  },
+
+  _renderCompletedSprintTaskRow(task, isRolledOver = false) {
+    const esc = Utils.escapeHTML;
+    const typeIcon = {
+      bug: 'fa-circle-dot',
+      story: 'fa-bookmark',
+      epic: 'fa-bolt',
+      subtask: 'fa-network-wired'
+    }[task.type] || 'fa-square-check';
+
+    const priorityIcon = {
+      critical: 'fa-solid fa-angles-up',
+      highest: 'fa-solid fa-angles-up',
+      high: 'fa-solid fa-angle-up',
+      medium: 'fa-solid fa-equals',
+      low: 'fa-solid fa-angle-down',
+      lowest: 'fa-solid fa-angles-down'
+    }[task.priority] || 'fa-solid fa-equals';
+
+    const subtasks = AppState.tasks.filter(item => item.parentId === task.id);
+    const completedSubtasks = subtasks.filter(item => item.status === 'done').length;
+    const currentSprint = task.sprintId ? AppState.sprints.find(s => s.id === task.sprintId) : null;
+
+    return `
+      <div class="sc-task-row ${task.status === 'done' ? 'is-done' : ''}" data-completed-task-open="${esc(task.id)}" title="Click to view full details for ${esc(task.key)}">
+        <span class="type-icon type-${esc(task.type || 'task')}"><i class="fa-solid ${typeIcon}"></i></span>
+        <span class="sc-task-key">${esc(task.key)}</span>
+        <span class="planner-prio prio-${esc(task.priority)}" title="${esc(task.priority)} priority"><i class="${priorityIcon}"></i></span>
+        <span class="sc-task-title">${esc(task.title)}</span>
+
+        <div class="sc-task-meta">
+          ${subtasks.length ? `<span class="stc-chip" title="Subtasks"><i class="fa-solid fa-network-wired"></i> ${completedSubtasks}/${subtasks.length}</span>` : ''}
+          ${task.trackedTime > 0 || task.estimate > 0 ? `<span class="stc-chip" title="Logged / Estimated time"><i class="fa-regular fa-clock"></i> ${Utils.formatMinutes(task.trackedTime || 0)}${task.estimate ? `/${Utils.formatMinutes(task.estimate)}` : ''}</span>` : ''}
+          ${task.storyPoints > 0 ? `<span class="stc-chip" title="Story points"><i class="fa-solid fa-star"></i> ${task.storyPoints} pts</span>` : ''}
+          ${task.completedAt ? `<span class="stc-chip" title="Completed date"><i class="fa-solid fa-check"></i> ${Utils.formatDate(task.completedAt)}</span>` : ''}
+          ${isRolledOver ? `<span class="stc-chip is-rolled-over" title="Current assignment">${currentSprint ? `Now in ${esc(currentSprint.name)}` : 'In Backlog'}</span>` : ''}
+          ${typeof StatusControl !== 'undefined' ? StatusControl.pillHTML(task) : `<span class="badge badge-status-${esc(task.status)}">${esc(task.status)}</span>`}
+        </div>
+      </div>
+    `;
+  },
+
+  openSprintReportModal(sprintId) {
+    const sprint = AppState.sprints.find(s => s.id === sprintId);
+    if (!sprint) return;
+
+    const esc = Utils.escapeHTML;
+    const sprintTasks = AppState.tasks.filter(t => t.sprintId === sprint.id);
+    const stats = this._analyzeCompletedSprint(sprint, sprintTasks);
+    const completedGroups = this._groupTasksByProject(stats.completedTasks);
+    const incompleteGroups = this._groupTasksByProject(stats.incompleteTasks);
+
+    const bodyHTML = `
+      <div class="sprint-report-modal">
+        <div class="sprint-report-banner">
+          <div>
+            <div class="sprint-report-dates">
+              <span><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(sprint.startDate)} – ${Utils.formatDate(sprint.endDate)} (${stats.durationDays} days)</span>
+              <span>·</span>
+              <span><i class="fa-solid fa-flag-checkered"></i> Completed on ${esc(stats.completedAtLabel)}</span>
+            </div>
+            ${sprint.goal ? `<p class="sprint-report-goal"><i class="fa-solid fa-bullseye"></i> <strong>Goal:</strong> ${esc(sprint.goal)}</p>` : ''}
+          </div>
+          <div class="sprint-report-score">
+            <strong>${stats.completionPct}%</strong>
+            <span>Delivery Rate</span>
+          </div>
+        </div>
+
+        <div class="sc-kpi-grid" style="margin-bottom: 16px;">
+          <div class="sc-kpi-card">
+            <span class="sc-kpi-label">Issues Completed</span>
+            <strong class="sc-kpi-value">${stats.completedCount} / ${stats.committedCount}</strong>
+            <span class="sc-kpi-sub">${stats.incompleteCount} rolled over</span>
+          </div>
+          <div class="sc-kpi-card">
+            <span class="sc-kpi-label">Story Points Burned</span>
+            <strong class="sc-kpi-value">${stats.completedPoints} / ${stats.committedPoints} pts</strong>
+            <span class="sc-kpi-sub">${stats.pointsPct}% point velocity</span>
+          </div>
+          <div class="sc-kpi-card">
+            <span class="sc-kpi-label">Time Logged</span>
+            <strong class="sc-kpi-value">${Utils.formatMinutes(stats.totalTracked)}</strong>
+            <span class="sc-kpi-sub">${stats.totalEstimate ? `Estimated: ${Utils.formatMinutes(stats.totalEstimate)}` : 'No estimate'}</span>
+          </div>
+          <div class="sc-kpi-card">
+            <span class="sc-kpi-label">Projects Covered</span>
+            <strong class="sc-kpi-value">${stats.projectBreakdown.length}</strong>
+            <span class="sc-kpi-sub">${stats.allTasks.length} total issues</span>
+          </div>
+        </div>
+
+        ${stats.projectBreakdown.length > 0 ? `
+          <div class="sprint-report-section">
+            <h4><i class="fa-solid fa-folder-tree"></i> Project Delivery Breakdown</h4>
+            <div class="sprint-report-table-wrap">
+              <table class="sprint-report-table">
+                <thead>
+                  <tr>
+                    <th>Project</th>
+                    <th>Delivered</th>
+                    <th>Story Points</th>
+                    <th>Time Logged</th>
+                    <th>Completion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${stats.projectBreakdown.map(pb => `
+                    <tr>
+                      <td>
+                        <span class="sc-dot" style="background:${pb.project.color || '#388bfd'};display:inline-block;margin-right:6px;"></span>
+                        <strong>${esc(pb.project.name)}</strong>
+                        ${pb.project.key ? `<span class="sc-proj-key" style="margin-left:4px;">${esc(pb.project.key)}</span>` : ''}
+                      </td>
+                      <td>${pb.done} / ${pb.total} issues</td>
+                      <td>${pb.ptsDone} / ${pb.ptsTotal} pts</td>
+                      <td>${Utils.formatMinutes(pb.tracked)}</td>
+                      <td><strong>${pb.pct}%</strong></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="sprint-report-section">
+          <h4><i class="fa-solid fa-circle-check" style="color: var(--status-done);"></i> Completed Issues (${stats.completedTasks.length})</h4>
+          ${completedGroups.length ? `
+            <div class="sc-project-groups">
+              ${completedGroups.map(group => `
+                <div class="sc-project-group">
+                  <div class="sc-project-group-header" style="--project-accent: ${group.project.color || '#388bfd'};">
+                    <div class="sc-project-group-left">
+                      <span class="sc-dot" style="background: ${group.project.color || '#388bfd'};"></span>
+                      <strong>${esc(group.project.name)}</strong>
+                      ${group.project.key ? `<span class="sc-proj-key">${esc(group.project.key)}</span>` : ''}
+                    </div>
+                    <span class="sc-proj-meta">${group.tasks.length} issue${group.tasks.length === 1 ? '' : 's'}</span>
+                  </div>
+                  <div class="sc-task-list">
+                    ${group.tasks.map(t => this._renderCompletedSprintTaskRow(t, false)).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<div class="sc-empty-box">No completed issues in this sprint.</div>'}
+        </div>
+
+        ${incompleteGroups.length ? `
+          <div class="sprint-report-section" style="margin-top: 14px;">
+            <h4><i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-warning);"></i> Incomplete / Rolled-Over Issues (${stats.incompleteTasks.length})</h4>
+            <div class="sc-project-groups">
+              ${incompleteGroups.map(group => `
+                <div class="sc-project-group">
+                  <div class="sc-project-group-header" style="--project-accent: ${group.project.color || '#6B6E76'};">
+                    <div class="sc-project-group-left">
+                      <span class="sc-dot" style="background: ${group.project.color || '#6B6E76'};"></span>
+                      <strong>${esc(group.project.name)}</strong>
+                      ${group.project.key ? `<span class="sc-proj-key">${esc(group.project.key)}</span>` : ''}
+                    </div>
+                    <span class="sc-proj-meta">${group.tasks.length} issue${group.tasks.length === 1 ? '' : 's'}</span>
+                  </div>
+                  <div class="sc-task-list">
+                    ${group.tasks.map(t => this._renderCompletedSprintTaskRow(t, true)).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    Modal.open({
+      title: `<i class="fa-solid fa-chart-pie" style="color: var(--accent-success);"></i> Sprint Retrospective Report: ${esc(sprint.name)}`,
+      body: bodyHTML,
+      size: 'lg',
+      footerButtons: [
+        {
+          text: 'Reopen Sprint',
+          class: 'btn-secondary',
+          onClick: () => {
+            AppState.reopenSprint(sprint.id);
+            Modal.close();
+          }
+        },
+        { text: 'Close', class: 'btn-primary', onClick: () => Modal.close() }
+      ]
+    });
+
+    setTimeout(() => {
+      document.querySelectorAll('.sprint-report-modal [data-completed-task-open]').forEach(row => {
+        row.addEventListener('click', () => {
+          const tId = row.dataset.completedTaskOpen;
+          Modal.close();
+          if (tId) TaskModal.openDetail(tId);
+        });
+      });
+    }, 40);
   }
 };

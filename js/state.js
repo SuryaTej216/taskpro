@@ -982,10 +982,28 @@ const AppState = {
     const sprint = this.sprints.find(s => s.id === sprintId);
     if (!sprint) return;
 
+    const now = new Date().toISOString();
     const sprintTasks = this.tasks.filter(t => t.sprintId === sprintId);
+    const completed = sprintTasks.filter(t => t.status === 'done');
     const incomplete = sprintTasks.filter(t => t.status !== 'done');
 
     sprint.status = 'completed';
+    sprint.completedAt = now;
+    sprint.completionSnapshot = {
+      completedAt: now,
+      committedTaskIds: sprintTasks.map(t => t.id),
+      completedTaskIds: completed.map(t => t.id),
+      incompleteTaskIds: incomplete.map(t => t.id),
+      movedToSprintId: moveToNextSprintId || null,
+      committedCount: sprintTasks.length,
+      completedCount: completed.length,
+      incompleteCount: incomplete.length,
+      committedPoints: sprintTasks.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0),
+      completedPoints: completed.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0),
+      incompletePoints: incomplete.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0),
+      totalTrackedTime: sprintTasks.reduce((sum, t) => sum + (Number(t.trackedTime) || 0), 0),
+      totalEstimate: sprintTasks.reduce((sum, t) => sum + (Number(t.estimate) || 0), 0)
+    };
 
     // Move incomplete tasks to next sprint or backlog
     incomplete.forEach(t => {
@@ -997,6 +1015,17 @@ const AppState = {
     this.emit('sprints:changed', { action: 'complete', sprint });
     this.emit('tasks:changed', { action: 'bulk_update' });
     Toast.success(`Completed sprint "${sprint.name}"!`);
+  },
+
+  reopenSprint(sprintId) {
+    const sprint = this.sprints.find(s => s.id === sprintId);
+    if (!sprint) return false;
+
+    sprint.status = 'planned';
+    StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+    this.emit('sprints:changed', { action: 'reopen', sprint });
+    Toast.info(`Reopened sprint "${sprint.name}" as a planned sprint.`);
+    return true;
   },
 
   // -------------------------------------------------------------
