@@ -115,11 +115,58 @@ const PlannerView = {
     return (a.createdAt || '').localeCompare(b.createdAt || '');
   },
 
+  sortByItemId(a, b) {
+    const keyA = a.key || a.id || '';
+    const keyB = b.key || b.id || '';
+    const cmp = keyA.localeCompare(keyB, undefined, { numeric: true, sensitivity: 'base' });
+    if (cmp !== 0) return cmp;
+    return (a.id || '').localeCompare(b.id || '', undefined, { numeric: true, sensitivity: 'base' });
+  },
+
+  groupTasksByProject(tasks) {
+    const groups = [];
+    const projectMap = new Map();
+
+    (AppState.projects || []).forEach(p => {
+      projectMap.set(p.id, {
+        project: p,
+        tasks: []
+      });
+    });
+
+    const noProjectGroup = {
+      project: { id: null, name: 'No Project', key: '', color: '#6B6E76' },
+      tasks: []
+    };
+
+    tasks.forEach(t => {
+      if (t.projectId && projectMap.has(t.projectId)) {
+        projectMap.get(t.projectId).tasks.push(t);
+      } else {
+        noProjectGroup.tasks.push(t);
+      }
+    });
+
+    projectMap.forEach(group => {
+      if (group.tasks.length > 0) {
+        group.tasks.sort((a, b) => this.sortByItemId(a, b));
+        groups.push(group);
+      }
+    });
+
+    if (noProjectGroup.tasks.length > 0) {
+      noProjectGroup.tasks.sort((a, b) => this.sortByItemId(a, b));
+      groups.push(noProjectGroup);
+    }
+
+    return groups;
+  },
+
   getAvailableTasks(tasks, days) {
     const lastKey = days[2].key;
     return tasks.filter(t =>
       this.isOpen(t) && (!t.plannedDate || t.plannedDate > lastKey)
-    ).sort((a, b) => this.sortPlanned(a, b));
+    ).sort((a, b) => this.sortByItemId(a, b));
   },
 
   getProjectColor(task) {
@@ -343,37 +390,57 @@ const PlannerView = {
     const search = query.trim();
     const matches = search
       ? tasks.filter(t => Utils.fuzzyMatch(search, `${t.key} ${t.title} ${t.priority} ${t.status}`))
-      : tasks.slice(0, 5);
+      : tasks;
 
     if (!matches.length) {
       return `<div class="planner-smart-empty">${search ? 'No matching tasks.' : 'No open tasks to add right now.'}</div>`;
     }
 
-    const todayKey = days[0].key;
-    return matches.map(t => {
-      const due = this.dueKey(t);
-      let timing = '';
-      if (due && due < todayKey) timing = '<span class="planner-smart-tag is-overdue">Overdue</span>';
-      else if (due && due <= days[2].key) timing = `<span class="planner-smart-tag">Due ${Utils.formatRelativeDate(due + 'T00:00:00')}</span>`;
-      else if (t.plannedDate) timing = `<span class="planner-smart-tag">Scheduled ${Utils.formatRelativeDate(t.plannedDate + 'T00:00:00')}</span>`;
+    const groups = this.groupTasksByProject(matches);
 
+    return groups.map(group => {
+      const p = group.project;
+      const pColor = p.color || '#579DFF';
       return `
-        <div class="planner-smart-item" data-task-id="${Utils.escapeHTML(t.id)}">
-          <div class="planner-smart-copy" data-action="open" title="Open task details">
-            <span class="planner-smart-key">${Utils.escapeHTML(t.key)}</span>
-            <span class="planner-smart-title">${Utils.escapeHTML(t.title)}</span>
-            <span class="planner-smart-meta">
-              <span class="planner-prio prio-${Utils.escapeHTML(t.priority)}" title="${Utils.escapeHTML(t.priority)} priority"><i class="${this.PRIORITY_ICON[t.priority] || 'fa-solid fa-equals'}"></i></span>
-              ${t.estimate ? `<span class="planner-est"><i class="fa-regular fa-clock"></i> ${Utils.formatMinutes(t.estimate)}</span>` : ''}
-              ${timing}
-            </span>
+        <div class="planner-smart-group">
+          <div class="planner-smart-group-header" style="--project-color: ${pColor};">
+            <span class="planner-smart-group-dot" style="background: ${pColor};"></span>
+            <span class="planner-smart-group-name" title="${Utils.escapeHTML(p.name)}">${Utils.escapeHTML(p.name)}</span>
+            ${p.key ? `<span class="planner-smart-group-key">${Utils.escapeHTML(p.key)}</span>` : ''}
+            <span class="planner-smart-group-count">${group.tasks.length}</span>
           </div>
-          <button type="button" class="planner-smart-add-btn" data-action="add-existing-task" title="Add to selected day" aria-label="Add ${Utils.escapeHTML(t.key)} to selected day">
-            <i class="fa-solid fa-plus" aria-hidden="true"></i>
-          </button>
+          <div class="planner-smart-group-items">
+            ${group.tasks.map(t => this.renderSmartItem(t, days)).join('')}
+          </div>
         </div>
       `;
     }).join('');
+  },
+
+  renderSmartItem(t, days) {
+    const todayKey = days[0].key;
+    const due = this.dueKey(t);
+    let timing = '';
+    if (due && due < todayKey) timing = '<span class="planner-smart-tag is-overdue">Overdue</span>';
+    else if (due && due <= days[2].key) timing = `<span class="planner-smart-tag">Due ${Utils.formatRelativeDate(due + 'T00:00:00')}</span>`;
+    else if (t.plannedDate) timing = `<span class="planner-smart-tag">Scheduled ${Utils.formatRelativeDate(t.plannedDate + 'T00:00:00')}</span>`;
+
+    return `
+      <div class="planner-smart-item" data-task-id="${Utils.escapeHTML(t.id)}">
+        <div class="planner-smart-copy" data-action="open" title="Open task details">
+          <span class="planner-smart-key">${Utils.escapeHTML(t.key)}</span>
+          <span class="planner-smart-title">${Utils.escapeHTML(t.title)}</span>
+          <span class="planner-smart-meta">
+            <span class="planner-prio prio-${Utils.escapeHTML(t.priority)}" title="${Utils.escapeHTML(t.priority)} priority"><i class="${this.PRIORITY_ICON[t.priority] || 'fa-solid fa-equals'}"></i></span>
+            ${t.estimate ? `<span class="planner-est"><i class="fa-regular fa-clock"></i> ${Utils.formatMinutes(t.estimate)}</span>` : ''}
+            ${timing}
+          </span>
+        </div>
+        <button type="button" class="planner-smart-add-btn" data-action="add-existing-task" title="Add to selected day" aria-label="Add ${Utils.escapeHTML(t.key)} to selected day">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i>
+        </button>
+      </div>
+    `;
   },
 
   renderPlannedTask(t, day) {

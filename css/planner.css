@@ -48,6 +48,7 @@
 .planner-action-input { display: block; width: 100%; min-width: 0; height: 2.25rem; margin: 0 0 0.75rem; padding: 0 0.625rem; border: 1px solid var(--border); border-radius: var(--radius-md); outline: 0; background: var(--surface-sunken); color: var(--text-primary); font: inherit; font-size: 0.8125rem; }
 .planner-action-input:focus { border-color: var(--border-focused); box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-focused) 25%, transparent); }
 .planner-action-submit { width: 100%; justify-content: center; }
+.planner-existing-popover { width: min(25rem, calc(100vw - 2rem)); }
 .planner-existing-popover .planner-smart-search { margin: 0 0 0.5rem; }
 
 /* ---------- Summary KPIs ---------- */
@@ -287,7 +288,77 @@
 .planner-smart-search i { font-size: 0.6875rem; }
 .planner-smart-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.75rem; }
 
-.planner-smart-list { display: flex; flex-direction: column; gap: 0.25rem; max-height: 15rem; overflow-y: auto; }
+.planner-smart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.planner-smart-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.planner-smart-group-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-surface-elevated, var(--surface-sunken));
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--project-color, var(--accent-primary));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.planner-smart-group-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.planner-smart-group-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-smart-group-key {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  background: var(--background-neutral);
+  padding: 0.0625rem 0.3125rem;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.planner-smart-group-count {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 0.0625rem 0.375rem;
+  background: var(--background-neutral);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.planner-smart-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
 
 .planner-smart-item {
   display: flex;

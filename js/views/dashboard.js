@@ -1,42 +1,48 @@
 /**
- * TaskForge - Productivity Command Center (Dashboard)
+ * TaskForge - Modern Executive Command Center (Dashboard)
  *
- * An action-first home screen. Everything here is one click (or one key) away:
- * - Quick capture with inline syntax (!high ~30m tomorrow #bug)
- * - "Do this next": a single ranked recommendation (deadline + priority + plan + momentum)
- * - Today's plan with complete / push / unplan actions and an auto-planner
- * - Triage of overdue, blocked and carried-over work
- * - Built-in focus timer that logs tracked time to the task
- * - Work-in-progress, smart "Up next" suggestions, deadlines and sprint pulse
- *
- * Dashboard shortcuts: Q = capture · F = start/pause focus · N = next suggestion
+ * High-density, zero-fluff workspace providing complete control over the entire app:
+ * - Global Project Scope Switcher & Workspace Launchers
+ * - Compact Inline Focus Timer (persists across views & logs tracked time)
+ * - Smart Quick-Capture Bar with inline Project, Priority & Target selectors + syntax parsing
+ * - 4-Card Interactive Operational Pulse Strip (Today, WIP, Triage, Active Sprint)
+ * - Unified Execution Workbench with tabs (Today, Triage, In Progress, Sprint, Backlog, Done),
+ *   segregated by project & naturally sorted by item IDs, with inline StatusControl & quick actions
+ * - App Control Center: Projects Matrix, Sprint Lifecycle Controller & 7-Day Deadline Radar
  */
 
 const DashboardView = {
-  skipIds: new Set(),
+  activeTab: 'today',
+  groupByProject: true,
+  workbenchQuery: '',
   refocusCapture: false,
   keyboardBound: false,
   timer: null,
   tickHandle: null,
   baseTitle: document.title || 'TaskForge',
 
-  RING_C: 2 * Math.PI * 52,
   PRIORITY_SCORE: { critical: 100, highest: 80, high: 60, medium: 35, low: 15, lowest: 5 },
   PRIORITY_ICON: {
     critical: 'fa-angles-up', highest: 'fa-angles-up', high: 'fa-angle-up',
     medium: 'fa-equals', low: 'fa-angle-down', lowest: 'fa-angles-down'
   },
+  TYPE_ICON: {
+    bug: 'fa-circle-dot',
+    story: 'fa-bookmark',
+    epic: 'fa-bolt',
+    subtask: 'fa-network-wired',
+    task: 'fa-square-check'
+  },
   PRESETS: [
-    { work: 25, brk: 5, label: '25 / 5' },
-    { work: 50, brk: 10, label: '50 / 10' },
-    { work: 15, brk: 3, label: '15 / 3' }
+    { work: 25, brk: 5, label: '25m' },
+    { work: 50, brk: 10, label: '50m' },
+    { work: 15, brk: 3, label: '15m' }
   ],
   CAPACITY_STEPS: [4, 5, 6, 7, 8],
-  SESSION_GOAL: 4,
   STORAGE: { timer: 'tf_dash_timer', focusLog: 'tf_dash_focus_log', capacity: 'tf_dash_capacity' },
 
   // -------------------------------------------------------------
-  // SMALL HELPERS
+  // CORE UTILITIES & SORTING
   // -------------------------------------------------------------
 
   readJSON(key, fallback) {
@@ -49,7 +55,7 @@ const DashboardView = {
   },
 
   writeJSON(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch (err) { /* storage full / blocked */ }
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (err) { /* ignore */ }
   },
 
   todayKey() { return PlannerView.toKey(new Date()); },
@@ -77,7 +83,7 @@ const DashboardView = {
 
   projectColor(task) {
     const color = PlannerView.getProjectColor(task);
-    return /^#[0-9a-f]{3,8}$/i.test(color || '') ? color : '#579DFF';
+    return /^#[0-9a-f]{3,8}$/i.test(color || '') ? color : '#388bfd';
   },
 
   fmtClock(seconds) {
@@ -97,7 +103,52 @@ const DashboardView = {
     return { minutes: entry ? entry.minutes || 0 : 0, sessions: entry ? entry.sessions || 0 : 0 };
   },
 
-  /** Ranking used by "Do this next" and suggestions. Higher = do sooner. */
+  /** Natural alphanumeric sort by item key/ID (e.g., WEB-1, WEB-2, WEB-10) */
+  sortByItemId(a, b) {
+    const keyA = a.key || a.id || '';
+    const keyB = b.key || b.id || '';
+    const cmp = keyA.localeCompare(keyB, undefined, { numeric: true, sensitivity: 'base' });
+    if (cmp !== 0) return cmp;
+    return (a.id || '').localeCompare(b.id || '', undefined, { numeric: true, sensitivity: 'base' });
+  },
+
+  /** Segregates a list of tasks by project and sorts items within each project by item ID */
+  groupTasksByProject(tasks) {
+    const groups = [];
+    const projectMap = new Map();
+
+    (AppState.projects || []).forEach(p => {
+      projectMap.set(p.id, { project: p, tasks: [] });
+    });
+
+    const noProjectGroup = {
+      project: { id: null, name: 'No Project', key: '', color: '#6B6E76' },
+      tasks: []
+    };
+
+    tasks.forEach(t => {
+      if (t.projectId && projectMap.has(t.projectId)) {
+        projectMap.get(t.projectId).tasks.push(t);
+      } else {
+        noProjectGroup.tasks.push(t);
+      }
+    });
+
+    projectMap.forEach(group => {
+      if (group.tasks.length > 0) {
+        group.tasks.sort((a, b) => this.sortByItemId(a, b));
+        groups.push(group);
+      }
+    });
+
+    if (noProjectGroup.tasks.length > 0) {
+      noProjectGroup.tasks.sort((a, b) => this.sortByItemId(a, b));
+      groups.push(noProjectGroup);
+    }
+
+    return groups;
+  },
+
   score(task, today) {
     let s = this.PRIORITY_SCORE[task.priority] ?? 35;
     const due = PlannerView.dueKey(task);
@@ -120,30 +171,8 @@ const DashboardView = {
     return s;
   },
 
-  reasonsFor(task, today) {
-    const reasons = [];
-    const due = PlannerView.dueKey(task);
-    if (due) {
-      const diff = this.dayDiff(today, due);
-      if (diff < 0) reasons.push({ tone: 'danger', icon: 'fa-triangle-exclamation', label: `Overdue ${-diff}d` });
-      else if (diff === 0) reasons.push({ tone: 'danger', icon: 'fa-calendar-day', label: 'Due today' });
-      else if (diff === 1) reasons.push({ tone: 'warning', icon: 'fa-calendar', label: 'Due tomorrow' });
-      else if (diff <= 7) reasons.push({ tone: 'warning', icon: 'fa-calendar', label: `Due in ${diff}d` });
-    }
-    if (task.plannedDate === today) reasons.push({ tone: 'brand', icon: 'fa-calendar-check', label: 'Planned today' });
-    else if (task.plannedDate && task.plannedDate < today) reasons.push({ tone: 'warning', icon: 'fa-clock-rotate-left', label: 'Carried over' });
-    if (task.status === 'inprogress') reasons.push({ tone: 'brand', icon: 'fa-bolt', label: 'Already started' });
-    if (task.status === 'inreview') reasons.push({ tone: 'violet', icon: 'fa-eye', label: 'In review' });
-    if (['critical', 'highest', 'high'].includes(task.priority)) {
-      reasons.push({ tone: task.priority === 'high' ? 'warning' : 'danger', icon: this.PRIORITY_ICON[task.priority], label: `${task.priority[0].toUpperCase()}${task.priority.slice(1)} priority` });
-    }
-    const est = Number(task.estimate) || 0;
-    if (est > 0 && est <= 30) reasons.push({ tone: 'success', icon: 'fa-feather', label: 'Quick win' });
-    return reasons;
-  },
-
   // -------------------------------------------------------------
-  // DATA
+  // CONTEXT & STATE AGGREGATION
   // -------------------------------------------------------------
 
   getContext() {
@@ -156,18 +185,15 @@ const DashboardView = {
     const scoped = all.filter(t => !AppState.selectedProjectId || t.projectId === AppState.selectedProjectId);
     const byScore = (a, b) => this.score(b, today) - this.score(a, today);
 
-    // Parents whose subtasks are still open are tracked via those subtasks instead.
-    const parentsWithOpenKids = new Set(scoped.filter(t => t.parentId && this.isOpen(t)).map(t => t.parentId));
-
     const plannedToday = scoped.filter(t => t.plannedDate === today && t.status !== 'cancelled');
-    const todayOpen = plannedToday.filter(t => this.isOpen(t)).sort((a, b) => PlannerView.sortPlanned(a, b));
+    const todayOpen = plannedToday.filter(t => this.isOpen(t)).sort((a, b) => this.sortByItemId(a, b));
+
     const completedToday = new Map();
     scoped.forEach(t => {
       if (t.status !== 'done') return;
       if (this.dateKeyOf(t.completedAt) === today || t.plannedDate === today) completedToday.set(t.id, t);
     });
-    const doneToday = [...completedToday.values()]
-      .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
+    const doneToday = [...completedToday.values()].sort((a, b) => this.sortByItemId(a, b));
 
     // Triage: blocked > overdue > carried over
     const attentionMap = new Map();
@@ -181,75 +207,50 @@ const DashboardView = {
       if (!this.isOpen(t) || attentionMap.has(t.id)) return;
       if (t.plannedDate && t.plannedDate < today) attentionMap.set(t.id, { task: t, reason: 'carryover', rank: 2 });
     });
-    const attention = [...attentionMap.values()].sort((a, b) => a.rank - b.rank || byScore(a.task, b.task));
+    const attention = [...attentionMap.values()].sort((a, b) => a.rank - b.rank || this.sortByItemId(a.task, b.task));
+
+    const wip = scoped.filter(t => t.status === 'inprogress' || t.status === 'inreview').sort((a, b) => this.sortByItemId(a, b));
 
     const ranked = scoped
-      .filter(t => this.isOpen(t) && t.status !== 'blocked' && t.type !== 'epic' && !parentsWithOpenKids.has(t.id))
+      .filter(t => this.isOpen(t) && t.status !== 'blocked' && t.type !== 'epic')
       .sort(byScore);
 
-    // "Do this next": the task currently being focused on wins, otherwise the top-ranked one.
-    const timerTask = timer.taskId ? AppState.tasks.find(t => t.id === timer.taskId && this.isOpen(t)) : null;
-    let candidates = ranked.filter(t => !this.skipIds.has(t.id));
-    if (!candidates.length && ranked.length) {
-      this.skipIds.clear();
-      candidates = ranked;
-    }
-    const focusTask = (timerTask && timer.state !== 'idle' && timer.mode === 'focus') ? timerTask : (candidates[0] || null);
+    const backlogOpen = scoped
+      .filter(t => this.isOpen(t) && t.plannedDate !== today)
+      .sort((a, b) => this.sortByItemId(a, b));
 
     const suggestions = ranked
-      .filter(t => t.plannedDate !== today && !attentionMap.has(t.id) && (!focusTask || t.id !== focusTask.id))
+      .filter(t => t.plannedDate !== today && !attentionMap.has(t.id))
       .slice(0, 5);
 
-    const wip = scoped.filter(t => t.status === 'inprogress' || t.status === 'inreview').sort(byScore);
+    const availableForToday = scoped
+      .filter(t => this.isOpen(t) && t.plannedDate !== today)
+      .sort((a, b) => this.sortByItemId(a, b));
 
     const deadlines = scoped
       .filter(t => {
         const due = PlannerView.dueKey(t);
-        return this.isOpen(t) && due && due >= today && due <= weekEnd;
+        return this.isOpen(t) && due && due <= weekEnd;
       })
-      .sort((a, b) => PlannerView.dueKey(a).localeCompare(PlannerView.dueKey(b)) ||
-        (PlannerView.PRIORITY_WEIGHT[a.priority] ?? 3) - (PlannerView.PRIORITY_WEIGHT[b.priority] ?? 3))
-      .slice(0, 6);
+      .sort((a, b) => PlannerView.dueKey(a).localeCompare(PlannerView.dueKey(b)) || this.sortByItemId(a, b))
+      .slice(0, 8);
 
     const remainingMinutes = todayOpen.reduce((sum, t) =>
       sum + Math.max(0, (Number(t.estimate) || 0) - (Number(t.trackedTime) || 0)), 0);
-    const unestimated = todayOpen.filter(t => !(Number(t.estimate) > 0)).length;
 
-    // Completion history (all projects): streak + last 7 days
-    const doneByDay = {};
-    all.forEach(t => {
-      if (t.status !== 'done') return;
-      const key = this.dateKeyOf(t.completedAt);
-      if (key) doneByDay[key] = (doneByDay[key] || 0) + 1;
-    });
-    let streak = 0;
-    let cursor = doneByDay[today] ? today : this.addDays(today, -1);
-    while (doneByDay[cursor]) {
-      streak++;
-      cursor = this.addDays(cursor, -1);
-    }
-    const week = [];
-    for (let i = 6; i >= 0; i--) {
-      const key = this.addDays(today, -i);
-      const date = new Date(`${key}T00:00:00`);
-      week.push({ key, count: doneByDay[key] || 0, label: date.toLocaleDateString('en-US', { weekday: 'narrow' }) });
-    }
-
-    // Timer task options: today first, then WIP, then the best of the rest.
-    const optionIds = new Set();
-    const timerOptions = [];
-    [...(timerTask ? [timerTask] : []), ...todayOpen, ...wip, ...ranked.slice(0, 10)].forEach(t => {
-      if (!optionIds.has(t.id) && this.isOpen(t) && timerOptions.length < 18) {
-        optionIds.add(t.id);
-        timerOptions.push(t);
-      }
-    });
-
+    // Active / Planned Sprints
     const activeSprint = AppState.sprints.find(s =>
-      s.status === 'active' && (!AppState.selectedProjectId || !s.projectId || s.projectId === AppState.selectedProjectId));
+      s.status === 'active' && (!AppState.selectedProjectId || !s.projectId || s.projectId === AppState.selectedProjectId)
+    ) || AppState.sprints.find(s => s.status === 'active');
+
+    const plannedSprints = AppState.sprints.filter(s =>
+      s.status === 'planned' && (!AppState.selectedProjectId || !s.projectId || s.projectId === AppState.selectedProjectId)
+    );
+
     let sprint = null;
     if (activeSprint) {
-      const sprintTasks = scoped.filter(t => t.sprintId === activeSprint.id);
+      const sprintTasks = all.filter(t => t.sprintId === activeSprint.id && (!AppState.selectedProjectId || t.projectId === AppState.selectedProjectId));
+      const openSprintTasks = sprintTasks.filter(t => this.isOpen(t)).sort((a, b) => this.sortByItemId(a, b));
       const done = sprintTasks.filter(t => t.status === 'done').length;
       const points = sprintTasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
       const donePoints = sprintTasks.filter(t => t.status === 'done').reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
@@ -264,21 +265,64 @@ const DashboardView = {
         }
       }
       sprint = {
-        sprint: activeSprint, done, total: sprintTasks.length,
+        sprint: activeSprint,
+        tasks: sprintTasks.sort((a, b) => this.sortByItemId(a, b)),
+        openTasks: openSprintTasks,
+        done,
+        total: sprintTasks.length,
         percent: sprintTasks.length ? Math.round(done / sprintTasks.length * 100) : 0,
-        points, donePoints, daysLeft, elapsedPct
+        points,
+        donePoints,
+        daysLeft,
+        elapsedPct,
+        todoCount: sprintTasks.filter(t => t.status === 'todo' || t.status === 'backlog').length,
+        wipCount: sprintTasks.filter(t => t.status === 'inprogress' || t.status === 'inreview').length
       };
     }
+
+    // Timer options
+    const timerTask = timer.taskId ? AppState.tasks.find(t => t.id === timer.taskId && this.isOpen(t)) : null;
+    const optionIds = new Set();
+    const timerOptions = [];
+    [...(timerTask ? [timerTask] : []), ...todayOpen, ...wip, ...ranked.slice(0, 12)].forEach(t => {
+      if (!optionIds.has(t.id) && this.isOpen(t) && timerOptions.length < 20) {
+        optionIds.add(t.id);
+        timerOptions.push(t);
+      }
+    });
 
     const completedCount = doneToday.length;
     const todayTotal = completedCount + todayOpen.length;
 
+    // Project stats
+    const projectStats = AppState.projects.map(p => {
+      const pTasks = all.filter(t => t.projectId === p.id);
+      const pOpen = pTasks.filter(t => this.isOpen(t));
+      const pDone = pTasks.filter(t => t.status === 'done');
+      const pOverdue = pOpen.filter(t => {
+        const d = PlannerView.dueKey(t);
+        return d && d < today;
+      });
+      const pct = pTasks.length ? Math.round((pDone.length / pTasks.length) * 100) : 0;
+      return {
+        project: p,
+        total: pTasks.length,
+        open: pOpen.length,
+        done: pDone.length,
+        overdue: pOverdue.length,
+        pct
+      };
+    });
+
     return {
-      today, tomorrow, timer, scoped, todayOpen, doneToday, completedCount, todayTotal,
+      today, tomorrow, timer, all, scoped,
+      todayOpen, doneToday, completedCount, todayTotal,
       todayPct: todayTotal ? Math.round(completedCount / todayTotal * 100) : 0,
-      attention, ranked, focusTask, suggestions, wip, deadlines, remainingMinutes, unestimated,
-      capacityHours: this.getCapacityHours(), streak, week, focus: this.getFocusToday(),
-      timerOptions, sprint,
+      attention, attentionMap, ranked, suggestions, wip, backlogOpen, availableForToday,
+      deadlines, remainingMinutes,
+      capacityHours: this.getCapacityHours(),
+      focus: this.getFocusToday(),
+      timerOptions, sprint, plannedSprints, projectStats,
       project: AppState.projects.find(p => p.id === AppState.selectedProjectId) || null
     };
   },
@@ -294,34 +338,23 @@ const DashboardView = {
 
     container.innerHTML = `
       <div class="view-page dash-page" id="dashboard-page">
-        ${this.renderHeader(ctx)}
-        ${this.renderCapture(ctx)}
-        ${this.renderKpis(ctx)}
-        <div class="dash-grid">
-          <div class="dash-col dash-col-main">
-            ${this.renderFocusNow(ctx)}
-            ${this.renderToday(ctx)}
-            ${this.renderAttention(ctx)}
+        ${this.renderCommandBar(ctx)}
+        ${this.renderQuickCapture(ctx)}
+        ${this.renderPulseStrip(ctx)}
+        <div class="dash-workspace">
+          <div class="dash-workbench-col">
+            ${this.renderWorkbench(ctx)}
           </div>
-          <aside class="dash-col dash-col-side" aria-label="Focus and planning tools">
-            ${this.renderTimer(ctx)}
-            ${this.renderWip(ctx)}
-            ${this.renderUpNext(ctx)}
-            ${this.renderDeadlines(ctx)}
-            ${this.renderSprint(ctx)}
+          <aside class="dash-control-col" aria-label="Application control center">
+            ${this.renderProjectsControl(ctx)}
+            ${this.renderSprintControl(ctx)}
+            ${this.renderDeadlinesControl(ctx)}
           </aside>
         </div>
-        <footer class="dash-shortcuts" aria-label="Dashboard keyboard shortcuts">
-          <span><kbd>Q</kbd> Quick capture</span>
-          <span><kbd>F</kbd> Start / pause focus</span>
-          <span><kbd>N</kbd> Next suggestion</span>
-          <span><kbd>C</kbd> Full task form</span>
-          <span><kbd>Ctrl</kbd><kbd>K</kbd> Command palette</span>
-        </footer>
       </div>
     `;
 
-    this.attachListeners(container);
+    this.attachListeners(container, ctx);
     if (this.timer && this.timer.state === 'running') this.ensureTicking();
 
     if (this.refocusCapture) {
@@ -331,76 +364,140 @@ const DashboardView = {
     }
   },
 
-  renderHeader(ctx) {
-    const hour = new Date().getHours();
-    const greeting = hour < 5 ? 'Working late' : hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    const name = (AppState.settings && AppState.settings.userName) || 'Surya';
-    const dateLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-    const scope = ctx.project ? this.esc(ctx.project.name) : 'All projects';
+  // 1. TOP COMMAND BAR & PROJECT SCOPE SWITCHER + INLINE FOCUS TIMER
+  renderCommandBar(ctx) {
+    const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const allOpenCount = ctx.all.filter(t => this.isOpen(t)).length;
 
-    let summary;
-    if (ctx.todayTotal === 0) {
-      summary = 'Nothing planned yet — capture something or pull suggested work into today.';
-    } else if (ctx.todayOpen.length === 0) {
-      summary = `Today's plan is complete — <strong>${ctx.completedCount}</strong> task${ctx.completedCount === 1 ? '' : 's'} shipped. 🎉`;
-    } else {
-      summary = `<strong>${ctx.todayOpen.length}</strong> task${ctx.todayOpen.length === 1 ? '' : 's'} left today` +
-        (ctx.remainingMinutes ? ` · ~${Utils.formatMinutes(ctx.remainingMinutes)} of work` : '');
-    }
-    if (ctx.attention.length) {
-      summary += ` · <a href="#" class="dash-inline-link" data-dash="scroll-attention">${ctx.attention.length} need${ctx.attention.length === 1 ? 's' : ''} attention</a>`;
-    }
+    const t = ctx.timer;
+    const remaining = this.timerRemaining();
+    const running = t.state === 'running';
+    const activeTimerTask = t.taskId ? AppState.tasks.find(x => x.id === t.taskId) : null;
 
     return `
-      <header class="dash-header">
-        <div class="dash-greeting">
-          <span class="dash-eyebrow"><i class="fa-regular fa-calendar"></i> ${dateLabel} <span class="dash-sep">·</span> ${scope}</span>
-          <h1>${greeting}, ${this.esc(name)}</h1>
-          <p>${summary}</p>
+      <header class="dash-cmd-bar">
+        <div class="dash-cmd-left">
+          <div class="dash-cmd-title-row">
+            <div class="dash-cmd-brand">
+              <span class="dash-cmd-badge"><i class="fa-solid fa-terminal"></i></span>
+              <div>
+                <div class="dash-cmd-eyebrow">
+                  <span>${dateLabel}</span>
+                  <span class="dash-sep">·</span>
+                  <span>${ctx.scoped.filter(x => this.isOpen(x)).length} open</span>
+                  ${ctx.focus.minutes > 0 ? `<span class="dash-sep">·</span><span class="tone-violet"><i class="fa-solid fa-stopwatch"></i> ${Utils.formatMinutes(ctx.focus.minutes)} focused</span>` : ''}
+                </div>
+                <h1>Command Center</h1>
+              </div>
+            </div>
+          </div>
+
+          <!-- Global Project Scope Pills -->
+          <div class="dash-scope-bar" role="tablist" aria-label="Project scope filter">
+            <button type="button" class="dash-scope-pill ${!AppState.selectedProjectId ? 'is-active' : ''}" data-dash="scope-project" data-project-id="">
+              <i class="fa-solid fa-layer-group"></i>
+              <span>All Projects</span>
+              <span class="dash-scope-count">${allOpenCount}</span>
+            </button>
+            ${ctx.projectStats.map(ps => `
+              <button type="button" class="dash-scope-pill ${AppState.selectedProjectId === ps.project.id ? 'is-active' : ''}"
+                data-dash="scope-project" data-project-id="${this.esc(ps.project.id)}" title="${this.esc(ps.project.name)}">
+                <span class="dash-scope-dot" style="background:${ps.project.color || '#388bfd'}"></span>
+                <span>${this.esc(ps.project.name)}</span>
+                <span class="dash-scope-count">${ps.open}</span>
+              </button>
+            `).join('')}
+            <button type="button" class="dash-scope-pill dash-scope-add" data-dash="new-project" title="Create New Project">
+              <i class="fa-solid fa-plus"></i> Project
+            </button>
+          </div>
         </div>
-        <div class="dash-header-actions">
-          <button type="button" class="btn btn-ghost btn-sm" data-dash="go" data-view="planner" id="dash-open-planner">
-            <i class="fa-solid fa-calendar-day"></i> Planner
-          </button>
-          <button type="button" class="btn btn-ghost btn-sm" data-dash="go" data-view="tasks" id="dash-open-board">
-            <i class="fa-solid fa-table-columns"></i> Board
-          </button>
-          <button type="button" class="btn btn-primary btn-sm" data-dash="create" id="dash-create-task">
-            <i class="fa-solid fa-plus"></i> New task
-          </button>
+
+        <div class="dash-cmd-right">
+          <!-- Compact Inline Focus Timer -->
+          <div class="dash-inline-timer ${running ? 'is-running' : ''} mode-${t.mode}" id="dash-timer">
+            <button type="button" class="dash-timer-play" data-dash="timer-toggle" id="dash-timer-toggle" title="${running ? 'Pause focus timer (F)' : 'Start focus timer (F)'}">
+              <i class="fa-solid ${running ? 'fa-pause' : 'fa-play'}"></i>
+            </button>
+            <div class="dash-timer-readout">
+              <strong id="dash-timer-time">${this.fmtClock(remaining)}</strong>
+              <select id="dash-timer-task" data-dash-timer-task title="Select task to log time to">
+                <option value="">${t.mode === 'break' ? 'Break' : 'Focus task…'}</option>
+                ${ctx.timerOptions.map(o => `<option value="${this.esc(o.id)}" ${o.id === t.taskId ? 'selected' : ''}>${this.esc(o.key)} · ${this.esc(o.title.slice(0, 26))}</option>`).join('')}
+              </select>
+            </div>
+            <div class="dash-timer-mini-actions">
+              ${this.PRESETS.map(p => `
+                <button type="button" class="dash-preset-chip ${p.work === t.work ? 'is-active' : ''}" data-dash="timer-preset" data-work="${p.work}" data-brk="${p.brk}" title="${p.work}m focus / ${p.brk}m break">${p.label}</button>
+              `).join('')}
+              ${t.state !== 'idle' || t.mode === 'break' ? `
+                <button type="button" class="dash-timer-stop-btn" data-dash="timer-stop" id="dash-timer-stop" title="Stop & log elapsed time">
+                  <i class="fa-solid fa-stop"></i>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- Global App Creation & Control Actions -->
+          <div class="dash-cmd-actions">
+            <button type="button" class="btn btn-secondary btn-sm" data-dash="bulk-create" title="Bulk Create Tasks">
+              <i class="fa-solid fa-layer-group"></i> Bulk
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" data-dash="new-sprint" title="Create Sprint">
+              <i class="fa-solid fa-repeat"></i> + Sprint
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" data-dash="create" id="dash-create-task" title="Create Task (C)">
+              <i class="fa-solid fa-plus"></i> New Task
+            </button>
+          </div>
         </div>
       </header>
     `;
   },
 
-  renderCapture(ctx) {
+  // 2. SMART QUICK-CAPTURE BAR WITH INLINE SELECTORS
+  renderQuickCapture(ctx) {
     const hasProject = AppState.projects.length > 0;
+    const defaultProjId = AppState.selectedProjectId || (AppState.projects[0] ? AppState.projects[0].id : '');
+
     return `
-      <section class="dash-capture-wrap" aria-label="Quick capture">
+      <section class="dash-capture-wrap" aria-label="Quick task capture">
         <form class="dash-capture" data-dash-capture autocomplete="off">
           <span class="dash-capture-icon"><i class="fa-solid fa-bolt"></i></span>
           <input id="dash-capture-input" type="text" maxlength="240" ${hasProject ? '' : 'disabled'}
-            placeholder="${hasProject ? 'Capture a task and hit Enter — e.g. “Write release notes !high ~30m tomorrow”' : 'Create a project first to capture tasks'}"
+            placeholder="${hasProject ? 'Quick capture task… (supports !high ~30m #bug or use controls →)' : 'Create a project first to capture tasks'}"
             aria-label="Quick capture a task">
-          <div class="dash-capture-preview" data-dash-preview>${this.renderCapturePreview(this.parseCapture(''), ctx)}</div>
-          <kbd class="dash-kbd" title="Press Q to focus">Q</kbd>
+          <div class="dash-capture-preview" data-dash-preview></div>
+
+          <div class="dash-capture-controls">
+            <select class="dash-capture-select" data-capture-project title="Target Project" ${hasProject ? '' : 'disabled'}>
+              ${AppState.projects.map(p => `<option value="${this.esc(p.id)}" ${p.id === defaultProjId ? 'selected' : ''}>${this.esc(p.key)} · ${this.esc(p.name)}</option>`).join('')}
+            </select>
+            <select class="dash-capture-select" data-capture-priority title="Priority" ${hasProject ? '' : 'disabled'}>
+              <option value="critical">! Critical</option>
+              <option value="high">! High</option>
+              <option value="medium" selected>= Medium</option>
+              <option value="low">↓ Low</option>
+            </select>
+            <select class="dash-capture-select" data-capture-target title="Schedule / Target" ${hasProject ? '' : 'disabled'}>
+              <option value="today" selected>📅 Today</option>
+              <option value="tomorrow">🌅 Tomorrow</option>
+              ${ctx.sprint ? `<option value="sprint">⚡ ${this.esc(ctx.sprint.sprint.name)}</option>` : ''}
+              <option value="backlog">📥 Backlog</option>
+            </select>
+          </div>
+
           <button type="submit" class="btn btn-primary btn-sm dash-capture-submit" ${hasProject ? '' : 'disabled'} id="dash-capture-submit">
-            <i class="fa-solid fa-arrow-turn-down fa-rotate-90"></i> Add
+            <i class="fa-solid fa-plus"></i> Add <kbd>↵</kbd>
           </button>
         </form>
-        <div class="dash-capture-hints">
-          <span><code>!high</code> <code>!critical</code> priority</span>
-          <span><code>~30m</code> <code>~2h</code> estimate</span>
-          <span><code>tomorrow</code> <code>@someday</code> plan</span>
-          <span><code>#bug</code> <code>#story</code> type</span>
-        </div>
       </section>
     `;
   },
 
   parseCapture(raw) {
     const today = this.todayKey();
-    const result = { title: '', priority: 'medium', estimate: 0, plannedDate: today, dateLabel: 'Today', type: 'task' };
+    const result = { title: '', priority: null, estimate: 0, plannedDate: undefined, dateLabel: null, type: 'task' };
     let text = ` ${raw || ''} `;
 
     const prio = text.match(/\s!(critical|highest|high|medium|low|lowest)(?=\s)/i);
@@ -416,13 +513,13 @@ const DashboardView = {
     const type = text.match(/\s#(bug|story|improvement|task)(?=\s)/i);
     if (type) { result.type = type[1].toLowerCase(); text = text.replace(type[0], ' '); }
 
-    // Date words: anywhere with "@", or as the final bare word.
     const dateRe = /\s@(today|tomorrow|tmr|someday|later)(?=\s)|\s(today|tomorrow|tmr|someday|later)\s*$/i;
     const date = text.match(dateRe);
     if (date) {
       const word = (date[1] || date[2]).toLowerCase();
-      if (word === 'tomorrow' || word === 'tmr') { result.plannedDate = this.addDays(today, 1); result.dateLabel = 'Tomorrow'; }
-      else if (word === 'someday' || word === 'later') { result.plannedDate = null; result.dateLabel = 'Unplanned'; }
+      if (word === 'today') { result.plannedDate = today; result.dateLabel = 'Today'; }
+      else if (word === 'tomorrow' || word === 'tmr') { result.plannedDate = this.addDays(today, 1); result.dateLabel = 'Tomorrow'; }
+      else if (word === 'someday' || word === 'later') { result.plannedDate = null; result.dateLabel = 'Backlog'; }
       text = text.replace(date[0], ' ');
     }
 
@@ -432,414 +529,594 @@ const DashboardView = {
 
   renderCapturePreview(parsed) {
     const chip = (icon, label, tone = '') => `<span class="dash-chip ${tone}"><i class="fa-solid ${icon}"></i>${label}</span>`;
-    const parts = [chip(parsed.plannedDate ? 'fa-calendar-check' : 'fa-inbox', parsed.dateLabel, 'tone-brand')];
-    if (parsed.priority !== 'medium') parts.push(chip(this.PRIORITY_ICON[parsed.priority], parsed.priority, `prio-${parsed.priority}`));
+    const parts = [];
+    if (parsed.dateLabel) parts.push(chip('fa-calendar-check', parsed.dateLabel, 'tone-brand'));
+    if (parsed.priority) parts.push(chip(this.PRIORITY_ICON[parsed.priority], parsed.priority, `prio-${parsed.priority}`));
     if (parsed.estimate) parts.push(chip('fa-clock', Utils.formatMinutes(parsed.estimate)));
     if (parsed.type !== 'task') parts.push(chip('fa-tag', parsed.type));
     return parts.join('');
   },
 
-  renderKpis(ctx) {
-    const ringC = 2 * Math.PI * 18;
+  // 3. 4-CARD INTERACTIVE OPERATIONAL PULSE STRIP
+  renderPulseStrip(ctx) {
+    const ringC = 2 * Math.PI * 16;
     const ringOffset = ringC * (1 - ctx.todayPct / 100);
-    const capacityMin = ctx.capacityHours * 60;
-    const loadPct = capacityMin ? Math.round(ctx.remainingMinutes / capacityMin * 100) : 0;
-    const loadTone = loadPct > 100 ? 'danger' : loadPct > 85 ? 'warning' : 'success';
-    const maxWeek = Math.max(1, ...ctx.week.map(d => d.count));
+    const s = ctx.sprint;
 
     return `
-      <section class="dash-kpis" aria-label="Today at a glance">
-        <div class="dash-kpi">
+      <section class="dash-pulse-strip" aria-label="Operational metrics and quick tab filters">
+        <!-- 1. Today's Execution -->
+        <button type="button" class="dash-pulse-card ${this.activeTab === 'today' ? 'is-selected' : ''}" data-dash="switch-tab" data-tab="today">
           <div class="dash-kpi-ring">
-            <svg viewBox="0 0 44 44" aria-hidden="true">
-              <circle class="dash-kpi-ring-track" cx="22" cy="22" r="18"></circle>
-              <circle class="dash-kpi-ring-fill" cx="22" cy="22" r="18" style="stroke-dasharray:${ringC.toFixed(2)};stroke-dashoffset:${ringOffset.toFixed(2)}"></circle>
+            <svg viewBox="0 0 40 40" aria-hidden="true">
+              <circle class="dash-kpi-ring-track" cx="20" cy="20" r="16"></circle>
+              <circle class="dash-kpi-ring-fill" cx="20" cy="20" r="16" style="stroke-dasharray:${ringC.toFixed(2)};stroke-dashoffset:${ringOffset.toFixed(2)}"></circle>
             </svg>
             <span>${ctx.todayPct}%</span>
           </div>
-          <div class="dash-kpi-copy">
-            <span class="dash-kpi-label">Today's progress</span>
-            <strong>${ctx.completedCount}<small> / ${ctx.todayTotal} done</small></strong>
-          </div>
-        </div>
-
-        <button type="button" class="dash-kpi dash-kpi-button tone-${loadTone}" data-dash="capacity" title="Click to change daily focus capacity">
-          <span class="dash-kpi-icon"><i class="fa-solid fa-hourglass-half"></i></span>
-          <div class="dash-kpi-copy">
-            <span class="dash-kpi-label">Work left today</span>
-            <strong>${Utils.formatMinutes(ctx.remainingMinutes)}<small> / ${ctx.capacityHours}h capacity</small></strong>
-            <span class="dash-mini-bar"><i style="width:${Math.min(100, loadPct)}%"></i></span>
-            ${ctx.unestimated ? `<em class="dash-kpi-note">${ctx.unestimated} unestimated</em>` : ''}
+          <div class="dash-pulse-copy">
+            <span class="dash-pulse-label">Today's Plan</span>
+            <strong>${ctx.completedCount}/${ctx.todayTotal} <small>done · ${Utils.formatMinutes(ctx.remainingMinutes)} left</small></strong>
           </div>
         </button>
 
-        <div class="dash-kpi">
-          <span class="dash-kpi-icon tone-success"><i class="fa-solid fa-fire-flame-curved"></i></span>
-          <div class="dash-kpi-copy">
-            <span class="dash-kpi-label">Streak</span>
-            <strong>${ctx.streak}<small> day${ctx.streak === 1 ? '' : 's'}</small></strong>
+        <!-- 2. In Flight (WIP) -->
+        <button type="button" class="dash-pulse-card ${this.activeTab === 'wip' ? 'is-selected' : ''}" data-dash="switch-tab" data-tab="wip">
+          <span class="dash-kpi-icon tone-brand"><i class="fa-solid fa-bolt"></i></span>
+          <div class="dash-pulse-copy">
+            <span class="dash-pulse-label">In Progress (WIP)</span>
+            <strong>${ctx.wip.length} <small>active · ${ctx.wip.filter(t => t.status === 'inreview').length} in review</small></strong>
           </div>
-          <div class="dash-spark" title="Tasks completed over the last 7 days">
-            ${ctx.week.map(d => `<span class="${d.key === ctx.today ? 'is-today' : ''}" title="${d.count} done"><i style="height:${Math.max(8, Math.round(d.count / maxWeek * 100))}%" class="${d.count ? '' : 'is-zero'}"></i><b>${d.label}</b></span>`).join('')}
-          </div>
-        </div>
+        </button>
 
-        <div class="dash-kpi">
-          <span class="dash-kpi-icon tone-violet"><i class="fa-solid fa-brain"></i></span>
-          <div class="dash-kpi-copy">
-            <span class="dash-kpi-label">Focus time today</span>
-            <strong>${Utils.formatMinutes(ctx.focus.minutes)}<small> · ${ctx.focus.sessions} session${ctx.focus.sessions === 1 ? '' : 's'}</small></strong>
+        <!-- 3. Triage & Blockers -->
+        <button type="button" class="dash-pulse-card ${ctx.attention.length ? 'is-alert' : ''} ${this.activeTab === 'triage' ? 'is-selected' : ''}" data-dash="switch-tab" data-tab="triage">
+          <span class="dash-kpi-icon ${ctx.attention.length ? 'tone-danger' : 'tone-success'}">
+            <i class="fa-solid ${ctx.attention.length ? 'fa-triangle-exclamation' : 'fa-check-double'}"></i>
+          </span>
+          <div class="dash-pulse-copy">
+            <span class="dash-pulse-label">Needs Triage</span>
+            <strong>${ctx.attention.length} <small>${ctx.attention.length ? 'overdue / blocked' : 'all clear'}</small></strong>
           </div>
-        </div>
+        </button>
 
-        <button type="button" class="dash-kpi dash-kpi-button ${ctx.attention.length ? 'tone-danger is-alert' : 'tone-success'}" data-dash="scroll-attention" ${ctx.attention.length ? '' : 'disabled'}>
-          <span class="dash-kpi-icon"><i class="fa-solid ${ctx.attention.length ? 'fa-triangle-exclamation' : 'fa-shield-heart'}"></i></span>
-          <div class="dash-kpi-copy">
-            <span class="dash-kpi-label">Needs attention</span>
-            <strong>${ctx.attention.length}<small> ${ctx.attention.length ? 'to triage' : 'all clear'}</small></strong>
+        <!-- 4. Active Sprint Pulse -->
+        <button type="button" class="dash-pulse-card ${this.activeTab === 'sprint' ? 'is-selected' : ''}" data-dash="switch-tab" data-tab="sprint">
+          <span class="dash-kpi-icon tone-violet"><i class="fa-solid fa-flag-checkered"></i></span>
+          <div class="dash-pulse-copy">
+            <span class="dash-pulse-label">${s ? this.esc(s.sprint.name) : 'Active Sprint'}</span>
+            <strong>${s ? `${s.done}/${s.total} <small>tasks · ${s.percent}%</small>` : '<small>No active sprint</small>'}</strong>
           </div>
         </button>
       </section>
     `;
   },
 
-  renderFocusNow(ctx) {
-    const t = ctx.focusTask;
-    if (!t) {
-      return `
-        <section class="dash-card dash-focus-now is-empty">
-          <div class="dash-empty-hero">
-            <span class="dash-empty-icon"><i class="fa-solid fa-mug-hot"></i></span>
-            <h2>You're all caught up</h2>
-            <p>No actionable tasks in this scope. Capture what's next or review the backlog.</p>
-            <div class="dash-empty-actions">
-              <button type="button" class="btn btn-primary btn-sm" data-dash="focus-capture"><i class="fa-solid fa-bolt"></i> Capture a task</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-dash="go" data-view="backlog"><i class="fa-solid fa-layer-group"></i> Open backlog</button>
-            </div>
+  // 4. UNIFIED EXECUTION WORKBENCH
+  renderWorkbench(ctx) {
+    const tabs = [
+      { id: 'today', label: "Today's Plan", icon: 'fa-calendar-day', count: ctx.todayOpen.length },
+      { id: 'triage', label: 'Needs Triage', icon: 'fa-triangle-exclamation', count: ctx.attention.length, alert: ctx.attention.length > 0 },
+      { id: 'wip', label: 'In Progress', icon: 'fa-bolt', count: ctx.wip.length },
+      { id: 'sprint', label: 'Active Sprint', icon: 'fa-flag-checkered', count: ctx.sprint ? ctx.sprint.openTasks.length : 0 },
+      { id: 'backlog', label: 'Backlog / All Open', icon: 'fa-inbox', count: ctx.backlogOpen.length },
+      { id: 'done', label: 'Done Today', icon: 'fa-circle-check', count: ctx.doneToday.length }
+    ];
+
+    let activeTasks = [];
+    let emptyIcon = 'fa-calendar-check';
+    let emptyText = 'No tasks in this view.';
+    let emptyAction = '';
+
+    switch (this.activeTab) {
+      case 'today':
+        activeTasks = ctx.todayOpen;
+        emptyIcon = 'fa-calendar-plus';
+        emptyText = ctx.completedCount
+          ? `All ${ctx.completedCount} planned task(s) for today are complete! Pull more from Add Existing or Auto-plan.`
+          : 'Nothing planned for today yet. Use Add Existing or Auto-plan to build your schedule.';
+        if (ctx.suggestions.length) {
+          emptyAction = `<button type="button" class="btn btn-primary btn-sm" data-dash="autoplan"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-plan top ${Math.min(3, ctx.suggestions.length)} tasks</button>`;
+        }
+        break;
+      case 'triage':
+        activeTasks = ctx.attention.map(a => a.task);
+        emptyIcon = 'fa-shield-heart';
+        emptyText = 'Zero overdue, blocked, or carried-over tasks. Everything is clean!';
+        break;
+      case 'wip':
+        activeTasks = ctx.wip;
+        emptyIcon = 'fa-bolt';
+        emptyText = 'No tasks currently in progress or review.';
+        break;
+      case 'sprint':
+        activeTasks = ctx.sprint ? ctx.sprint.openTasks : [];
+        emptyIcon = 'fa-flag-checkered';
+        emptyText = ctx.sprint ? 'All tasks in this sprint are completed!' : 'No active sprint running right now.';
+        if (!ctx.sprint) {
+          emptyAction = `<button type="button" class="btn btn-primary btn-sm" data-dash="new-sprint"><i class="fa-solid fa-plus"></i> Create Sprint</button>`;
+        } else {
+          emptyAction = `<button type="button" class="btn btn-secondary btn-sm" data-dash="sprint-add-existing" data-sprint-id="${this.esc(ctx.sprint.sprint.id)}"><i class="fa-solid fa-link"></i> Add Existing Tasks</button>`;
+        }
+        break;
+      case 'backlog':
+        activeTasks = ctx.backlogOpen;
+        emptyIcon = 'fa-inbox';
+        emptyText = 'No open backlog tasks found.';
+        break;
+      case 'done':
+        activeTasks = ctx.doneToday;
+        emptyIcon = 'fa-trophy';
+        emptyText = 'No tasks completed today yet. Check off a task to build momentum!';
+        break;
+    }
+
+    const q = this.workbenchQuery.trim().toLowerCase();
+    if (q) {
+      activeTasks = activeTasks.filter(t =>
+        (t.key && t.key.toLowerCase().includes(q)) ||
+        (t.title && t.title.toLowerCase().includes(q)) ||
+        (t.status && t.status.toLowerCase().includes(q)) ||
+        (t.priority && t.priority.toLowerCase().includes(q))
+      );
+    }
+
+    const movableTriageCount = ctx.attention.filter(a => a.reason !== 'blocked' && a.task.plannedDate !== ctx.today).length;
+
+    return `
+      <section class="dash-card dash-workbench" aria-label="Execution Workbench">
+        <!-- Workbench Tabs Header -->
+        <div class="dash-wb-header">
+          <div class="dash-wb-tabs" role="tablist">
+            ${tabs.map(tab => `
+              <button type="button" role="tab" aria-selected="${this.activeTab === tab.id}"
+                class="dash-wb-tab ${this.activeTab === tab.id ? 'is-active' : ''} ${tab.alert ? 'has-alert' : ''}"
+                data-dash="switch-tab" data-tab="${tab.id}">
+                <i class="fa-solid ${tab.icon}"></i>
+                <span>${tab.label}</span>
+                <span class="dash-wb-tab-count">${tab.count}</span>
+              </button>
+            `).join('')}
           </div>
-        </section>
+        </div>
+
+        <!-- Workbench Controls & Context Actions Bar -->
+        <div class="dash-wb-toolbar">
+          <div class="dash-wb-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="search" id="dash-wb-search-input" value="${this.esc(this.workbenchQuery)}"
+              placeholder="Filter ${tabs.find(t => t.id === this.activeTab)?.label || 'tasks'} by ID or title…" autocomplete="off">
+          </div>
+
+          <div class="dash-wb-tools">
+            <button type="button" class="btn btn-ghost btn-sm ${this.groupByProject ? 'is-active-toggle' : ''}" data-dash="toggle-group-project" title="Segregate tasks by project and sort by item ID">
+              <i class="fa-solid fa-folder-tree"></i> By Project
+            </button>
+
+            ${this.activeTab === 'today' ? `
+              <details class="planner-task-menu dash-add-existing-menu">
+                <summary class="btn btn-secondary btn-sm">
+                  <i class="fa-solid fa-link"></i> Add Existing <span class="planner-menu-count">${ctx.availableForToday.length}</span>
+                </summary>
+                <div class="planner-action-popover planner-existing-popover dash-existing-popover">
+                  <div class="dash-popover-head">
+                    <span>Add existing task to Today</span>
+                    <small>Segregated by project · Sorted by ID</small>
+                  </div>
+                  <label class="planner-smart-search">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <input type="search" data-dash-existing-search placeholder="Search open tasks by key or title…" autocomplete="off">
+                  </label>
+                  <div class="planner-smart-list" data-dash-existing-list>
+                    ${this.renderAddExistingList(ctx.availableForToday, ctx)}
+                  </div>
+                </div>
+              </details>
+              ${ctx.suggestions.length ? `
+                <button type="button" class="btn btn-ghost btn-sm" data-dash="autoplan" id="dash-autoplan" title="Auto-plan top ${Math.min(3, ctx.suggestions.length)} tasks for today">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-plan
+                </button>
+              ` : ''}
+            ` : ''}
+
+            ${this.activeTab === 'triage' && movableTriageCount > 0 ? `
+              <button type="button" class="btn btn-primary btn-sm" data-dash="triage-all" id="dash-triage-all">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i> Move ${movableTriageCount} to Today
+              </button>
+            ` : ''}
+
+            ${this.activeTab === 'sprint' && ctx.sprint ? `
+              <button type="button" class="btn btn-secondary btn-sm" data-dash="sprint-add-existing" data-sprint-id="${this.esc(ctx.sprint.sprint.id)}">
+                <i class="fa-solid fa-link"></i> Add Existing
+              </button>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Workbench Task List (Segregated by Project & Sorted by Item ID) -->
+        <div class="dash-wb-body" id="dash-wb-list">
+          ${this.renderWorkbenchList(activeTasks, ctx, emptyIcon, emptyText, emptyAction)}
+        </div>
+      </section>
+    `;
+  },
+
+  renderWorkbenchList(tasks, ctx, emptyIcon, emptyText, emptyAction) {
+    if (!tasks.length) {
+      return `
+        <div class="dash-empty">
+          <i class="fa-solid ${emptyIcon}"></i>
+          <span>${emptyText}</span>
+          ${emptyAction || ''}
+        </div>
       `;
     }
 
-    const today = ctx.today;
-    const project = AppState.projects.find(p => p.id === t.projectId);
-    const est = Number(t.estimate) || 0;
-    const tracked = Number(t.trackedTime) || 0;
-    const pct = est ? Math.min(100, Math.round(tracked / est * 100)) : 0;
-    const timerOn = ctx.timer.taskId === t.id && ctx.timer.state === 'running' && ctx.timer.mode === 'focus';
-    const reasons = this.reasonsFor(t, today);
-    const status = PlannerView.STATUS_LABEL[t.status] || t.status;
+    if (!this.groupByProject) {
+      const sorted = [...tasks].sort((a, b) => this.sortByItemId(a, b));
+      return `<div class="dash-list">${sorted.map(t => this.renderTaskRow(t, ctx)).join('')}</div>`;
+    }
 
+    const groups = this.groupTasksByProject(tasks);
     return `
-      <section class="dash-card dash-focus-now ${timerOn ? 'is-focusing' : ''}" data-task-id="${this.esc(t.id)}" style="--row-project:${this.projectColor(t)}">
-        <div class="dash-card-head">
-          <span class="dash-card-icon tone-brand"><i class="fa-solid fa-crosshairs"></i></span>
-          <div class="dash-card-titles">
-            <h2>Do this next</h2>
-            <p>${timerOn ? 'Focus session in progress' : `Top pick of ${ctx.ranked.length} actionable task${ctx.ranked.length === 1 ? '' : 's'}`}</p>
-          </div>
-          ${ctx.ranked.length > 1 && !timerOn ? `<button type="button" class="dash-icon-btn" data-dash="skip" title="Suggest another task (N)" id="dash-skip-suggestion"><i class="fa-solid fa-shuffle"></i></button>` : ''}
-        </div>
-        <div class="dash-focus-body">
-          <div class="dash-focus-project">
-            <i class="dash-dot"></i>
-            <span>${project ? this.esc(project.name) : 'No project'}</span>
-            <span class="dash-key">${this.esc(t.key)}</span>
-            <button type="button" class="dash-status status-${this.esc(t.status)}" data-dash="cycle" title="Advance status">${this.esc(status)}</button>
-          </div>
-          <h3 class="dash-focus-title" data-dash="open" title="Open task details">${this.esc(t.title)}</h3>
-          ${reasons.length ? `<div class="dash-reasons">${reasons.map(r => `<span class="dash-reason tone-${r.tone}"><i class="fa-solid ${r.icon}"></i>${this.esc(r.label)}</span>`).join('')}</div>` : ''}
-          ${est ? `
-            <div class="dash-focus-progress">
-              <span class="dash-bar"><i style="width:${pct}%"></i></span>
-              <span>${Utils.formatMinutes(tracked)} of ${Utils.formatMinutes(est)} logged</span>
-            </div>` : ''}
-        </div>
-        <div class="dash-focus-actions">
-          <button type="button" class="btn btn-primary" data-dash="focus" id="dash-focus-start">
-            ${timerOn ? '<i class="fa-solid fa-pause"></i> Pause focus' : '<i class="fa-solid fa-play"></i> Start focus'}
-          </button>
-          <button type="button" class="btn btn-secondary" data-dash="toggle-done" id="dash-focus-done"><i class="fa-solid fa-check"></i> Mark done</button>
-          ${t.plannedDate !== today ? `<button type="button" class="btn btn-ghost" data-dash="plan-today"><i class="fa-solid fa-calendar-plus"></i> Plan today</button>` : ''}
-          ${t.plannedDate !== ctx.tomorrow ? `<button type="button" class="btn btn-ghost" data-dash="plan-tomorrow"><i class="fa-solid fa-forward"></i> Tomorrow</button>` : ''}
-        </div>
-      </section>
+      <div class="dash-project-groups">
+        ${groups.map(g => {
+          const p = g.project;
+          const pColor = p.color || '#388bfd';
+          return `
+            <div class="dash-proj-group">
+              <div class="dash-proj-group-header" style="--project-color: ${pColor};">
+                <span class="dash-proj-group-dot" style="background: ${pColor};"></span>
+                <span class="dash-proj-group-name">${this.esc(p.name)}</span>
+                ${p.key ? `<span class="dash-proj-group-key">${this.esc(p.key)}</span>` : ''}
+                <span class="dash-proj-group-count">${g.tasks.length}</span>
+                ${p.id ? `
+                  <button type="button" class="dash-proj-group-add" data-dash="create-in-project" data-project-id="${this.esc(p.id)}" title="New task in ${this.esc(p.name)}">
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                ` : ''}
+              </div>
+              <div class="dash-list">
+                ${g.tasks.map(t => this.renderTaskRow(t, ctx)).join('')}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
     `;
   },
 
-  renderRow(t, ctx, opts = {}) {
+  renderAddExistingList(tasks, ctx, query = '') {
+    const search = query.trim();
+    const matches = search
+      ? tasks.filter(t => Utils.fuzzyMatch(search, `${t.key} ${t.title} ${t.priority} ${t.status}`))
+      : tasks;
+
+    if (!matches.length) {
+      return `<div class="planner-smart-empty">${search ? 'No matching tasks.' : 'All open tasks are already planned for today.'}</div>`;
+    }
+
+    const groups = this.groupTasksByProject(matches);
+    return groups.map(group => {
+      const p = group.project;
+      const pColor = p.color || '#388bfd';
+      return `
+        <div class="planner-smart-group">
+          <div class="planner-smart-group-header" style="--project-color: ${pColor};">
+            <span class="planner-smart-group-dot" style="background: ${pColor};"></span>
+            <span class="planner-smart-group-name" title="${this.esc(p.name)}">${this.esc(p.name)}</span>
+            ${p.key ? `<span class="planner-smart-group-key">${this.esc(p.key)}</span>` : ''}
+            <span class="planner-smart-group-count">${group.tasks.length}</span>
+          </div>
+          <div class="planner-smart-group-items">
+            ${group.tasks.map(t => `
+              <div class="planner-smart-item" data-task-id="${this.esc(t.id)}">
+                <div class="planner-smart-copy" data-dash="open" title="Open task details">
+                  <span class="planner-smart-key">${this.esc(t.key)}</span>
+                  <span class="planner-smart-title">${this.esc(t.title)}</span>
+                </div>
+                <button type="button" class="planner-smart-add-btn" data-dash="plan-today" title="Add ${this.esc(t.key)} to Today">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  renderTaskRow(t, ctx) {
     const isDone = t.status === 'done';
     const due = PlannerView.dueKey(t);
     let dueBadge = '';
     if (due && !isDone) {
       const diff = this.dayDiff(ctx.today, due);
-      if (diff < 0) dueBadge = `<span class="dash-due is-overdue"><i class="fa-solid fa-triangle-exclamation"></i>${-diff}d late</span>`;
+      if (diff < 0) dueBadge = `<span class="dash-due is-overdue" title="Due ${due}"><i class="fa-solid fa-triangle-exclamation"></i>${-diff}d overdue</span>`;
       else if (diff === 0) dueBadge = '<span class="dash-due is-today"><i class="fa-regular fa-calendar"></i>Due today</span>';
-      else if (diff <= 7) dueBadge = `<span class="dash-due"><i class="fa-regular fa-calendar"></i>${Utils.formatRelativeDate(`${due}T00:00:00`)}</span>`;
+      else if (diff === 1) dueBadge = '<span class="dash-due"><i class="fa-regular fa-calendar"></i>Tomorrow</span>';
+      else if (diff <= 7) dueBadge = `<span class="dash-due"><i class="fa-regular fa-calendar"></i>${diff}d</span>`;
     }
+
+    const attentionEntry = ctx.attentionMap.get(t.id);
+    let triageBadge = '';
+    if (attentionEntry && !isDone) {
+      if (attentionEntry.reason === 'blocked') {
+        triageBadge = '<span class="dash-reason-badge tone-danger"><i class="fa-solid fa-ban"></i>Blocked</span>';
+      } else if (attentionEntry.reason === 'carryover') {
+        triageBadge = '<span class="dash-reason-badge tone-warning"><i class="fa-solid fa-clock-rotate-left"></i>Carryover</span>';
+      }
+    }
+
     const est = Number(t.estimate) || 0;
     const tracked = Number(t.trackedTime) || 0;
     const focusing = ctx.timer.taskId === t.id && ctx.timer.state === 'running' && ctx.timer.mode === 'focus';
-
-    const actionButtons = {
-      focus: `<button type="button" class="dash-row-btn ${focusing ? 'is-active' : ''}" data-dash="focus" title="${focusing ? 'Pause focus' : 'Start focus timer'}"><i class="fa-solid ${focusing ? 'fa-pause' : 'fa-play'}"></i></button>`,
-      today: '<button type="button" class="dash-row-btn is-label" data-dash="plan-today" title="Plan for today"><i class="fa-solid fa-plus"></i>Today</button>',
-      tomorrow: '<button type="button" class="dash-row-btn" data-dash="plan-tomorrow" title="Push to tomorrow"><i class="fa-solid fa-arrow-right"></i></button>',
-      unplan: '<button type="button" class="dash-row-btn" data-dash="unplan" title="Remove from today"><i class="fa-solid fa-xmark"></i></button>',
-      unblock: '<button type="button" class="dash-row-btn is-label" data-dash="status" data-status="inprogress" title="Mark as in progress"><i class="fa-solid fa-lock-open"></i>Unblock</button>',
-      review: '<button type="button" class="dash-row-btn" data-dash="status" data-status="inreview" title="Send to review"><i class="fa-solid fa-eye"></i></button>',
-      reopen: '<button type="button" class="dash-row-btn" data-dash="toggle-done" title="Reopen"><i class="fa-solid fa-rotate-left"></i></button>'
-    };
-    const actions = (opts.actions || []).map(a => actionButtons[a] || '').join('');
+    const typeIcon = this.TYPE_ICON[t.type] || 'fa-square-check';
+    const inToday = t.plannedDate === ctx.today;
+    const activeSprintId = ctx.sprint ? ctx.sprint.sprint.id : null;
+    const inActiveSprint = activeSprintId && t.sprintId === activeSprintId;
 
     return `
-      <div class="dash-row ${isDone ? 'is-done' : ''} ${focusing ? 'is-focusing' : ''}" data-task-id="${this.esc(t.id)}" style="--row-project:${this.projectColor(t)}">
-        ${opts.noCheck ? '<span class="dash-row-dot"></span>' : `<button type="button" class="dash-check" data-dash="toggle-done" aria-pressed="${isDone}" title="${isDone ? 'Mark as not done' : 'Mark as done'}"><i class="fa-solid fa-check"></i></button>`}
-        <div class="dash-row-main" data-dash="open" title="Open ${this.esc(t.key)}">
-          <span class="dash-row-title">${this.esc(t.title)}</span>
-          <span class="dash-row-meta">
+      <div class="dash-row ${isDone ? 'is-done' : ''} ${focusing ? 'is-focusing' : ''}"
+        data-task-id="${this.esc(t.id)}" style="--row-project:${this.projectColor(t)}">
+        <button type="button" class="dash-check" data-dash="toggle-done" aria-pressed="${isDone}" title="${isDone ? 'Reopen task' : 'Mark as done'}">
+          <i class="fa-solid fa-check"></i>
+        </button>
+
+        <div class="dash-row-main" data-dash="open" title="Click to open ${this.esc(t.key)} · Right-click for context menu">
+          <div class="dash-row-topline">
+            <span class="type-icon type-${this.esc(t.type || 'task')}"><i class="fa-solid ${typeIcon}"></i></span>
             <span class="dash-key">${this.esc(t.key)}</span>
-            <span class="dash-prio prio-${this.esc(t.priority)}" title="${this.esc(t.priority)} priority"><i class="fa-solid ${this.PRIORITY_ICON[t.priority] || 'fa-equals'}"></i></span>
-            ${opts.reason || ''}
-            ${opts.hideStatus || isDone ? '' : `<button type="button" class="dash-status status-${this.esc(t.status)}" data-dash="cycle" title="Advance status">${this.esc(PlannerView.STATUS_LABEL[t.status] || t.status)}</button>`}
-            ${est || tracked ? `<span class="dash-est" title="Logged / estimate"><i class="fa-regular fa-clock"></i>${Utils.formatMinutes(tracked)}${est ? ` / ${Utils.formatMinutes(est)}` : ''}</span>` : ''}
+            <span class="dash-prio prio-${this.esc(t.priority)}" title="${this.esc(t.priority)} priority">
+              <i class="fa-solid ${this.PRIORITY_ICON[t.priority] || 'fa-equals'}"></i>
+            </span>
+            <span class="dash-row-title">${this.esc(t.title)}</span>
+          </div>
+          <div class="dash-row-meta">
+            ${triageBadge}
             ${dueBadge}
-          </span>
+            ${est || tracked ? `<span class="dash-est" title="Logged / Estimate"><i class="fa-regular fa-clock"></i>${Utils.formatMinutes(tracked)}${est ? `/${Utils.formatMinutes(est)}` : ''}</span>` : ''}
+            ${t.storyPoints > 0 ? `<span class="dash-pts" title="Story points">${t.storyPoints}pt</span>` : ''}
+            ${inToday ? '<span class="dash-plan-tag is-today"><i class="fa-solid fa-calendar-day"></i>Today</span>' : ''}
+          </div>
         </div>
-        ${actions ? `<div class="dash-row-actions">${actions}</div>` : ''}
+
+        <div class="dash-row-controls">
+          ${typeof StatusControl !== 'undefined' ? StatusControl.pillHTML(t, 'dash-status-pill') : ''}
+          <div class="dash-row-actions">
+            ${!isDone ? `
+              <button type="button" class="dash-row-btn ${focusing ? 'is-active' : ''}" data-dash="focus" title="${focusing ? 'Pause focus timer' : 'Start focus timer on this task'}">
+                <i class="fa-solid ${focusing ? 'fa-pause' : 'fa-play'}"></i>
+              </button>
+              ${inToday
+                ? `<button type="button" class="dash-row-btn" data-dash="plan-tomorrow" title="Push to Tomorrow"><i class="fa-solid fa-arrow-right"></i></button>
+                   <button type="button" class="dash-row-btn" data-dash="unplan" title="Remove from Today"><i class="fa-solid fa-calendar-xmark"></i></button>`
+                : `<button type="button" class="dash-row-btn is-label" data-dash="plan-today" title="Schedule for Today"><i class="fa-solid fa-plus"></i>Today</button>`
+              }
+              ${activeSprintId ? `
+                <button type="button" class="dash-row-btn ${inActiveSprint ? 'is-active' : ''}" data-dash="toggle-sprint" data-sprint-id="${this.esc(activeSprintId)}"
+                  title="${inActiveSprint ? 'Remove from active sprint' : 'Add to active sprint'}">
+                  <i class="fa-solid fa-bolt"></i>
+                </button>
+              ` : ''}
+            ` : ''}
+          </div>
+        </div>
       </div>
     `;
   },
 
-  renderToday(ctx) {
-    const canAutoPlan = ctx.suggestions.length > 0;
+  // 5. RIGHT COLUMN: APP CONTROL CENTER
+  renderProjectsControl(ctx) {
     return `
-      <section class="dash-card" id="dash-today" aria-label="Today's plan">
+      <section class="dash-card dash-control-card" aria-label="Projects Control Matrix">
         <div class="dash-card-head">
-          <span class="dash-card-icon tone-success"><i class="fa-solid fa-list-check"></i></span>
+          <span class="dash-card-icon tone-brand"><i class="fa-solid fa-folder-tree"></i></span>
           <div class="dash-card-titles">
-            <h2>Today's plan <span class="dash-count">${ctx.todayOpen.length}</span></h2>
-            <p>${ctx.todayOpen.length ? 'Sorted by deadline, momentum and priority' : 'Plan a few high-impact tasks to stay on track'}</p>
+            <h2>Projects Control <span class="dash-count">${ctx.projectStats.length}</span></h2>
+            <p>Scope, progress & direct view launchers</p>
           </div>
           <div class="dash-card-tools">
-            ${canAutoPlan ? `<button type="button" class="btn btn-ghost btn-sm" data-dash="autoplan" id="dash-autoplan" title="Add the top ${Math.min(3, ctx.suggestions.length)} suggested tasks to today"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-plan</button>` : ''}
+            <button type="button" class="btn btn-ghost btn-sm" data-dash="new-project" title="Create Project"><i class="fa-solid fa-plus"></i></button>
+            <button type="button" class="btn btn-ghost btn-sm" data-dash="go" data-view="projects" title="Open Projects View"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
           </div>
         </div>
-        <div class="dash-list">
-          ${ctx.todayOpen.length ? ctx.todayOpen.map(t => this.renderRow(t, ctx, { actions: ['focus', 'tomorrow', 'unplan'] })).join('') : `
-            <div class="dash-empty">
-              <i class="fa-regular fa-calendar-plus"></i>
-              <span>${ctx.completedCount ? 'All planned work is done. Pull in something from <b>Up next</b> or call it a day.' : 'Nothing planned for today yet.'}</span>
-              ${canAutoPlan ? '<button type="button" class="btn btn-primary btn-sm" data-dash="autoplan"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-plan my day</button>' : ''}
-            </div>`}
-        </div>
-        ${ctx.doneToday.length ? `
-          <details class="dash-done-group">
-            <summary><i class="fa-solid fa-trophy"></i> Completed today <span class="dash-count tone-success">${ctx.doneToday.length}</span><i class="fa-solid fa-chevron-down dash-chevron"></i></summary>
-            <div class="dash-list">${ctx.doneToday.map(t => this.renderRow(t, ctx, { actions: [] })).join('')}</div>
-          </details>` : ''}
-      </section>
-    `;
-  },
 
-  renderAttention(ctx) {
-    if (!ctx.attention.length) return '';
-    const movable = ctx.attention.filter(a => a.reason !== 'blocked' && a.task.plannedDate !== ctx.today).length;
-    const badge = {
-      blocked: '<span class="dash-reason-badge tone-danger"><i class="fa-solid fa-ban"></i>Blocked</span>',
-      overdue: '<span class="dash-reason-badge tone-danger"><i class="fa-solid fa-fire"></i>Overdue</span>',
-      carryover: '<span class="dash-reason-badge tone-warning"><i class="fa-solid fa-clock-rotate-left"></i>Carried over</span>'
-    };
-    const shown = ctx.attention.slice(0, 8);
-
-    return `
-      <section class="dash-card dash-attention" id="dash-attention" aria-label="Needs attention">
-        <div class="dash-card-head">
-          <span class="dash-card-icon tone-danger"><i class="fa-solid fa-triangle-exclamation"></i></span>
-          <div class="dash-card-titles">
-            <h2>Needs attention <span class="dash-count tone-danger">${ctx.attention.length}</span></h2>
-            <p>Unblock, reschedule, or finish these first</p>
-          </div>
-          <div class="dash-card-tools">
-            ${movable ? `<button type="button" class="btn btn-secondary btn-sm" data-dash="triage-all" id="dash-triage-all"><i class="fa-solid fa-arrow-right-to-bracket"></i> Move ${movable} to today</button>` : ''}
-          </div>
-        </div>
-        <div class="dash-list">
-          ${shown.map(({ task, reason }) => {
-            const actions = reason === 'blocked' ? ['unblock'] : (task.plannedDate === ctx.today ? ['focus'] : ['today', 'focus']);
-            return this.renderRow(task, ctx, { actions, reason: badge[reason], hideStatus: reason === 'blocked' });
-          }).join('')}
-        </div>
-        ${ctx.attention.length > shown.length ? `<button type="button" class="dash-more" data-dash="go" data-view="planner">+${ctx.attention.length - shown.length} more in the planner <i class="fa-solid fa-arrow-right"></i></button>` : ''}
-      </section>
-    `;
-  },
-
-  renderTimer(ctx) {
-    const t = ctx.timer;
-    const remaining = this.timerRemaining();
-    const total = this.timerTotal();
-    const offset = this.RING_C * (1 - (total - remaining) / total);
-    const running = t.state === 'running';
-    const stateLabel = running ? (t.mode === 'break' ? 'Break' : 'Focusing') : t.state === 'paused' ? 'Paused' : 'Ready';
-    const sessions = ctx.focus.sessions;
-    const dots = Math.max(this.SESSION_GOAL, sessions);
-
-    return `
-      <section class="dash-card dash-timer mode-${t.mode} state-${t.state}" id="dash-timer" aria-label="Focus timer">
-        <div class="dash-card-head">
-          <span class="dash-card-icon tone-violet"><i class="fa-solid fa-stopwatch"></i></span>
-          <div class="dash-card-titles">
-            <h2>Focus timer</h2>
-            <p>Time is logged to the selected task</p>
-          </div>
-          <span class="dash-timer-pill">${running ? '<span class="dash-live-dot"></span>' : ''}${stateLabel}</span>
-        </div>
-        <div class="dash-timer-dial">
-          <svg viewBox="0 0 120 120" aria-hidden="true">
-            <circle class="dash-timer-track" cx="60" cy="60" r="52"></circle>
-            <circle class="dash-timer-fill" id="dash-timer-ring" cx="60" cy="60" r="52" style="stroke-dasharray:${this.RING_C.toFixed(2)};stroke-dashoffset:${offset.toFixed(2)}"></circle>
-          </svg>
-          <div class="dash-timer-center">
-            <strong id="dash-timer-time">${this.fmtClock(remaining)}</strong>
-            <span>${t.mode === 'break' ? `${t.brk}m break` : `${t.work}m focus`}</span>
-          </div>
-        </div>
-        <label class="dash-timer-task" for="dash-timer-task">
-          <span>Working on</span>
-          <select id="dash-timer-task" data-dash-timer-task>
-            <option value="">No specific task</option>
-            ${ctx.timerOptions.map(o => `<option value="${this.esc(o.id)}" ${o.id === t.taskId ? 'selected' : ''}>${this.esc(o.key)} · ${this.esc(o.title)}</option>`).join('')}
-          </select>
-        </label>
-        <div class="dash-timer-controls">
-          <button type="button" class="btn btn-primary" data-dash="timer-toggle" id="dash-timer-toggle">
-            <i class="fa-solid ${running ? 'fa-pause' : 'fa-play'}"></i> ${running ? 'Pause' : t.state === 'paused' ? 'Resume' : t.mode === 'break' ? 'Start break' : 'Start'} <kbd>F</kbd>
-          </button>
-          <button type="button" class="btn btn-ghost" data-dash="timer-stop" id="dash-timer-stop" ${t.state === 'idle' && t.mode === 'focus' ? 'disabled' : ''}
-            title="${t.mode === 'break' ? 'Skip the break' : 'Stop and log the elapsed time'}">
-            <i class="fa-solid ${t.mode === 'break' ? 'fa-forward' : 'fa-stop'}"></i> ${t.mode === 'break' ? 'Skip' : 'Stop & log'}
-          </button>
-        </div>
-        <div class="dash-timer-presets" role="group" aria-label="Timer presets">
-          ${this.PRESETS.map(p => `<button type="button" class="${p.work === t.work ? 'is-active' : ''}" data-dash="timer-preset" data-work="${p.work}" data-brk="${p.brk}">${p.label}</button>`).join('')}
-        </div>
-        <div class="dash-sessions" title="${sessions} of ${this.SESSION_GOAL} focus sessions today">
-          <span>Sessions</span>
-          <span class="dash-session-dots">${Array.from({ length: dots }, (_, i) => `<i class="${i < sessions ? 'is-done' : ''}"></i>`).join('')}</span>
-          <strong>${sessions}/${this.SESSION_GOAL}</strong>
-        </div>
-      </section>
-    `;
-  },
-
-  renderWip(ctx) {
-    const limit = 3;
-    const over = ctx.wip.length > limit;
-    return `
-      <section class="dash-card dash-compact" aria-label="Work in progress">
-        <div class="dash-card-head">
-          <span class="dash-card-icon tone-brand"><i class="fa-solid fa-bolt"></i></span>
-          <div class="dash-card-titles">
-            <h2>In progress <span class="dash-count ${over ? 'tone-warning' : ''}">${ctx.wip.length}</span></h2>
-            <p>${over ? `Over WIP limit of ${limit} — finish before starting more` : 'Finish what you started'}</p>
-          </div>
-        </div>
-        <div class="dash-list">
-          ${ctx.wip.length ? ctx.wip.slice(0, 5).map(t => this.renderRow(t, ctx, { actions: t.status === 'inprogress' ? ['review'] : [] })).join('') :
-            '<div class="dash-empty is-compact"><i class="fa-solid fa-circle-play"></i><span>Nothing in flight. Start the top pick.</span></div>'}
-        </div>
-        ${ctx.wip.length > 5 ? `<button type="button" class="dash-more" data-dash="go" data-view="tasks">+${ctx.wip.length - 5} more on the board <i class="fa-solid fa-arrow-right"></i></button>` : ''}
-      </section>
-    `;
-  },
-
-  renderUpNext(ctx) {
-    return `
-      <section class="dash-card dash-compact" aria-label="Suggested next tasks">
-        <div class="dash-card-head">
-          <span class="dash-card-icon tone-amber"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-          <div class="dash-card-titles">
-            <h2>Up next</h2>
-            <p>Best candidates not yet planned for today</p>
-          </div>
-        </div>
-        <div class="dash-list">
-          ${ctx.suggestions.length ? ctx.suggestions.map(t => this.renderRow(t, ctx, { actions: ['today'], noCheck: true, hideStatus: true })).join('') :
-            '<div class="dash-empty is-compact"><i class="fa-solid fa-check-double"></i><span>No more suggestions — your queue is clear.</span></div>'}
-        </div>
-      </section>
-    `;
-  },
-
-  renderDeadlines(ctx) {
-    if (!ctx.deadlines.length) return '';
-    return `
-      <section class="dash-card dash-compact" aria-label="Upcoming deadlines">
-        <div class="dash-card-head">
-          <span class="dash-card-icon tone-danger"><i class="fa-regular fa-calendar"></i></span>
-          <div class="dash-card-titles">
-            <h2>Deadlines this week</h2>
-            <p>Due in the next 7 days</p>
-          </div>
-        </div>
-        <div class="dash-deadlines">
-          ${ctx.deadlines.map(t => {
-            const due = PlannerView.dueKey(t);
-            const diff = this.dayDiff(ctx.today, due);
-            const date = new Date(`${due}T00:00:00`);
+        <div class="dash-proj-matrix">
+          ${ctx.projectStats.length ? ctx.projectStats.map(ps => {
+            const p = ps.project;
+            const isScoped = AppState.selectedProjectId === p.id;
             return `
-              <button type="button" class="dash-deadline ${diff === 0 ? 'is-today' : diff === 1 ? 'is-soon' : ''}" data-task-id="${this.esc(t.id)}" data-dash="open" style="--row-project:${this.projectColor(t)}">
-                <span class="dash-deadline-date">
-                  <b>${diff === 0 ? 'Today' : diff === 1 ? 'Tmrw' : date.toLocaleDateString('en-US', { weekday: 'short' })}</b>
-                  <small>${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small>
-                </span>
-                <span class="dash-deadline-copy">
-                  <span>${this.esc(t.title)}</span>
-                  <small><span class="dash-key">${this.esc(t.key)}</span> ${this.esc(PlannerView.STATUS_LABEL[t.status] || t.status)}</small>
-                </span>
-                <span class="dash-prio prio-${this.esc(t.priority)}"><i class="fa-solid ${this.PRIORITY_ICON[t.priority] || 'fa-equals'}"></i></span>
-              </button>`;
-          }).join('')}
+              <div class="dash-proj-row ${isScoped ? 'is-scoped' : ''}" style="--proj-color:${p.color || '#388bfd'}">
+                <div class="dash-proj-row-top">
+                  <button type="button" class="dash-proj-select" data-dash="scope-project" data-project-id="${this.esc(isScoped ? '' : p.id)}" title="${isScoped ? 'Click to show All Projects' : `Filter dashboard by ${this.esc(p.name)}`}">
+                    <span class="dash-proj-dot" style="background:${p.color || '#388bfd'}"></span>
+                    <span class="dash-proj-name">${this.esc(p.name)}</span>
+                    <span class="dash-proj-key">${this.esc(p.key)}</span>
+                  </button>
+                  <div class="dash-proj-stats">
+                    ${ps.overdue ? `<span class="dash-proj-overdue" title="${ps.overdue} overdue"><i class="fa-solid fa-triangle-exclamation"></i>${ps.overdue}</span>` : ''}
+                    <span class="dash-proj-pct">${ps.done}/${ps.total} · ${ps.pct}%</span>
+                  </div>
+                </div>
+
+                <div class="dash-proj-bar"><i style="width:${ps.pct}%;background:${p.color || '#388bfd'}"></i></div>
+
+                <div class="dash-proj-actions">
+                  <a href="#/tasks?project=${encodeURIComponent(p.id)}&mode=board" class="dash-mini-link" title="Open Kanban Board">
+                    <i class="fa-solid fa-table-columns"></i> Board
+                  </a>
+                  <a href="#/tasks?project=${encodeURIComponent(p.id)}&mode=list" class="dash-mini-link" title="Open List Grid">
+                    <i class="fa-solid fa-list"></i> List
+                  </a>
+                  <a href="#/hierarchy?project=${encodeURIComponent(p.id)}" class="dash-mini-link" title="Open Hierarchy Tree">
+                    <i class="fa-solid fa-sitemap"></i> Tree
+                  </a>
+                  <button type="button" class="dash-mini-link" data-dash="create-in-project" data-project-id="${this.esc(p.id)}" title="Create task in ${this.esc(p.name)}">
+                    <i class="fa-solid fa-plus"></i> Task
+                  </button>
+                  <button type="button" class="dash-mini-link" data-dash="edit-project" data-project-id="${this.esc(p.id)}" title="Edit Project">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('') : `
+            <div class="dash-empty is-compact">
+              <span>No projects yet.</span>
+              <button type="button" class="btn btn-primary btn-sm" data-dash="new-project"><i class="fa-solid fa-plus"></i> Create Project</button>
+            </div>
+          `}
         </div>
       </section>
     `;
   },
 
-  renderSprint(ctx) {
+  renderSprintControl(ctx) {
     const s = ctx.sprint;
-    if (!s) return '';
-    const onTrack = s.elapsedPct === null || s.percent >= s.elapsedPct - 10;
-    const schedule = s.daysLeft === null ? 'Active' : s.daysLeft > 0 ? `${s.daysLeft} day${s.daysLeft === 1 ? '' : 's'} left` : s.daysLeft === 0 ? 'Ends today' : `${-s.daysLeft}d overdue`;
+    if (!s) {
+      const nextPlanned = ctx.plannedSprints[0] || null;
+      return `
+        <section class="dash-card dash-control-card" aria-label="Sprint Lifecycle Control">
+          <div class="dash-card-head">
+            <span class="dash-card-icon tone-violet"><i class="fa-solid fa-flag-checkered"></i></span>
+            <div class="dash-card-titles">
+              <h2>Sprint Control</h2>
+              <p>${nextPlanned ? `Planned: ${this.esc(nextPlanned.name)}` : 'No active cycle'}</p>
+            </div>
+            <div class="dash-card-tools">
+              <button type="button" class="btn btn-ghost btn-sm" data-dash="go" data-view="backlog" title="Open Sprint Planning"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
+            </div>
+          </div>
+          <div class="dash-sprint-empty-ctrl">
+            ${nextPlanned ? `
+              <button type="button" class="btn btn-primary btn-sm" data-dash="start-sprint" data-sprint-id="${this.esc(nextPlanned.id)}">
+                <i class="fa-solid fa-play"></i> Start ${this.esc(nextPlanned.name)}
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" data-dash="sprint-add-existing" data-sprint-id="${this.esc(nextPlanned.id)}">
+                <i class="fa-solid fa-link"></i> Add Existing
+              </button>
+            ` : `
+              <button type="button" class="btn btn-primary btn-sm" data-dash="new-sprint">
+                <i class="fa-solid fa-plus"></i> Create Sprint
+              </button>
+            `}
+          </div>
+        </section>
+      `;
+    }
+
+    const schedule = s.daysLeft === null ? 'Active' : s.daysLeft > 0 ? `${s.daysLeft}d left` : s.daysLeft === 0 ? 'Ends today' : `${-s.daysLeft}d overdue`;
+
     return `
-      <section class="dash-card dash-compact dash-sprint" aria-label="Active sprint">
+      <section class="dash-card dash-control-card dash-sprint" aria-label="Active Sprint Control">
         <div class="dash-card-head">
-          <span class="dash-card-icon tone-success"><i class="fa-solid fa-flag-checkered"></i></span>
+          <span class="dash-card-icon tone-violet"><i class="fa-solid fa-flag-checkered"></i></span>
           <div class="dash-card-titles">
             <h2>${this.esc(s.sprint.name)}</h2>
             <p>${this.esc(schedule)} · ${s.done}/${s.total} tasks · ${s.donePoints}/${s.points} pts</p>
           </div>
-          <span class="dash-reason-badge ${onTrack ? 'tone-success' : 'tone-warning'}">${onTrack ? 'On track' : 'Behind'}</span>
+          <div class="dash-card-tools">
+            <button type="button" class="btn btn-ghost btn-sm" data-dash="go" data-view="backlog" title="Open Sprint Planning"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
+          </div>
         </div>
-        <div class="dash-sprint-bar" title="${s.percent}% complete${s.elapsedPct !== null ? ` · ${s.elapsedPct}% of time elapsed` : ''}">
+
+        <div class="dash-sprint-bar" title="${s.percent}% complete">
           <i style="width:${s.percent}%"></i>
-          ${s.elapsedPct !== null ? `<b style="left:${s.elapsedPct}%"></b>` : ''}
+          ${s.elapsedPct !== null ? `<b style="left:${s.elapsedPct}%" title="${s.elapsedPct}% time elapsed"></b>` : ''}
         </div>
-        <div class="dash-sprint-foot"><span>${s.percent}% complete</span>${s.elapsedPct !== null ? `<span>${s.elapsedPct}% of time used</span>` : ''}</div>
-        ${s.sprint.goal ? `<p class="dash-sprint-goal"><i class="fa-solid fa-bullseye"></i>${this.esc(s.sprint.goal)}</p>` : ''}
+
+        <div class="dash-sprint-breakdown">
+          <span><b>${s.todoCount}</b> To Do</span>
+          <span><b>${s.wipCount}</b> In Flight</span>
+          <span><b>${s.done}</b> Done (${s.percent}%)</span>
+        </div>
+
+        <div class="dash-sprint-ctrl-actions">
+          <button type="button" class="btn btn-secondary btn-sm" data-dash="sprint-add-existing" data-sprint-id="${this.esc(s.sprint.id)}">
+            <i class="fa-solid fa-link"></i> Add Existing
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" data-dash="create-in-sprint" data-sprint-id="${this.esc(s.sprint.id)}" data-project-id="${this.esc(s.sprint.projectId || '')}">
+            <i class="fa-solid fa-plus"></i> Issue
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" data-dash="complete-sprint" data-sprint-id="${this.esc(s.sprint.id)}" title="Complete Sprint">
+            <i class="fa-solid fa-flag-checkered"></i> Complete
+          </button>
+        </div>
+      </section>
+    `;
+  },
+
+  renderDeadlinesControl(ctx) {
+    return `
+      <section class="dash-card dash-control-card" aria-label="Upcoming Deadlines & Schedule">
+        <div class="dash-card-head">
+          <span class="dash-card-icon tone-danger"><i class="fa-regular fa-calendar"></i></span>
+          <div class="dash-card-titles">
+            <h2>Deadlines Radar <span class="dash-count">${ctx.deadlines.length}</span></h2>
+            <p>Due within the next 7 days</p>
+          </div>
+          <div class="dash-card-tools">
+            <button type="button" class="btn btn-ghost btn-sm" data-dash="go" data-view="planner" title="Open 3-Day Planner">
+              <i class="fa-solid fa-calendar-day"></i> Planner
+            </button>
+          </div>
+        </div>
+
+        <div class="dash-deadlines">
+          ${ctx.deadlines.length ? ctx.deadlines.map(t => {
+            const due = PlannerView.dueKey(t);
+            const diff = this.dayDiff(ctx.today, due);
+            const date = new Date(`${due}T00:00:00`);
+            const badgeLabel = diff < 0 ? `${-diff}d late` : diff === 0 ? 'Today' : diff === 1 ? 'Tmrw' : date.toLocaleDateString('en-US', { weekday: 'short' });
+            const toneClass = diff <= 0 ? 'is-today' : diff === 1 ? 'is-soon' : '';
+            const inToday = t.plannedDate === ctx.today;
+            return `
+              <div class="dash-deadline ${toneClass}" data-task-id="${this.esc(t.id)}" style="--row-project:${this.projectColor(t)}">
+                <span class="dash-deadline-date">
+                  <b>${badgeLabel}</b>
+                  <small>${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small>
+                </span>
+                <div class="dash-deadline-copy" data-dash="open" title="Open ${this.esc(t.key)}">
+                  <span>${this.esc(t.title)}</span>
+                  <small><span class="dash-key">${this.esc(t.key)}</span> · ${this.esc(StatusControl.label(t.status))}</small>
+                </div>
+                ${!inToday ? `
+                  <button type="button" class="dash-row-btn is-label" data-dash="plan-today" title="Plan for Today">
+                    <i class="fa-solid fa-plus"></i>Today
+                  </button>
+                ` : '<span class="dash-plan-tag is-today">Today</span>'}
+              </div>
+            `;
+          }).join('') : `
+            <div class="dash-empty is-compact">
+              <i class="fa-regular fa-calendar-check"></i>
+              <span>No upcoming deadlines in the next 7 days.</span>
+            </div>
+          `}
+        </div>
       </section>
     `;
   },
 
   // -------------------------------------------------------------
-  // EVENTS
+  // EVENTS & INTERACTIVITY
   // -------------------------------------------------------------
 
-  attachListeners(container) {
+  attachListeners(container, ctx) {
     const root = container.querySelector('#dashboard-page');
     if (!root) return;
 
     root.addEventListener('click', (e) => {
+      // 1. Shared StatusControl pill menu trigger
+      const statusBtn = e.target.closest('[data-status-action="menu"]');
+      if (statusBtn && root.contains(statusBtn)) {
+        e.stopPropagation();
+        StatusControl.openMenu(statusBtn, statusBtn.dataset.taskId);
+        return;
+      }
+
+      // 2. Dashboard action triggers
       const el = e.target.closest('[data-dash]');
       if (!el || !root.contains(el)) return;
       const action = el.dataset.dash;
@@ -852,53 +1129,86 @@ const DashboardView = {
           if (task) TaskModal.openDetail(task.id);
           break;
         case 'create':
-          TaskModal.openCreate();
+          TaskModal.openCreate({ projectId: AppState.selectedProjectId || undefined });
+          break;
+        case 'create-in-project':
+          TaskModal.openCreate({ projectId: el.dataset.projectId });
+          break;
+        case 'create-in-sprint':
+          TaskModal.openCreate({ sprintId: el.dataset.sprintId, projectId: el.dataset.projectId || undefined });
+          break;
+        case 'bulk-create':
+          if (typeof TaskModal.openBulkCreate === 'function') {
+            TaskModal.openBulkCreate({ projectId: AppState.selectedProjectId || undefined });
+          }
+          break;
+        case 'new-project':
+          if (typeof ProjectsView !== 'undefined') ProjectsView.openCreateModal();
+          break;
+        case 'edit-project':
+          if (typeof ProjectsView !== 'undefined') ProjectsView.openEditModal(el.dataset.projectId);
+          break;
+        case 'new-sprint':
+          if (typeof BacklogView !== 'undefined') BacklogView.openCreateSprintModal();
+          break;
+        case 'sprint-add-existing':
+          if (typeof BacklogView !== 'undefined') BacklogView.openAddExistingTasksModal(el.dataset.sprintId);
+          break;
+        case 'start-sprint':
+          if (typeof BacklogView !== 'undefined') BacklogView.startSprint(el.dataset.sprintId);
+          break;
+        case 'complete-sprint':
+          if (typeof BacklogView !== 'undefined') BacklogView.completeSprint(el.dataset.sprintId);
+          break;
+        case 'scope-project': {
+          const nextProjId = el.dataset.projectId || null;
+          AppState.selectedProjectId = nextProjId;
+          Router.updateTopbarProjectPicker();
+          if (typeof Sidebar !== 'undefined' && Sidebar.renderProjectShortcuts) Sidebar.renderProjectShortcuts();
+          Router.renderCurrentRoute();
+          break;
+        }
+        case 'switch-tab':
+          this.activeTab = el.dataset.tab || 'today';
+          Router.renderCurrentRoute();
+          break;
+        case 'toggle-group-project':
+          this.groupByProject = !this.groupByProject;
+          Router.renderCurrentRoute();
           break;
         case 'go':
           e.preventDefault();
           Router.navigate(el.dataset.view);
-          break;
-        case 'focus-capture':
-          root.querySelector('#dash-capture-input')?.focus();
-          break;
-        case 'scroll-attention':
-          e.preventDefault();
-          root.querySelector('#dash-attention')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           break;
         case 'toggle-done':
           if (!task) break;
           e.stopPropagation();
           this.toggleDone(task);
           break;
-        case 'cycle': {
-          if (!task) break;
-          e.stopPropagation();
-          AppState.updateTask(task.id, { status: PlannerView.STATUS_NEXT[task.status] || 'inprogress' });
-          break;
-        }
-        case 'status':
-          if (!task) break;
-          e.stopPropagation();
-          AppState.updateTask(task.id, { status: el.dataset.status });
-          Toast.success(`${task.key} → ${PlannerView.STATUS_LABEL[el.dataset.status] || el.dataset.status}`);
-          break;
         case 'plan-today':
-          if (task) { AppState.updateTask(task.id, { plannedDate: ctxToday }); Toast.success(`${task.key} added to today`); }
+          if (task) {
+            AppState.updateTask(task.id, { plannedDate: ctxToday });
+            Toast.success(`${task.key} planned for Today`);
+          }
           break;
         case 'plan-tomorrow':
           if (task) {
-            this.skipIds.delete(task.id);
             AppState.updateTask(task.id, { plannedDate: this.addDays(ctxToday, 1) });
-            Toast.info(`${task.key} pushed to tomorrow`);
+            Toast.info(`${task.key} pushed to Tomorrow`);
           }
           break;
         case 'unplan':
-          if (task) { AppState.updateTask(task.id, { plannedDate: null }); Toast.info(`${task.key} removed from today`); }
+          if (task) {
+            AppState.updateTask(task.id, { plannedDate: null });
+            Toast.info(`${task.key} removed from Today`);
+          }
           break;
-        case 'skip': {
-          const current = root.querySelector('.dash-focus-now[data-task-id]');
-          if (current) this.skipIds.add(current.dataset.taskId);
-          Router.renderCurrentRoute();
+        case 'toggle-sprint': {
+          if (!task) break;
+          const targetSprintId = el.dataset.sprintId;
+          const nextSprintId = task.sprintId === targetSprintId ? null : targetSprintId;
+          AppState.updateTask(task.id, { sprintId: nextSprintId });
+          Toast.info(nextSprintId ? `${task.key} added to sprint` : `${task.key} removed from sprint`);
           break;
         }
         case 'autoplan':
@@ -907,14 +1217,6 @@ const DashboardView = {
         case 'triage-all':
           this.triageAll();
           break;
-        case 'capacity': {
-          const steps = this.CAPACITY_STEPS;
-          const next = steps[(steps.indexOf(this.getCapacityHours()) + 1) % steps.length];
-          this.writeJSON(this.STORAGE.capacity, next);
-          Toast.info(`Daily focus capacity set to ${next}h`);
-          Router.renderCurrentRoute();
-          break;
-        }
         case 'focus':
           if (task) this.focusOn(task.id);
           break;
@@ -930,11 +1232,48 @@ const DashboardView = {
       }
     });
 
+    // Right-click on any task row opens full ContextMenu
+    root.addEventListener('contextmenu', (e) => {
+      const row = e.target.closest('.dash-row[data-task-id]');
+      if (!row || typeof ContextMenu === 'undefined') return;
+      const task = AppState.tasks.find(t => t.id === row.dataset.taskId);
+      if (!task) return;
+      e.preventDefault();
+      ContextMenu.open(e.clientX, e.clientY, task);
+    });
+
+    // Timer task selector
     root.addEventListener('change', (e) => {
       const select = e.target.closest('[data-dash-timer-task]');
       if (select) this.switchTimerTask(select.value || null);
     });
 
+    // Workbench search input + Add Existing inline search
+    root.addEventListener('input', (e) => {
+      const wbSearch = e.target.closest('#dash-wb-search-input');
+      if (wbSearch) {
+        this.workbenchQuery = wbSearch.value;
+        const pos = wbSearch.selectionStart;
+        Router.renderCurrentRoute();
+        const nextInput = container.querySelector('#dash-wb-search-input');
+        if (nextInput) {
+          nextInput.focus();
+          try { nextInput.setSelectionRange(pos, pos); } catch (err) { /* ignore */ }
+        }
+        return;
+      }
+
+      const existingSearch = e.target.closest('[data-dash-existing-search]');
+      if (existingSearch) {
+        const listEl = root.querySelector('[data-dash-existing-list]');
+        if (listEl) {
+          const latestCtx = this.getContext();
+          listEl.innerHTML = this.renderAddExistingList(latestCtx.availableForToday, latestCtx, existingSearch.value);
+        }
+      }
+    });
+
+    // Quick capture form
     const form = root.querySelector('[data-dash-capture]');
     const input = root.querySelector('#dash-capture-input');
     const preview = root.querySelector('[data-dash-preview]');
@@ -943,11 +1282,18 @@ const DashboardView = {
         if (preview) preview.innerHTML = this.renderCapturePreview(this.parseCapture(input.value));
       });
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { input.value = ''; input.blur(); }
+        if (e.key === 'Escape') { input.value = ''; if (preview) preview.innerHTML = ''; input.blur(); }
       });
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        this.capture(input.value);
+        const projSelect = form.querySelector('[data-capture-project]');
+        const prioSelect = form.querySelector('[data-capture-priority]');
+        const targetSelect = form.querySelector('[data-capture-target]');
+        this.capture(input.value, {
+          projectId: projSelect ? projSelect.value : null,
+          priority: prioSelect ? prioSelect.value : 'medium',
+          target: targetSelect ? targetSelect.value : 'today'
+        }, ctx);
       });
     }
   },
@@ -970,9 +1316,6 @@ const DashboardView = {
       } else if (key === 'f') {
         e.preventDefault();
         this.toggleTimer();
-      } else if (key === 'n') {
-        const btn = document.getElementById('dash-skip-suggestion');
-        if (btn) { e.preventDefault(); btn.click(); }
       }
     });
   },
@@ -981,28 +1324,45 @@ const DashboardView = {
   // ACTIONS
   // -------------------------------------------------------------
 
-  capture(raw) {
+  capture(raw, overrides = {}, ctx) {
     const parsed = this.parseCapture(raw);
     if (!parsed.title) {
       Toast.warning('Type a task title first');
       return;
     }
-    const projectId = AppState.selectedProjectId || (AppState.projects[0] ? AppState.projects[0].id : null);
+    const projectId = overrides.projectId || AppState.selectedProjectId || (AppState.projects[0] ? AppState.projects[0].id : null);
     if (!projectId) {
       Toast.error('Create a project first');
       return;
     }
+
+    const today = this.todayKey();
+    let plannedDate = parsed.plannedDate;
+    let sprintId = null;
+
+    if (plannedDate === undefined) {
+      if (overrides.target === 'today') plannedDate = today;
+      else if (overrides.target === 'tomorrow') plannedDate = this.addDays(today, 1);
+      else if (overrides.target === 'sprint' && ctx && ctx.sprint) {
+        sprintId = ctx.sprint.sprint.id;
+        plannedDate = today;
+      } else {
+        plannedDate = null;
+      }
+    }
+
     this.refocusCapture = true;
     const task = AppState.createTask({
       title: parsed.title,
       projectId,
       status: 'todo',
-      priority: parsed.priority,
-      type: parsed.type,
-      estimate: parsed.estimate,
-      plannedDate: parsed.plannedDate
+      priority: parsed.priority || overrides.priority || 'medium',
+      type: parsed.type || 'task',
+      estimate: parsed.estimate || 0,
+      plannedDate,
+      sprintId
     });
-    if (task) Toast.success(`Captured ${task.key}${parsed.plannedDate ? ` for ${parsed.dateLabel.toLowerCase()}` : ''}`);
+    if (task) Toast.success(`Created ${task.key}`);
   },
 
   toggleDone(task) {
@@ -1010,7 +1370,6 @@ const DashboardView = {
     if (next === 'done' && this.timer && this.timer.taskId === task.id && this.timer.mode === 'focus' && this.timer.state !== 'idle') {
       this.stopTimer(true);
     }
-    this.skipIds.delete(task.id);
     AppState.updateTask(task.id, { status: next });
     if (next === 'done') Toast.success(`${task.key} completed 🎉`);
   },
@@ -1020,7 +1379,7 @@ const DashboardView = {
     const picks = ctx.suggestions.slice(0, 3);
     if (!picks.length) return;
     AppState.bulkUpdateTasks(picks.map(t => t.id), { plannedDate: ctx.today });
-    Toast.success(`Planned ${picks.length} task${picks.length === 1 ? '' : 's'} for today`);
+    Toast.success(`Planned ${picks.length} task${picks.length === 1 ? '' : 's'} for Today`);
   },
 
   triageAll() {
@@ -1030,7 +1389,7 @@ const DashboardView = {
       .map(a => a.task.id);
     if (!ids.length) return;
     AppState.bulkUpdateTasks(ids, { plannedDate: ctx.today });
-    Toast.success(`Moved ${ids.length} task${ids.length === 1 ? '' : 's'} to today`);
+    Toast.success(`Moved ${ids.length} task${ids.length === 1 ? '' : 's'} to Today`);
   },
 
   // -------------------------------------------------------------
@@ -1091,14 +1450,13 @@ const DashboardView = {
       this.pauseTimer();
     } else {
       if (t.mode === 'focus' && t.state === 'idle') {
-        Toast.info(t.taskId ? 'Focus session started — one task, no distractions.' : 'Focus session started.');
+        Toast.info(t.taskId ? 'Focus session started.' : 'Focus timer started.');
       }
       this.startTimer();
     }
     this.rerenderIfVisible();
   },
 
-  /** Start/pause the timer for a specific task (used by "Start focus" buttons). */
   focusOn(taskId) {
     const t = this.loadTimer();
     if (t.taskId === taskId && t.mode === 'focus' && t.state === 'running') {
@@ -1110,7 +1468,6 @@ const DashboardView = {
     this.switchTimerTask(taskId, false);
     const task = AppState.tasks.find(x => x.id === taskId);
     if (task && task.status !== 'inprogress' && task.status !== 'inreview') {
-      // Starting focus implies the task is in progress; planning it for today keeps the plan honest.
       this.startTimer();
       AppState.updateTask(taskId, { status: 'inprogress', plannedDate: task.plannedDate || this.todayKey() });
       Toast.info(`Focusing on ${task.key}`);
@@ -1121,7 +1478,6 @@ const DashboardView = {
     this.rerenderIfVisible();
   },
 
-  /** Elapsed focus seconds in the current session that haven't been logged yet. */
   unloggedSeconds() {
     const t = this.loadTimer();
     if (t.mode !== 'focus') return 0;
@@ -1131,7 +1487,6 @@ const DashboardView = {
   switchTimerTask(taskId, rerender = true) {
     const t = this.loadTimer();
     if (t.taskId === taskId) return;
-    // Credit time already spent to the previous task before switching.
     const minutes = Math.floor(this.unloggedSeconds() / 60);
     const previous = t.taskId;
     t.taskId = taskId;
@@ -1151,7 +1506,7 @@ const DashboardView = {
       this.resetTimer('focus');
       this.saveTimer();
       this.stopTicking();
-      if (!silent) Toast.info('Break skipped — ready when you are.');
+      if (!silent) Toast.info('Break skipped.');
       this.rerenderIfVisible();
       return;
     }
@@ -1190,25 +1545,23 @@ const DashboardView = {
       const minutes = Math.round((this.timerTotal() - (t.credited || 0)) / 60);
       const taskId = t.taskId;
       const work = t.work;
-      // Auto-start the break.
       t.mode = 'break';
       t.credited = 0;
       t.state = 'running';
       t.endAt = Date.now() + t.brk * 60 * 1000;
       t.remaining = t.brk * 60;
       this.saveTimer();
-      Toast.success(`${work}-minute session complete! Take a ${t.brk}-minute break.`);
+      Toast.success(`${work}m session complete! Taking ${t.brk}m break.`);
       this.logMinutes(taskId, minutes, true);
     } else {
       this.resetTimer('focus');
       this.saveTimer();
       this.stopTicking();
-      Toast.info('Break over — ready for the next session?');
+      Toast.info('Break over — ready for next session.');
       this.rerenderIfVisible();
     }
   },
 
-  /** Records focus minutes in today's log and adds them to the task's tracked time. */
   logMinutes(taskId, minutes, countSession, rerender = true) {
     const today = this.todayKey();
     const log = this.getFocusLog();
@@ -1216,13 +1569,12 @@ const DashboardView = {
     entry.minutes += Math.max(0, minutes);
     if (countSession) entry.sessions += 1;
     log[today] = entry;
-    // Keep only the last 60 days.
     Object.keys(log).sort().slice(0, -60).forEach(key => delete log[key]);
     this.writeJSON(this.STORAGE.focusLog, log);
 
     const task = taskId ? AppState.tasks.find(x => x.id === taskId) : null;
     if (task && minutes > 0) {
-      AppState.updateTask(task.id, { trackedTime: (Number(task.trackedTime) || 0) + minutes }); // triggers re-render
+      AppState.updateTask(task.id, { trackedTime: (Number(task.trackedTime) || 0) + minutes });
     } else if (rerender) {
       this.rerenderIfVisible();
     }
@@ -1255,11 +1607,6 @@ const DashboardView = {
     document.title = `${t.mode === 'break' ? '☕' : '⏱'} ${clock} · TaskForge`;
     const time = document.getElementById('dash-timer-time');
     if (time) time.textContent = clock;
-    const ring = document.getElementById('dash-timer-ring');
-    if (ring) {
-      const total = this.timerTotal();
-      ring.style.strokeDashoffset = (this.RING_C * (1 - (total - remaining) / total)).toFixed(2);
-    }
   },
 
   rerenderIfVisible() {

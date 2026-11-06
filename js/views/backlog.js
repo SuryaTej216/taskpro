@@ -92,13 +92,8 @@ const BacklogView = {
         const task = AppState.tasks.find(t => t.id === taskId);
         if (!task || task.sprintId === targetSprintId) return;
 
-        const targetSprint = targetSprintId ? AppState.sprints.find(s => s.id === targetSprintId) : null;
-        if (targetSprint && targetSprint.projectId && targetSprint.projectId !== task.projectId) {
-          Toast.warning('This sprint only accepts tasks from its project.');
-          return;
-        }
-
         AppState.updateTask(taskId, { sprintId: targetSprintId });
+        const targetSprint = targetSprintId ? AppState.sprints.find(s => s.id === targetSprintId) : null;
         Toast.success(`Moved ${task.key} to ${targetSprint ? targetSprint.name : 'unassigned'}`);
       });
     });
@@ -165,31 +160,28 @@ const BacklogView = {
     if (!sprint) return;
 
     // Get tasks that are NOT already in this sprint
-    // Project sprints stay within their project; shared sprints can pull work
-    // from every project even when the planning view is currently filtered.
-    let availableTasks = sprint.projectId
-      ? AppState.tasks.filter(t => t.projectId === sprint.projectId)
-      : AppState.tasks;
-    
-    // Exclude tasks already in this sprint
-    availableTasks = availableTasks.filter(t => t.sprintId !== sprintId);
+    let availableTasks = AppState.tasks.filter(t => t.sprintId !== sprintId);
 
     const modalBody = `
       <div id="add-existing-tasks-container">
         <!-- Search & Filter Bar -->
         <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 200px; position: relative;">
+          <div style="flex: 1; min-width: 180px; position: relative;">
             <i class="fa-solid fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px;"></i>
             <input type="text" id="add-task-search" class="form-input" placeholder="Search tasks by title or key..." style="padding-left: 32px; font-size: 13px; height: 36px;">
           </div>
-          <select id="add-task-filter-status" class="form-select" style="width: auto; min-width: 120px; font-size: 13px; height: 36px;">
+          <select id="add-task-filter-project" class="form-select" style="width: auto; min-width: 130px; font-size: 13px; height: 36px;">
+            <option value="">All Projects</option>
+            ${AppState.projects.map(p => `<option value="${p.id}">${Utils.escapeHTML(p.name)} (${p.key})</option>`).join('')}
+          </select>
+          <select id="add-task-filter-status" class="form-select" style="width: auto; min-width: 110px; font-size: 13px; height: 36px;">
             <option value="">All Statuses</option>
             <option value="backlog">Backlog</option>
             <option value="todo">To Do</option>
             <option value="inprogress">In Progress</option>
             <option value="inreview">In Review</option>
           </select>
-          <select id="add-task-filter-assignment" class="form-select" style="width: auto; min-width: 140px; font-size: 13px; height: 36px;">
+          <select id="add-task-filter-assignment" class="form-select" style="width: auto; min-width: 130px; font-size: 13px; height: 36px;">
             <option value="">All Tasks</option>
             <option value="unassigned" selected>Unassigned to Sprint</option>
             <option value="other">In Other Sprints</option>
@@ -227,14 +219,10 @@ const BacklogView = {
               Toast.warning('No tasks selected.');
               return;
             }
-            let count = 0;
-            checked.forEach(cb => {
-              const taskId = cb.dataset.taskId;
-              AppState.updateTask(taskId, { sprintId });
-              count++;
-            });
+            const ids = Array.from(checked).map(cb => cb.dataset.taskId);
+            AppState.bulkUpdateTasks(ids, { sprintId });
             Modal.close();
-            Toast.success(`Added ${count} task(s) to ${sprint.name}`);
+            Toast.success(`Added ${ids.length} task(s) to ${sprint.name}`);
           }
         }
       ]
@@ -244,6 +232,53 @@ const BacklogView = {
     setTimeout(() => {
       this._attachTaskPickerListeners(sprintId);
     }, 50);
+  },
+
+  _sortByItemId(a, b) {
+    const keyA = a.key || a.id || '';
+    const keyB = b.key || b.id || '';
+    const cmp = keyA.localeCompare(keyB, undefined, { numeric: true, sensitivity: 'base' });
+    if (cmp !== 0) return cmp;
+    return (a.id || '').localeCompare(b.id || '', undefined, { numeric: true, sensitivity: 'base' });
+  },
+
+  _groupTasksByProject(tasks) {
+    const groups = [];
+    const projectMap = new Map();
+
+    (AppState.projects || []).forEach(p => {
+      projectMap.set(p.id, {
+        project: p,
+        tasks: []
+      });
+    });
+
+    const noProjectGroup = {
+      project: { id: null, name: 'No Project', key: '', color: '#6B6E76' },
+      tasks: []
+    };
+
+    tasks.forEach(t => {
+      if (t.projectId && projectMap.has(t.projectId)) {
+        projectMap.get(t.projectId).tasks.push(t);
+      } else {
+        noProjectGroup.tasks.push(t);
+      }
+    });
+
+    projectMap.forEach(group => {
+      if (group.tasks.length > 0) {
+        group.tasks.sort((a, b) => this._sortByItemId(a, b));
+        groups.push(group);
+      }
+    });
+
+    if (noProjectGroup.tasks.length > 0) {
+      noProjectGroup.tasks.sort((a, b) => this._sortByItemId(a, b));
+      groups.push(noProjectGroup);
+    }
+
+    return groups;
   },
 
   _renderTaskPickerList(tasks, targetSprintId) {
@@ -256,35 +291,60 @@ const BacklogView = {
       `;
     }
 
-    return tasks.map(task => {
-      let typeIcon = 'fa-square-check';
-      if (task.type === 'bug') typeIcon = 'fa-circle-dot';
-      if (task.type === 'story') typeIcon = 'fa-bookmark';
-      if (task.type === 'epic') typeIcon = 'fa-bolt';
-      if (task.type === 'subtask') typeIcon = 'fa-network-wired';
+    const groups = this._groupTasksByProject(tasks);
 
-      const currentSprint = task.sprintId ? AppState.sprints.find(s => s.id === task.sprintId) : null;
-      const sprintLabel = currentSprint ? `<span style="font-size: 10px; color: var(--text-muted); background: var(--bg-surface); border: 1px solid var(--border-subtle); padding: 1px 6px; border-radius: 3px;"><i class="fa-solid fa-bolt" style="font-size: 8px; margin-right: 2px;"></i>${Utils.escapeHTML(currentSprint.name)}</span>` : `<span style="font-size: 10px; color: var(--accent-warning); background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); padding: 1px 6px; border-radius: 3px;">No Sprint</span>`;
-
+    return groups.map(group => {
+      const p = group.project;
+      const pColor = p.color || '#579DFF';
       return `
-        <label class="add-task-row" data-task-id="${task.id}" data-status="${task.status}" data-sprint="${task.sprintId || ''}" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; transition: background var(--transition-fast);" onmouseover="this.style.background='var(--bg-surface-elevated)'" onmouseout="this.style.background=''">
-          <input type="checkbox" class="add-task-checkbox" data-task-id="${task.id}" style="cursor: pointer; flex-shrink: 0;">
-          <span class="type-icon type-${task.type}" style="flex-shrink: 0;"><i class="fa-solid ${typeIcon}"></i></span>
-          <span style="font-family: var(--font-mono); font-weight: 600; font-size: 11px; color: var(--text-muted); flex-shrink: 0;">${task.key}</span>
-          <span style="font-size: 13px; color: var(--text-primary); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHTML(task.title)}</span>
-          <span class="badge badge-status-${task.status}" style="font-size: 10px; flex-shrink: 0;">${task.status}</span>
-          <span class="badge-priority priority-${task.priority}" style="flex-shrink: 0;"><i class="fa-solid fa-angles-up"></i></span>
-          ${task.storyPoints > 0 ? `<span class="card-story-points" style="flex-shrink: 0;" title="Story Points">${task.storyPoints}</span>` : ''}
-          ${sprintLabel}
-        </label>
+        <div class="add-task-project-group">
+          <div class="add-task-project-header" style="--project-accent: ${pColor};">
+            <div class="add-task-project-header-left">
+              <span class="add-task-project-dot" style="background: ${pColor};"></span>
+              <span class="add-task-project-name" title="${Utils.escapeHTML(p.name)}">${Utils.escapeHTML(p.name)}</span>
+              ${p.key ? `<span class="add-task-project-key">${Utils.escapeHTML(p.key)}</span>` : ''}
+            </div>
+            <span class="add-task-project-count">${group.tasks.length} task${group.tasks.length === 1 ? '' : 's'}</span>
+          </div>
+          <div class="add-task-project-items">
+            ${group.tasks.map(task => this._renderTaskPickerRow(task)).join('')}
+          </div>
+        </div>
       `;
     }).join('');
+  },
+
+  _renderTaskPickerRow(task) {
+    let typeIcon = 'fa-square-check';
+    if (task.type === 'bug') typeIcon = 'fa-circle-dot';
+    if (task.type === 'story') typeIcon = 'fa-bookmark';
+    if (task.type === 'epic') typeIcon = 'fa-bolt';
+    if (task.type === 'subtask') typeIcon = 'fa-network-wired';
+
+    const currentSprint = task.sprintId ? AppState.sprints.find(s => s.id === task.sprintId) : null;
+    const sprintLabel = currentSprint
+      ? `<span style="font-size: 10px; color: var(--text-muted); background: var(--bg-surface); border: 1px solid var(--border-subtle); padding: 1px 6px; border-radius: 3px;"><i class="fa-solid fa-bolt" style="font-size: 8px; margin-right: 2px;"></i>${Utils.escapeHTML(currentSprint.name)}</span>`
+      : `<span style="font-size: 10px; color: var(--accent-warning); background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); padding: 1px 6px; border-radius: 3px;">No Sprint</span>`;
+
+    return `
+      <label class="add-task-row" data-task-id="${task.id}" data-status="${task.status}" data-sprint="${task.sprintId || ''}">
+        <input type="checkbox" class="add-task-checkbox" data-task-id="${task.id}" style="cursor: pointer; flex-shrink: 0;">
+        <span class="type-icon type-${task.type}" style="flex-shrink: 0;"><i class="fa-solid ${typeIcon}"></i></span>
+        <span style="font-family: var(--font-mono); font-weight: 600; font-size: 11px; color: var(--text-muted); flex-shrink: 0;">${task.key}</span>
+        <span style="font-size: 13px; color: var(--text-primary); font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${Utils.escapeHTML(task.title)}</span>
+        <span class="badge badge-status-${task.status}" style="font-size: 10px; flex-shrink: 0;">${task.status}</span>
+        <span class="badge-priority priority-${task.priority}" style="flex-shrink: 0;"><i class="fa-solid fa-angles-up"></i></span>
+        ${task.storyPoints > 0 ? `<span class="card-story-points" style="flex-shrink: 0;" title="Story Points">${task.storyPoints}</span>` : ''}
+        ${sprintLabel}
+      </label>
+    `;
   },
 
   _attachTaskPickerListeners(targetSprintId) {
     const searchInput = document.getElementById('add-task-search');
     const statusFilter = document.getElementById('add-task-filter-status');
     const assignmentFilter = document.getElementById('add-task-filter-assignment');
+    const projectFilter = document.getElementById('add-task-filter-project');
     const selectAllCb = document.getElementById('add-task-select-all');
     const taskList = document.getElementById('add-task-list');
 
@@ -294,19 +354,19 @@ const BacklogView = {
       const query = searchInput.value.toLowerCase().trim();
       const statusVal = statusFilter.value;
       const assignVal = assignmentFilter.value;
+      const projectVal = projectFilter ? projectFilter.value : '';
 
-      const targetSprint = AppState.sprints.find(s => s.id === targetSprintId);
-      let tasks = targetSprint && targetSprint.projectId
-        ? AppState.tasks.filter(t => t.projectId === targetSprint.projectId)
-        : AppState.tasks;
+      let tasks = AppState.tasks.filter(t => t.sprintId !== targetSprintId);
 
-      // Exclude tasks already in target sprint
-      tasks = tasks.filter(t => t.sprintId !== targetSprintId);
+      // Project filter
+      if (projectVal) {
+        tasks = tasks.filter(t => t.projectId === projectVal);
+      }
 
       // Search filter
       if (query) {
         tasks = tasks.filter(t =>
-          t.title.toLowerCase().includes(query) ||
+          (t.title && t.title.toLowerCase().includes(query)) ||
           (t.key && t.key.toLowerCase().includes(query))
         );
       }
@@ -325,6 +385,9 @@ const BacklogView = {
 
       taskList.innerHTML = this._renderTaskPickerList(tasks, targetSprintId);
 
+      // Reset select-all checkbox when list changes
+      if (selectAllCb) selectAllCb.checked = false;
+
       // Re-attach checkbox listeners
       this._updateSelectedCount();
       taskList.querySelectorAll('.add-task-checkbox').forEach(cb => {
@@ -335,6 +398,7 @@ const BacklogView = {
     searchInput.addEventListener('input', updateList);
     statusFilter.addEventListener('change', updateList);
     assignmentFilter.addEventListener('change', updateList);
+    if (projectFilter) projectFilter.addEventListener('change', updateList);
 
     // Select all
     if (selectAllCb) {
