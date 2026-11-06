@@ -599,6 +599,15 @@ const TaskModal = {
         }
       }
     });
+
+    AppState.subscribe('sprints:changed', () => {
+      if (this.isOpen && this.currentTaskId) {
+        const currentTask = AppState.tasks.find(t => t.id === this.currentTaskId);
+        if (currentTask) {
+          this.syncTaskHeaderAndAttributes(currentTask);
+        }
+      }
+    });
   },
 
   getAuditMeta(action) {
@@ -838,6 +847,192 @@ const TaskModal = {
     if (titleInput && document.activeElement !== titleInput && titleInput.value !== task.title) {
       titleInput.value = task.title;
     }
+
+    // 5. Sync sprint status blocks & title sprint pills
+    const sprintBlocksEl = document.getElementById('detail-task-sprint-blocks');
+    if (sprintBlocksEl) {
+      sprintBlocksEl.innerHTML = this.renderTaskSprintBlocksHTML(task);
+    }
+    const titleSprintPillsEl = document.getElementById('detail-title-sprint-pills');
+    if (titleSprintPillsEl) {
+      titleSprintPillsEl.innerHTML = this.renderTitleSprintPillsHTML(task);
+    }
+  },
+
+  /**
+   * Computes the ordered Sprint Lifecycle Blocks for a task:
+   * - Failed sprints (red cross): completed sprints where the task was not completed, piled up once only per sprint
+   * - Active sprint (blue): current active/planned sprint when the task is not yet done
+   * - Completed sprint (green tick): sprint in which the task was completed (status === 'done')
+   */
+  getTaskSprintBlocks(task) {
+    if (!task) return [];
+    const sprints = AppState.sprints || [];
+    const sprintById = new Map(sprints.map(s => [s.id, s]));
+
+    // 1. Determine Completed Sprint (Green Tick) if task is done
+    let completedSprint = null;
+    if (task.status === 'done') {
+      if (task.completedInSprintId && sprintById.has(task.completedInSprintId)) {
+        completedSprint = sprintById.get(task.completedInSprintId);
+      } else if (task.sprintId && sprintById.has(task.sprintId)) {
+        completedSprint = sprintById.get(task.sprintId);
+      } else {
+        completedSprint = sprints.find(s =>
+          s.status === 'completed' &&
+          s.completionSnapshot &&
+          Array.isArray(s.completionSnapshot.completedTaskIds) &&
+          s.completionSnapshot.completedTaskIds.includes(task.id)
+        ) || null;
+      }
+    }
+
+    // 2. Determine Active / Current Sprint (Blue) if task is not done
+    let activeSprint = null;
+    if (task.status !== 'done' && task.sprintId && sprintById.has(task.sprintId)) {
+      const candidate = sprintById.get(task.sprintId);
+      if (candidate.status !== 'completed') {
+        activeSprint = candidate;
+      }
+    }
+
+    // 3. Collect Failed Sprints (Red Cross) — deduplicated so each failed sprint piles up ONCE ONLY
+    const failedIdSet = new Set();
+
+    // 3a. Explicitly recorded failedSprintIds on the task
+    if (Array.isArray(task.failedSprintIds)) {
+      task.failedSprintIds.forEach(id => {
+        if (id && sprintById.has(id)) failedIdSet.add(id);
+      });
+    }
+
+    // 3b. Completed sprints whose completionSnapshot lists this task as incomplete,
+    //     or where the task is still assigned to a completed sprint while not done
+    sprints.forEach(s => {
+      if (s.status !== 'completed') return;
+      const inIncompleteSnap = s.completionSnapshot &&
+        Array.isArray(s.completionSnapshot.incompleteTaskIds) &&
+        s.completionSnapshot.incompleteTaskIds.includes(task.id);
+      const stillAssignedIncomplete = task.sprintId === s.id && task.status !== 'done';
+      if (inIncompleteSnap || stillAssignedIncomplete) {
+        failedIdSet.add(s.id);
+      }
+    });
+
+    // 3c. Audit activity logs where task was moved to a sprint that is now completed without task completion
+    const taskActs = (AppState.activity || []).filter(a => a.taskId === task.id && a.action === 'sprint_changed');
+    taskActs.forEach(a => {
+      const m = (a.details || '').match(/^Moved to (.+)$/i);
+      if (!m) return;
+      const sprintName = m[1].trim();
+      const matchedSprint = sprints.find(s => s.name === sprintName && s.status === 'completed');
+      if (matchedSprint) {
+        const wasCompletedInIt = completedSprint && completedSprint.id === matchedSprint.id;
+        const doneInIt = task.sprintId === matchedSprint.id && task.status === 'done';
+        if (!wasCompletedInIt && !doneInIt) {
+          failedIdSet.add(matchedSprint.id);
+        }
+      }
+    });
+
+    // Ensure the sprint where the task was completed or is currently active is never in the failed pile
+    if (completedSprint) failedIdSet.delete(completedSprint.id);
+    if (activeSprint) failedIdSet.delete(activeSprint.id);
+
+    const failedSprints = [...failedIdSet]
+      .map(id => sprintById.get(id))
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.startDate || 0) - new Date(a.startDate || 0));
+
+    // Active or Completed (Success) on top, Failed sprints piled at the bottom
+    const blocks = [];
+    if (completedSprint) {
+      blocks.push({ sprint: completedSprint, state: 'completed' });
+    }
+    if (activeSprint) {
+      blocks.push({ sprint: activeSprint, state: 'active' });
+    }
+    failedSprints.forEach(s => {
+      blocks.push({ sprint: s, state: 'failed' });
+    });
+
+    return blocks;
+  },
+
+  renderTitleSprintPillsHTML(task) {
+    const blocks = this.getTaskSprintBlocks(task);
+    if (!blocks.length) return '';
+    return blocks.map(b => {
+      const s = b.sprint;
+      if (b.state === 'completed') {
+        return `
+          <span class="tsb-inline-pill is-completed" title="Completed in ${Utils.escapeHTML(s.name)}">
+            <span class="tsb-inline-icon"><i class="fa-solid fa-check"></i></span>
+            <span>${Utils.escapeHTML(s.name)}</span>
+          </span>
+        `;
+      }
+      if (b.state === 'active') {
+        return `
+          <span class="tsb-inline-pill is-active" title="Active in ${Utils.escapeHTML(s.name)}">
+            <span class="tsb-inline-icon"><i class="fa-solid fa-bolt"></i></span>
+            <span>${Utils.escapeHTML(s.name)}</span>
+          </span>
+        `;
+      }
+      return `
+        <span class="tsb-inline-pill is-failed" title="Not completed in ${Utils.escapeHTML(s.name)}">
+          <span class="tsb-inline-icon"><i class="fa-solid fa-xmark"></i></span>
+          <span>${Utils.escapeHTML(s.name)}</span>
+        </span>
+      `;
+    }).join('');
+  },
+
+  renderTaskSprintBlocksHTML(task) {
+    const esc = Utils.escapeHTML;
+    const blocks = this.getTaskSprintBlocks(task);
+
+    if (blocks.length === 0) {
+      return `
+        <div class="task-sprint-empty-block">
+          <i class="fa-solid fa-inbox"></i>
+          <span>No Sprint (Backlog)</span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="task-sprint-blocks-stack">
+        ${blocks.map(item => {
+          const s = item.sprint;
+          if (item.state === 'completed') {
+            return `
+              <div class="task-sprint-block is-completed" title="Completed in ${esc(s.name)}">
+                <i class="fa-solid fa-check tsb-icon"></i>
+                <span class="tsb-sprint-name">${esc(s.name)}</span>
+              </div>
+            `;
+          }
+
+          if (item.state === 'active') {
+            return `
+              <div class="task-sprint-block is-active" title="Active in ${esc(s.name)}">
+                <span class="tsb-active-dot"></span>
+                <span class="tsb-sprint-name">${esc(s.name)}</span>
+              </div>
+            `;
+          }
+
+          return `
+            <div class="task-sprint-block is-failed" title="Not completed in ${esc(s.name)}">
+              <i class="fa-solid fa-xmark tsb-icon"></i>
+              <span class="tsb-sprint-name">${esc(s.name)}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
   },
 
   closeDetail(updateUrl = true) {
@@ -1058,11 +1253,9 @@ const TaskModal = {
                       <i class="fa-solid fa-award"></i> ${task.storyPoints} pts
                     </span>
                   ` : ''}
-                  ${task.sprintId ? `
-                    <span class="badge" style="background: rgba(54, 179, 126, 0.12); color: #36B37E;" title="Assigned Sprint">
-                      <i class="fa-solid fa-repeat"></i> ${Utils.escapeHTML((AppState.sprints.find(s => s.id === task.sprintId) || {}).name || 'Sprint')}
-                    </span>
-                  ` : ''}
+                  <div id="detail-title-sprint-pills" class="tsb-inline-pills-wrap">
+                    ${this.renderTitleSprintPillsHTML(task)}
+                  </div>
                 </div>
                 <span id="title-save-indicator" style="font-size: 11px; color: var(--accent-success); opacity: 0; transition: opacity 0.3s ease;">
                   <i class="fa-solid fa-check"></i> Saved
@@ -1507,15 +1700,12 @@ const TaskModal = {
                 </div>
 
                 <div class="form-group" style="margin: 0;">
-                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600;"><i class="fa-solid fa-repeat" style="color: var(--accent-success);"></i> Sprint</label>
-                  <select id="detail-task-sprint" class="form-select">
-                    <option value="">None (Backlog Pool)</option>
-                    ${AppState.sprints.map(s => `
-                      <option value="${s.id}" ${task.sprintId === s.id ? 'selected' : ''}>
-                        ${Utils.escapeHTML(s.name)} [${s.status.toUpperCase()}]
-                      </option>
-                    `).join('')}
-                  </select>
+                  <label class="form-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-repeat" style="color: var(--accent-primary);"></i> Sprint Status</span>
+                  </label>
+                  <div id="detail-task-sprint-blocks" class="task-sprint-blocks-container">
+                    ${this.renderTaskSprintBlocksHTML(task)}
+                  </div>
                 </div>
 
                 <div class="form-group" style="margin: 0;">
@@ -1933,15 +2123,6 @@ const TaskModal = {
       recurringSelect.addEventListener('change', (e) => {
         const freq = e.target.value;
         AppState.updateTask(taskId, { recurring: freq ? { frequency: freq } : null });
-      });
-    }
-
-    const sprintSelect = document.getElementById('detail-task-sprint');
-    if (sprintSelect) {
-      sprintSelect.addEventListener('change', (e) => {
-        AppState.updateTask(taskId, { sprintId: e.target.value || null });
-        const updated = AppState.tasks.find(t => t.id === taskId);
-        this.renderDrawerContent(drawer, updated);
       });
     }
 

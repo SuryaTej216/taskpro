@@ -252,6 +252,8 @@ const AppState = {
       dependencies: Array.isArray(taskData.dependencies) ? taskData.dependencies : [],
       checklist: Array.isArray(taskData.checklist) ? taskData.checklist : [],
       mergeChecklistAndSubtasks: taskData.mergeChecklistAndSubtasks !== undefined ? !!taskData.mergeChecklistAndSubtasks : false,
+      failedSprintIds: Array.isArray(taskData.failedSprintIds) ? [...new Set(taskData.failedSprintIds)] : [],
+      completedInSprintId: taskData.status === 'done' && taskData.sprintId ? taskData.sprintId : (taskData.completedInSprintId || null),
       createdAt: now,
       updatedAt: now,
       completedAt: taskData.status === 'done' ? now : null,
@@ -297,12 +299,20 @@ const AppState = {
     const oldTask = { ...this.tasks[taskIndex] };
     const now = new Date().toISOString();
 
-    // Automatically record completion timestamp if transitioned to done
+    // Automatically record completion timestamp & sprint if transitioned to done
     if (updates.status && updates.status === 'done' && oldTask.status !== 'done') {
       updates.completedAt = now;
+      const activeSprintId = updates.sprintId !== undefined ? updates.sprintId : oldTask.sprintId;
+      if (activeSprintId) {
+        updates.completedInSprintId = activeSprintId;
+        if (Array.isArray(oldTask.failedSprintIds) && oldTask.failedSprintIds.includes(activeSprintId)) {
+          updates.failedSprintIds = oldTask.failedSprintIds.filter(id => id !== activeSprintId);
+        }
+      }
       if (this.settings.soundEffects) Utils.playSound('success');
     } else if (updates.status && updates.status !== 'done' && oldTask.status === 'done') {
       updates.completedAt = null;
+      updates.completedInSprintId = null;
     }
 
     const updatedTask = {
@@ -436,11 +446,19 @@ const AppState = {
 
       const updated = { ...t, ...updates, updatedAt: now };
 
-      // Handle status completion timestamp
+      // Handle status completion timestamp & sprint tracking
       if (updates.status && updates.status === 'done' && t.status !== 'done') {
         updated.completedAt = now;
+        const activeSprintId = updates.sprintId !== undefined ? updates.sprintId : t.sprintId;
+        if (activeSprintId) {
+          updated.completedInSprintId = activeSprintId;
+          if (Array.isArray(updated.failedSprintIds)) {
+            updated.failedSprintIds = updated.failedSprintIds.filter(id => id !== activeSprintId);
+          }
+        }
       } else if (updates.status && updates.status !== 'done' && t.status === 'done') {
         updated.completedAt = null;
+        updated.completedInSprintId = null;
       }
 
       return updated;
@@ -1005,8 +1023,21 @@ const AppState = {
       totalEstimate: sprintTasks.reduce((sum, t) => sum + (Number(t.estimate) || 0), 0)
     };
 
-    // Move incomplete tasks to next sprint or backlog
+    // Stamp completed tasks with this sprint ID
+    completed.forEach(t => {
+      t.completedInSprintId = sprintId;
+      if (Array.isArray(t.failedSprintIds)) {
+        t.failedSprintIds = t.failedSprintIds.filter(id => id !== sprintId);
+      }
+    });
+
+    // Record failed sprint once only on incomplete tasks and move them to next sprint or backlog
     incomplete.forEach(t => {
+      const existingFailed = Array.isArray(t.failedSprintIds) ? [...t.failedSprintIds] : [];
+      if (!existingFailed.includes(sprintId)) {
+        existingFailed.push(sprintId);
+      }
+      t.failedSprintIds = existingFailed;
       t.sprintId = moveToNextSprintId || null;
     });
 

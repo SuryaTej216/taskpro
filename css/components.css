@@ -651,6 +651,7 @@
   box-shadow: -20px 0 54px rgba(0, 0, 0, 0.38);
   transform: translateX(100%);
 }
+
 .drawer-overlay.active .drawer-panel.is-side-drawer {
   transform: translateX(0);
 }
@@ -735,6 +736,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
 }
+
 .btn-copy-chip:hover {
   background: var(--bg-surface-active);
   border-color: var(--accent-primary);
@@ -794,9 +796,11 @@
   transition: border-color 0.15s ease, background 0.15s ease;
   font-family: inherit;
 }
+
 .fullpage-task-title-input:hover {
   border-color: var(--border-subtle);
 }
+
 .fullpage-task-title-input:focus {
   background: var(--bg-surface);
   border-color: var(--accent-primary);
@@ -829,11 +833,13 @@
   cursor: pointer;
   transition: all 0.15s ease;
 }
+
 .fullpage-action-btn:hover {
   background: var(--bg-surface-active);
   color: var(--text-primary);
   border-color: var(--border-default);
 }
+
 .fullpage-action-btn.active {
   background: rgba(87, 157, 255, 0.15);
   color: var(--accent-primary);
@@ -852,6 +858,7 @@
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   flex-wrap: wrap;
 }
+
 .markdown-tool-btn {
   width: 28px;
   height: 28px;
@@ -866,6 +873,7 @@
   cursor: pointer;
   transition: all 0.12s ease;
 }
+
 .markdown-tool-btn:hover {
   background: var(--bg-surface-active);
   color: var(--text-primary);
@@ -887,6 +895,7 @@
   font-family: inherit;
   transition: border-color 0.15s ease;
 }
+
 .fullpage-desc-textarea:focus {
   border-color: var(--accent-primary);
 }
@@ -903,12 +912,14 @@
   font-size: 13px;
   gap: 12px;
 }
+
 .parent-task-link {
   color: var(--accent-primary);
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
+
 .parent-task-link:hover {
   text-decoration: underline;
 }
@@ -954,6 +965,7 @@
     padding: 16px;
     gap: 20px;
   }
+
   .fullpage-inspector-sidebar {
     position: static;
   }
@@ -1026,6 +1038,7 @@
   background: var(--bg-surface-active);
   color: var(--text-muted);
 }
+
 .activity-tab-btn.active .activity-tab-count {
   background: rgba(87, 157, 255, 0.18);
   color: var(--accent-primary);
@@ -1035,6 +1048,7 @@
 .activity-tab-pane {
   display: none !important;
 }
+
 .activity-tab-pane.active {
   display: flex !important;
   flex-direction: column;
@@ -1068,6 +1082,7 @@
   margin-bottom: 6px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+
 .comment-composer-box:focus-within {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(87, 157, 255, 0.14);
@@ -1122,6 +1137,7 @@
   border-radius: var(--radius-md);
   transition: border-color 0.15s ease;
 }
+
 .task-comment-card:hover {
   border-color: var(--border-default);
 }
@@ -1181,10 +1197,12 @@
   font-size: 12px;
   transition: all 0.15s ease;
 }
+
 .task-comment-action-btn:hover {
   color: var(--text-primary);
   background: var(--bg-surface-active);
 }
+
 .task-comment-action-btn.is-delete:hover {
   color: #F87171;
   background: rgba(239, 68, 68, 0.15);
@@ -1242,34 +1260,42 @@
   background: rgba(56, 189, 248, 0.2);
   color: #38BDF8;
 }
+
 .audit-marker-status {
   background: rgba(54, 179, 126, 0.2);
   color: #36B37E;
 }
+
 .audit-marker-priority {
   background: rgba(245, 158, 11, 0.2);
   color: #F59E0B;
 }
+
 .audit-marker-sprint {
   background: rgba(163, 113, 247, 0.2);
   color: #A371F7;
 }
+
 .audit-marker-time {
   background: rgba(87, 157, 255, 0.2);
   color: #579DFF;
 }
+
 .audit-marker-comment {
   background: rgba(139, 92, 246, 0.2);
   color: #8B5CF6;
 }
+
 .audit-marker-subtask {
   background: rgba(20, 184, 166, 0.2);
   color: #14B8A6;
 }
+
 .audit-marker-due {
   background: rgba(239, 68, 68, 0.2);
   color: #EF4444;
 }
+
 .audit-marker-general {
   background: var(--bg-surface-elevated);
   color: var(--text-secondary);
@@ -7286,13 +7312,14 @@
 
 /* Executive Header: Fixed 48px height, zero wrapping, identical across both views */
 .board-executive-header,
-.board-view-page > .view-header,
-.datagrid-view-container > .view-header {
+.board-view-page>.view-header,
+.datagrid-view-container>.view-header {
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
   justify-content: space-between !important;
-  flex-wrap: nowrap !important; /* STRICTLY PREVENTS WRAPPING */
+  flex-wrap: nowrap !important;
+  /* STRICTLY PREVENTS WRAPPING */
   gap: 1rem !important;
   height: 48px !important;
   min-height: 48px !important;
@@ -7330,7 +7357,7 @@
   color: var(--text-primary) !important;
 }
 
-.board-executive-header .view-title-group h1 > i {
+.board-executive-header .view-title-group h1>i {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -7448,6 +7475,7 @@
     opacity: 0.55;
     transform: translateY(3px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -8825,6 +8853,7 @@
   margin-top: 2px;
   font-size: 10.5px;
 }
+
 /* ==========================================================================
    AGENDA / SCHEDULE TIMELINE VIEW (Professional UI/UX Suite)
    ========================================================================== */
@@ -8952,6 +8981,7 @@
   .cal-agenda-layout {
     flex-direction: column;
   }
+
   .cal-agenda-rail {
     width: 100%;
     position: static;
@@ -10598,5 +10628,150 @@
   margin-top: 1px;
 }
 
+/* ============================================================
+   TASK DETAIL VIEW — SIMPLE COMPACT SPRINT BLOCKS
+   ============================================================ */
+.task-sprint-blocks-container {
+  margin-top: 2px;
+}
 
-
+.task-sprint-blocks-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.task-sprint-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface-elevated);
+}
+
+/* Completed Sprint — Simple flat green block with green tick */
+.task-sprint-block.is-completed {
+  background: rgba(46, 160, 67, 0.1);
+  border-color: rgba(46, 160, 67, 0.35);
+  color: #2ea043;
+}
+
+[data-theme="dark"] .task-sprint-block.is-completed {
+  color: #3fb950;
+}
+
+/* Active Sprint — Simple flat blue block */
+.task-sprint-block.is-active {
+  background: rgba(56, 139, 253, 0.1);
+  border-color: rgba(56, 139, 253, 0.38);
+  color: #1f6feb;
+}
+
+[data-theme="dark"] .task-sprint-block.is-active {
+  color: #58a6ff;
+}
+
+/* Failed Sprint — Simple flat red block with red cross */
+.task-sprint-block.is-failed {
+  background: rgba(248, 81, 73, 0.1);
+  border-color: rgba(248, 81, 73, 0.35);
+  color: #da3633;
+}
+
+[data-theme="dark"] .task-sprint-block.is-failed {
+  color: #f85149;
+}
+
+.tsb-icon {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.tsb-active-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.tsb-sprint-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-sprint-empty-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px dashed var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Compact Inline Sprint Pills under Task Title */
+.tsb-inline-pills-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tsb-inline-pills-wrap:empty {
+  display: none;
+}
+
+.tsb-inline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tsb-inline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+.tsb-inline-pill.is-completed {
+  background: rgba(46, 160, 67, 0.1);
+  color: #2ea043;
+  border: 1px solid rgba(46, 160, 67, 0.35);
+}
+
+[data-theme="dark"] .tsb-inline-pill.is-completed {
+  color: #3fb950;
+}
+
+.tsb-inline-pill.is-active {
+  background: rgba(56, 139, 253, 0.1);
+  color: #1f6feb;
+  border: 1px solid rgba(56, 139, 253, 0.38);
+}
+
+[data-theme="dark"] .tsb-inline-pill.is-active {
+  color: #58a6ff;
+}
+
+.tsb-inline-pill.is-failed {
+  background: rgba(248, 81, 73, 0.1);
+  color: #da3633;
+  border: 1px solid rgba(248, 81, 73, 0.35);
+}
+
+[data-theme="dark"] .tsb-inline-pill.is-failed {
+  color: #f85149;
+}
