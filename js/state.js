@@ -905,8 +905,51 @@ const AppState = {
   },
 
   // -------------------------------------------------------------
-  // SPRINT MUTATIONS
+  // SPRINT MUTATIONS & SCHEDULING
   // -------------------------------------------------------------
+
+  /**
+   * Computes accurate start/end timestamps (ms) for a sprint window.
+   * Date-only / midnight UTC end dates extend through the end of that local calendar day (23:59:59.999).
+   */
+  getSprintWindowMs(sprint) {
+    if (!sprint) return { startMs: 0, endMs: 0 };
+    const startRaw = sprint.startDate ? String(sprint.startDate) : '';
+    const endRaw = sprint.endDate ? String(sprint.endDate) : '';
+
+    let startMs = startRaw ? new Date(startRaw).getTime() : Date.now();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(startRaw) || /T00:00:00(\.000)?Z$/.test(startRaw)) {
+      const [y, m, d] = startRaw.slice(0, 10).split('-').map(Number);
+      startMs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+    }
+
+    let endMs = endRaw ? new Date(endRaw).getTime() : startMs + 14 * 86400000;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(endRaw) || /T00:00:00(\.000)?Z$/.test(endRaw)) {
+      const [y, m, d] = endRaw.slice(0, 10).split('-').map(Number);
+      endMs = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+    }
+
+    return { startMs, endMs };
+  },
+
+  /**
+   * Finds the next chronologically scheduled ('planned') sprint after the given sprint.
+   */
+  getNextScheduledSprint(currentSprintId = null) {
+    const current = currentSprintId ? this.sprints.find(s => s.id === currentSprintId) : null;
+    const planned = this.sprints
+      .filter(s => s.status === 'planned' && s.id !== currentSprintId)
+      .sort((a, b) => this.getSprintWindowMs(a).startMs - this.getSprintWindowMs(b).startMs);
+
+    if (planned.length === 0) return null;
+
+    if (current && current.projectId) {
+      const scopedMatch = planned.find(s => !s.projectId || s.projectId === current.projectId);
+      if (scopedMatch) return scopedMatch;
+    }
+
+    return planned[0];
+  },
 
   createSprint(sprintData) {
     const newSprint = {
@@ -917,14 +960,60 @@ const AppState = {
       goal: sprintData.goal ? sprintData.goal.trim() : '',
       startDate: sprintData.startDate || new Date().toISOString(),
       endDate: sprintData.endDate || new Date().toISOString(),
-      status: sprintData.status || 'planned'
+      status: sprintData.status || 'planned',
+      autoSchedule: sprintData.autoSchedule !== false,
+      intervalDays: Number(sprintData.intervalDays) || null
     };
 
     this.sprints.push(newSprint);
     StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
     this.emit('sprints:changed', { action: 'create', sprint: newSprint });
     Toast.success(`Created sprint "${newSprint.name}"`);
+
+    if (typeof Automations !== 'undefined' && Automations.checkSprintSchedule) {
+      setTimeout(() => Automations.checkSprintSchedule(), 50);
+    }
+
     return newSprint;
+  },
+
+  /**
+   * Batch creates multiple stacked sprints at a constant time interval.
+   * @param {Array<Object>} sprintSpecs
+   * @returns {Array<Object>}
+   */
+  createSprintStack(sprintSpecs) {
+    if (!Array.isArray(sprintSpecs) || sprintSpecs.length === 0) return [];
+
+    const created = [];
+    sprintSpecs.forEach(spec => {
+      if (!spec || !spec.name || !spec.name.trim()) return;
+      const newSprint = {
+        id: Utils.generateId('sprint_'),
+        projectId: spec.projectId === null ? null : (spec.projectId || this.selectedProjectId || (this.projects[0] ? this.projects[0].id : 'proj_web')),
+        name: spec.name.trim(),
+        goal: spec.goal ? spec.goal.trim() : '',
+        startDate: spec.startDate || new Date().toISOString(),
+        endDate: spec.endDate || new Date().toISOString(),
+        status: spec.status || 'planned',
+        autoSchedule: spec.autoSchedule !== false,
+        intervalDays: Number(spec.intervalDays) || 14
+      };
+      this.sprints.push(newSprint);
+      created.push(newSprint);
+    });
+
+    if (created.length > 0) {
+      StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+      this.emit('sprints:changed', { action: 'stack_create', sprints: created });
+      Toast.success(`Stacked ${created.length} sprint cycle(s) in constant intervals!`);
+
+      if (typeof Automations !== 'undefined' && Automations.checkSprintSchedule) {
+        setTimeout(() => Automations.checkSprintSchedule(), 60);
+      }
+    }
+
+    return created;
   },
 
   updateSprint(sprintId, updates) {
@@ -938,6 +1027,11 @@ const AppState = {
 
     StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
     this.emit('sprints:changed', { action: 'update', sprint: this.sprints[idx] });
+
+    if (typeof Automations !== 'undefined' && Automations.checkSprintSchedule) {
+      setTimeout(() => Automations.checkSprintSchedule(), 50);
+    }
+
     return this.sprints[idx];
   },
 
@@ -978,128 +1072,163 @@ const AppState = {
     }
   },
 
-  startSprint(sprintId) {
-    const sprint = this.sprints.find(s => s.id === sprintId);
-    if (!sprint) return false;
+    startSprint(sprintId, options = {}) {
+      const sprint = this.sprints.find(s => s.id === sprintId);
+      if (!sprint) return false;
 
-    // Check if another sprint is currently active
-    const active = this.sprints.find(s => s.status === 'active' && s.id !== sprintId);
-    if (active) {
-      Toast.warning(`Another sprint ("${active.name}") is currently active. Complete it first.`);
-      return false;
-    }
-
-    sprint.status = 'active';
-    StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
-    this.emit('sprints:changed', { action: 'start', sprint });
-    Toast.success(`Started sprint "${sprint.name}"!`);
-    return true;
-  },
-
-  completeSprint(sprintId, moveToNextSprintId = null) {
-    const sprint = this.sprints.find(s => s.id === sprintId);
-    if (!sprint) return;
-
-    const now = new Date().toISOString();
-    const sprintTasks = this.tasks.filter(t => t.sprintId === sprintId);
-    const completed = sprintTasks.filter(t => t.status === 'done');
-    const incomplete = sprintTasks.filter(t => t.status !== 'done');
-
-    sprint.status = 'completed';
-    sprint.completedAt = now;
-    sprint.completionSnapshot = {
-      completedAt: now,
-      committedTaskIds: sprintTasks.map(t => t.id),
-      completedTaskIds: completed.map(t => t.id),
-      incompleteTaskIds: incomplete.map(t => t.id),
-      movedToSprintId: moveToNextSprintId || null,
-      committedCount: sprintTasks.length,
-      completedCount: completed.length,
-      incompleteCount: incomplete.length,
-      committedPoints: sprintTasks.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0),
-      completedPoints: completed.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0),
-      incompletePoints: incomplete.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0),
-      totalTrackedTime: sprintTasks.reduce((sum, t) => sum + (Number(t.trackedTime) || 0), 0),
-      totalEstimate: sprintTasks.reduce((sum, t) => sum + (Number(t.estimate) || 0), 0)
-    };
-
-    // Stamp completed tasks with this sprint ID
-    completed.forEach(t => {
-      t.completedInSprintId = sprintId;
-      if (Array.isArray(t.failedSprintIds)) {
-        t.failedSprintIds = t.failedSprintIds.filter(id => id !== sprintId);
+      // Check if another sprint is currently active
+      const active = this.sprints.find(s => s.status === 'active' && s.id !== sprintId);
+      if (active) {
+        if (!options.silent) {
+          Toast.warning(`Another sprint ("${active.name}") is currently active. Complete it first.`);
+        }
+        return false;
       }
-    });
 
-    // Record failed sprint once only on incomplete tasks and move them to next sprint or backlog
-    incomplete.forEach(t => {
-      const existingFailed = Array.isArray(t.failedSprintIds) ? [...t.failedSprintIds] : [];
-      if (!existingFailed.includes(sprintId)) {
-        existingFailed.push(sprintId);
+      sprint.status = 'active';
+      sprint.startedAt = new Date().toISOString();
+      StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+      this.emit('sprints:changed', { action: 'start', sprint });
+      if (options.reason === 'auto_schedule') {
+        Toast.info(`Auto-Pilot opened sprint "${sprint.name}" on schedule!`);
+      } else if (!options.silent) {
+        Toast.success(`Started sprint "${sprint.name}"!`);
       }
-      t.failedSprintIds = existingFailed;
-      t.sprintId = moveToNextSprintId || null;
-    });
+      return true;
+    },
 
-    StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
-    StorageService.set(StorageService.KEYS.TASKS, this.tasks);
-    this.emit('sprints:changed', { action: 'complete', sprint });
-    this.emit('tasks:changed', { action: 'bulk_update' });
-    Toast.success(`Completed sprint "${sprint.name}"!`);
-  },
+      completeSprint(sprintId, moveToNextSprintId = undefined, options = {}) {
+        const sprint = this.sprints.find(s => s.id === sprintId);
+        if (!sprint) return;
 
-  reopenSprint(sprintId) {
-    const sprint = this.sprints.find(s => s.id === sprintId);
-    if (!sprint) return false;
+        // Automatically resolve next scheduled sprint if not explicitly passed
+        let resolvedNextId = moveToNextSprintId;
+        if (resolvedNextId === undefined) {
+          const nextScheduled = this.getNextScheduledSprint(sprintId);
+          resolvedNextId = nextScheduled ? nextScheduled.id : null;
+        }
 
-    sprint.status = 'planned';
-    StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
-    this.emit('sprints:changed', { action: 'reopen', sprint });
-    Toast.info(`Reopened sprint "${sprint.name}" as a planned sprint.`);
-    return true;
-  },
+        const now = new Date().toISOString();
+        const sprintTasks = this.tasks.filter(t => t.sprintId === sprintId);
+        const completed = sprintTasks.filter(t => t.status === 'done');
+        const incomplete = sprintTasks.filter(t => t.status !== 'done');
 
-  // -------------------------------------------------------------
-  // COMMENTS & ACTIVITY LOG
-  // -------------------------------------------------------------
+        sprint.status = 'completed';
+        sprint.completedAt = now;
+        sprint.completionSnapshot = {
+          completedAt: now,
+          committedTaskIds: sprintTasks.map(t => t.id),
+          completedTaskIds: completed.map(t => t.id),
+          incompleteTaskIds: incomplete.map(t => t.id),
+          movedToSprintId: resolvedNextId || null,
+          committedCount: sprintTasks.length,
+          completedCount: completed.length,
+          incompleteCount: incomplete.length,
+          committedPoints: sprintTasks.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0),
+          completedPoints: completed.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0),
+          incompletePoints: incomplete.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0),
+          totalTrackedTime: sprintTasks.reduce((sum, t) => sum + (Number(t.trackedTime) || 0), 0),
+          totalEstimate: sprintTasks.reduce((sum, t) => sum + (Number(t.estimate) || 0), 0)
+        };
 
-  addComment(taskId, text) {
-    if (!text || !text.trim()) return null;
-    const newComment = {
-      id: Utils.generateId('comm_'),
-      taskId,
-      text: text.trim(),
-      authorName: 'Surya Tej',
-      authorInitials: 'ST',
-      createdAt: new Date().toISOString()
+        // Stamp completed tasks with this sprint ID
+        completed.forEach(t => {
+          t.completedInSprintId = sprintId;
+          if (Array.isArray(t.failedSprintIds)) {
+            t.failedSprintIds = t.failedSprintIds.filter(id => id !== sprintId);
+          }
+        });
+
+        // Record failed sprint once only on incomplete tasks and move them to next sprint or backlog
+        incomplete.forEach(t => {
+          const existingFailed = Array.isArray(t.failedSprintIds) ? [...t.failedSprintIds] : [];
+          if (!existingFailed.includes(sprintId)) {
+            existingFailed.push(sprintId);
+          }
+          t.failedSprintIds = existingFailed;
+          t.sprintId = resolvedNextId || null;
+        });
+
+        // Auto-activate the next sprint if requested or if its start window has arrived
+        let autoStartedNext = null;
+        if (resolvedNextId && options.autoActivateNext !== false) {
+          const nextSprintObj = this.sprints.find(s => s.id === resolvedNextId);
+          const anyOtherActive = this.sprints.some(s => s.status === 'active' && s.id !== sprintId);
+          if (nextSprintObj && nextSprintObj.status === 'planned' && !anyOtherActive) {
+            const { startMs } = this.getSprintWindowMs(nextSprintObj);
+            if (options.forceActivateNext || startMs <= Date.now()) {
+              nextSprintObj.status = 'active';
+              nextSprintObj.startedAt = now;
+              autoStartedNext = nextSprintObj;
+            }
+          }
+        }
+
+        StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+        StorageService.set(StorageService.KEYS.TASKS, this.tasks);
+        this.emit('sprints:changed', { action: 'complete', sprint, nextSprintId: resolvedNextId });
+        this.emit('tasks:changed', { action: 'bulk_update' });
+
+        const targetSprint = resolvedNextId ? this.sprints.find(s => s.id === resolvedNextId) : null;
+        if (incomplete.length > 0 && targetSprint) {
+          Toast.success(`Completed "${sprint.name}" · Auto-moved ${incomplete.length} pending item(s) to "${targetSprint.name}"${autoStartedNext ? ' (Now Active)' : ''}!`);
+        } else {
+          Toast.success(`Completed sprint "${sprint.name}"!`);
+        }
+      },
+
+      reopenSprint(sprintId) {
+        const sprint = this.sprints.find(s => s.id === sprintId);
+        if (!sprint) return false;
+
+        sprint.status = 'planned';
+        StorageService.set(StorageService.KEYS.SPRINTS, this.sprints);
+        this.emit('sprints:changed', { action: 'reopen', sprint });
+        Toast.info(`Reopened sprint "${sprint.name}" as a planned sprint.`);
+        return true;
+      },
+
+      // -------------------------------------------------------------
+      // COMMENTS & ACTIVITY LOG
+      // -------------------------------------------------------------
+
+      addComment(taskId, text) {
+        if (!text || !text.trim()) return null;
+        const newComment = {
+          id: Utils.generateId('comm_'),
+          taskId,
+          text: text.trim(),
+          authorName: 'Surya Tej',
+          authorInitials: 'ST',
+          createdAt: new Date().toISOString()
+        };
+        this.comments.push(newComment);
+        StorageService.set(StorageService.KEYS.COMMENTS, this.comments);
+        this.addActivityLog(taskId, 'comment_added', 'Added a comment to discussion');
+        this.emit('comments:changed', { taskId });
+        return newComment;
+      },
+
+      deleteComment(commentId) {
+        const comm = this.comments.find(c => c.id === commentId);
+        if (!comm) return;
+        this.comments = this.comments.filter(c => c.id !== commentId);
+        StorageService.set(StorageService.KEYS.COMMENTS, this.comments);
+        this.addActivityLog(comm.taskId, 'comment_deleted', 'Deleted a comment');
+        this.emit('comments:changed', { taskId: comm.taskId });
+      },
+
+      addActivityLog(taskId, action, details) {
+        const entry = {
+          id: Utils.generateId('act_'),
+          taskId,
+          action,
+          details,
+          timestamp: new Date().toISOString()
+        };
+        this.activity.unshift(entry);
+        if (this.activity.length > 500) this.activity.pop();
+        StorageService.set(StorageService.KEYS.ACTIVITY, this.activity);
+        this.emit('activity:changed', { taskId });
+      }
     };
-    this.comments.push(newComment);
-    StorageService.set(StorageService.KEYS.COMMENTS, this.comments);
-    this.addActivityLog(taskId, 'comment_added', 'Added a comment to discussion');
-    this.emit('comments:changed', { taskId });
-    return newComment;
-  },
-
-  deleteComment(commentId) {
-    const comm = this.comments.find(c => c.id === commentId);
-    if (!comm) return;
-    this.comments = this.comments.filter(c => c.id !== commentId);
-    StorageService.set(StorageService.KEYS.COMMENTS, this.comments);
-    this.addActivityLog(comm.taskId, 'comment_deleted', 'Deleted a comment');
-    this.emit('comments:changed', { taskId: comm.taskId });
-  },
-
-  addActivityLog(taskId, action, details) {
-    const entry = {
-      id: Utils.generateId('act_'),
-      taskId,
-      action,
-      details,
-      timestamp: new Date().toISOString()
-    };
-    this.activity.unshift(entry);
-    if (this.activity.length > 500) this.activity.pop();
-    StorageService.set(StorageService.KEYS.ACTIVITY, this.activity);
-    this.emit('activity:changed', { taskId });
-  }
-};

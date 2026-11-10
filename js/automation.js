@@ -5,6 +5,97 @@
 
 const Automations = {
   _parentRollupUpdates: new Set(),
+  _sprintSchedulerHandle: null,
+  _warnedExpiredSprints: new Set(),
+
+  /**
+   * Starts the background sprint auto-pilot scheduler that automatically opens due sprints
+   * and closes expired sprints based on time (rolling pending tasks to the next sprint,
+   * or prompting a warning modal if no next sprint is scheduled).
+   */
+  startSprintAutoScheduler() {
+    if (this._sprintSchedulerHandle) {
+      clearInterval(this._sprintSchedulerHandle);
+    }
+    setTimeout(() => {
+      this.checkSprintSchedule();
+    }, 450);
+    this._sprintSchedulerHandle = setInterval(() => {
+      this.checkSprintSchedule();
+    }, 30000);
+  },
+
+  /**
+   * Evaluates all active & planned sprints against current wall-clock time.
+   * - Automatically completes any active sprint whose endDate window has elapsed:
+   *   - If a next planned sprint exists, all pending (status !== 'done') tasks automatically move to it,
+   *     and the next sprint auto-opens if its start window has arrived.
+   *   - If NO next planned sprint exists and pending tasks remain (or sprint ended), opens a warning popup!
+   * - Automatically starts the earliest due planned sprint if no sprint is currently active.
+   */
+  checkSprintSchedule() {
+    if (!AppState || !Array.isArray(AppState.sprints)) return;
+    if (AppState.settings && AppState.settings.autoSprintSchedule === false) return;
+
+    const nowMs = Date.now();
+
+    // 1. Check active sprints for time-based auto-completion
+    const activeSprints = AppState.sprints.filter(s => s.status === 'active' && s.autoSchedule !== false);
+    for (const activeSprint of activeSprints) {
+      const { endMs } = AppState.getSprintWindowMs(activeSprint);
+      if (endMs && nowMs > endMs) {
+        const nextSprint = AppState.getNextScheduledSprint(activeSprint.id);
+        const pendingTasks = (AppState.tasks || []).filter(t => t.sprintId === activeSprint.id && t.status !== 'done');
+
+        if (nextSprint) {
+          AppState.completeSprint(activeSprint.id, nextSprint.id, {
+            autoActivateNext: true,
+            reason: 'auto_schedule'
+          });
+          if (typeof Notifications !== 'undefined' && Notifications.addNotification) {
+            Notifications.addNotification({
+              title: 'Sprint Auto-Completed & Rolled Over',
+              message: `"${activeSprint.name}" reached its end date. ${pendingTasks.length} pending item(s) moved to "${nextSprint.name}".`,
+              type: 'info'
+            });
+          }
+          return;
+        } else {
+          // No next sprint scheduled! Warn user with a popup modal once per expired sprint session
+          if (!this._warnedExpiredSprints.has(activeSprint.id)) {
+            const isModalAlreadyOpen = typeof Modal !== 'undefined' && Modal.isOpen;
+            if (!isModalAlreadyOpen && typeof BacklogView !== 'undefined' && typeof BacklogView.openNoNextSprintWarningModal === 'function') {
+              this._warnedExpiredSprints.add(activeSprint.id);
+              BacklogView.openNoNextSprintWarningModal(activeSprint.id, { isAutoExpired: true });
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    // 2. If no sprint is currently active, check planned sprints whose start time has arrived
+    const hasActiveSprint = AppState.sprints.some(s => s.status === 'active');
+    if (!hasActiveSprint) {
+      const duePlanned = AppState.sprints
+        .filter(s => s.status === 'planned' && s.autoSchedule !== false)
+        .map(s => ({ sprint: s, window: AppState.getSprintWindowMs(s) }))
+        .filter(item => item.window.startMs && item.window.startMs <= nowMs && (!item.window.endMs || nowMs <= item.window.endMs))
+        .sort((a, b) => a.window.startMs - b.window.startMs);
+
+      if (duePlanned.length > 0) {
+        const nextToOpen = duePlanned[0].sprint;
+        AppState.startSprint(nextToOpen.id, { reason: 'auto_schedule' });
+        if (typeof Notifications !== 'undefined' && Notifications.addNotification) {
+          Notifications.addNotification({
+            title: 'Sprint Auto-Started on Schedule',
+            message: `"${nextToOpen.name}" automatically opened based on its scheduled start window.`,
+            type: 'info'
+          });
+        }
+      }
+    }
+  },
 
   /**
    * Called whenever a task is updated in AppState

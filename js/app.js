@@ -21,8 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. Setup Reactive State Subscriptions for Auto-Re-rendering
   setupStateSubscriptions();
 
-  // 5. Check for overdue tasks to alert user
+  // 5. Check for overdue tasks to alert user & start time-based Sprint Auto-Pilot
   Automations.checkOverdueAndAlert();
+  if (typeof Automations.startSprintAutoScheduler === 'function') {
+    Automations.startSprintAutoScheduler();
+  }
 
   // 6. Initialize Router
   Router.init();
@@ -173,8 +176,8 @@ function renderProjectPickerPopover(popover) {
       </button>
       <div class="tf-dropdown-divider"></div>
       ${AppState.projects.map(p => {
-        const isSelected = AppState.selectedProjectId === p.id;
-        return `
+    const isSelected = AppState.selectedProjectId === p.id;
+    return `
           <button type="button" class="tf-dropdown-item ${isSelected ? 'is-selected' : ''}" data-id="${p.id}">
             <span class="tf-dropdown-item-left">
               <span class="tf-dropdown-color-dot" style="background: ${p.color || '#388bfd'};"></span>
@@ -183,7 +186,7 @@ function renderProjectPickerPopover(popover) {
             ${isSelected ? '<i class="fa-solid fa-check tf-dropdown-item-check"></i>' : ''}
           </button>
         `;
-      }).join('')}
+  }).join('')}
     </div>
   `;
 
@@ -216,10 +219,10 @@ function setupStateSubscriptions() {
   });
 
   AppState.subscribe('sprints:changed', () => {
-    if (AppState.currentView === 'backlog') {
-      Router.renderCurrentRoute();
-    }
-  });
+      if (AppState.currentView === 'backlog' || AppState.currentView === 'dashboard') {
+        Router.renderCurrentRoute();
+      }
+    });
 
   AppState.subscribe('goals:changed', () => {
     if (AppState.currentView === 'goals') {

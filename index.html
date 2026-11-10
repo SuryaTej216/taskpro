@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="css/planner.css?v=planner_v1">
   <link rel="stylesheet" href="css/dashboard.css?v=dashboard_v12">
   <link rel="stylesheet" href="css/projects.css?v=projects_v1">
-  <link rel="stylesheet" href="css/backlog.css?v=backlog_v2">
+  <link rel="stylesheet" href="css/backlog.css?v=backlog_v9">
   <link rel="stylesheet" href="css/tasks.css?v=tasks_v1">
   <link rel="stylesheet" href="css/status-control.css?v=sc_v2">
   <link rel="stylesheet" href="css/hierarchy.css?v=hier_v8">
@@ -67,7 +67,8 @@
           <i class="fa-solid fa-chart-pie"></i>
           <span class="nav-item-label">Dashboard</span>
         </a>
-        <a href="#/planner" class="nav-item" data-view="planner" data-tooltip="Daily Planner" title="Daily Planner (Today + next 2 days)">
+        <a href="#/planner" class="nav-item" data-view="planner" data-tooltip="Daily Planner"
+          title="Daily Planner (Today + next 2 days)">
           <i class="fa-solid fa-calendar-day"></i>
           <span class="nav-item-label">Daily Planner</span>
         </a>
@@ -81,12 +82,12 @@
           <span class="nav-item-label">Projects</span>
           <span class="badge-count" id="sidebar-projects-count">3</span>
         </a>
-        <a href="#/tasks" class="nav-item" data-view="tasks" data-tooltip="Tasks (Board & List)" title="Tasks (Board & List)">
+        <a href="#/tasks" class="nav-item" data-view="tasks" data-tooltip="Tasks (Board & List)"
+          title="Tasks (Board & List)">
           <i class="fa-solid fa-table-columns"></i>
           <span class="nav-item-label">Tasks</span>
         </a>
-        <a href="#/backlog" class="nav-item" data-view="backlog" data-tooltip="Sprint Planning"
-          title="Sprint Planning">
+        <a href="#/backlog" class="nav-item" data-view="backlog" data-tooltip="Sprint Planning" title="Sprint Planning">
           <i class="fa-solid fa-layer-group"></i>
           <span class="nav-item-label">Sprint Planning</span>
         </a>
@@ -123,7 +124,8 @@
       </div>
 
       <div class="sidebar-footer">
-        <div class="sidebar-status-bar" id="sidebar-storage-status" title="Local Storage Usage & Limit — Click to view details" style="cursor: pointer;">
+        <div class="sidebar-status-bar" id="sidebar-storage-status"
+          title="Local Storage Usage & Limit — Click to view details" style="cursor: pointer;">
           <span class="status-pulse-dot"></span>
           <span class="status-text" id="sidebar-storage-text">LocalDB Connected</span>
         </div>
@@ -376,8 +378,8 @@
   <!-- Core Scripts -->
   <script src="js/utils.js"></script>
   <script src="js/storage.js"></script>
-  <script src="js/state.js?v=datagrid_clarity_v5"></script>
-  <script src="js/automation.js"></script>
+  <script src="js/state.js?v=sprint_stack_v1"></script>
+  <script src="js/automation.js?v=sprint_stack_v1"></script>
   <script src="js/notifications.js"></script>
   <script src="js/search.js"></script>
   <script src="js/filters.js"></script>
@@ -399,7 +401,7 @@
   <script src="js/views/projects.js"></script>
   <script src="js/views/tasks.js?v=switch_steady_v3"></script>
   <script src="js/views/board.js?v=switch_steady_v3"></script>
-  <script src="js/views/backlog.js?v=bl_v3"></script>
+  <script src="js/views/backlog.js?v=bl_v9"></script>
   <script src="js/views/hierarchy.js?v=hier_v7"></script>
   <script src="js/views/list.js?v=switch_steady_v3"></script>
   <script src="js/views/settings.js"></script>
@@ -409,7 +411,7 @@
 
   <!-- Router & Application Bootstrap -->
   <script src="js/router.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=sprint_stack_v1"></script>
 </body>
 
 </html>
