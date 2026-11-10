@@ -638,11 +638,11 @@ const BacklogView = {
           </div>
         `}
 
-        < label class="sp-checkbox-row" style = "margin-top: 0.75rem;" >
+        <label class="sp-checkbox-row" style="margin-top: 0.75rem;">
   <input type="checkbox" id="complete-sprint-auto-start-next" checked>
     <span>Automatically open <strong>${Utils.escapeHTML(nextScheduled.name)}</strong> upon completing this sprint</span>
   </label>
-      </div >
+      </div>
   `;
 
     Modal.open({
@@ -692,7 +692,7 @@ const BacklogView = {
     const previewPending = incomplete.slice(0, 4);
 
     const bodyHTML = `
-  < div class="sp-no-sprint-warning-modal" >
+  <div class="sp-no-sprint-warning-modal">
         <div class="sp-warning-popup-banner">
           <div class="sp-warning-popup-icon">
             <i class="fa-solid fa-triangle-exclamation"></i>
@@ -756,7 +756,7 @@ const BacklogView = {
       <span>Activate this new sprint immediately & move all ${incomplete.length} pending task${incomplete.length === 1 ? '' : 's'} into it</span>
   </label>
 </div>
-      </div >
+      </div>
   `;
 
     Modal.open({
@@ -844,7 +844,7 @@ const BacklogView = {
     ];
 
     const modalBody = `
-  < div class="sp-stack-modal" id = "sp-stack-modal-root" >
+  <div class="sp-stack-modal" id="sp-stack-modal-root">
     ${
       completeSprintIdAfterStack ? `
           <div class="sp-autorollover-banner" style="margin-bottom: 0.85rem;">
@@ -909,7 +909,7 @@ const BacklogView = {
             <span><strong>Auto-Pilot Schedule:</strong> Automatically open & close each sprint based on its time window and roll pending tasks to the next sprint</span>
           </label>
         </div>
-      </div >
+      </div>
   `;
 
     Modal.open({
@@ -1021,7 +1021,7 @@ const BacklogView = {
         rowsContainer.innerHTML = stackItems.map((item, idx) => {
           const w = windows[idx];
           return `
-  < div class="sp-stack-row" data - stack - index="${idx}" >
+  <div class="sp-stack-row" data-stack-index="${idx}">
               <div class="sp-stack-row-seq">
                 <span class="sp-stack-seq-num">#${idx + 1}</span>
                 <span class="sp-stack-seq-days">${w.intervalDays}d</span>
@@ -1038,7 +1038,7 @@ const BacklogView = {
               <button type="button" class="sp-stack-row-remove" data-remove-stack-idx="${idx}" title="Remove from stack" ${stackItems.length <= 1 ? 'disabled' : ''}>
                 <i class="fa-solid fa-trash-can"></i>
               </button>
-            </div >
+            </div>
   `;
         }).join('');
 
@@ -1060,8 +1060,8 @@ const BacklogView = {
           if (!w) return;
           const badge = row.querySelector('[data-stack-window]');
           const daysEl = row.querySelector('.sp-stack-seq-days');
-          if (badge) badge.innerHTML = `< i class="fa-regular fa-calendar" ></i > ${ esc(w.startLabel) } → ${ esc(w.endLabel) } `;
-          if (daysEl) daysEl.textContent = `${ w.intervalDays } d`;
+          if (badge) badge.innerHTML = `<i class="fa-regular fa-calendar"></i> ${ esc(w.startLabel) } → ${ esc(w.endLabel) } `;
+          if (daysEl) daysEl.textContent = `${w.intervalDays}d`;
         });
       };
 
@@ -1111,7 +1111,7 @@ const BacklogView = {
     const defaultEnd = new Date(Date.now() + 14 * 86400000);
 
     const modalBody = `
-  < form id = "create-sprint-form" >
+  <form id="create-sprint-form">
         <div class="form-group">
           <label class="form-label" for="sprint-name">Sprint / Cycle Name <span class="required">*</span></label>
           <input type="text" id="sprint-name" class="form-input" placeholder="e.g. Cycle 04 — Performance & Realtime Sync" required autofocus>
@@ -1202,7 +1202,7 @@ const BacklogView = {
     if (!sprint) return;
 
     const modalBody = `
-  < form id = "edit-sprint-form" >
+  <form id="edit-sprint-form">
         <div class="form-group">
           <label class="form-label" for="edit-sprint-name">Sprint / Cycle Name <span class="required">*</span></label>
           <input type="text" id="edit-sprint-name" class="form-input" value="${Utils.escapeHTML(sprint.name)}" required autofocus>
@@ -1232,7 +1232,7 @@ const BacklogView = {
           <input type="checkbox" id="edit-sprint-auto-schedule" ${sprint.autoSchedule !== false ? 'checked' : ''}>
           <span>Auto-open & auto-close this sprint based on its scheduled dates</span>
         </label>
-      </form >
+      </form>
   `;
 
     Modal.open({
@@ -1307,8 +1307,8 @@ const BacklogView = {
     const totalCompletedPts = completedStatsList.reduce((sum, st) => sum + st.completedPoints, 0);
 
     container.innerHTML = `
-  < div class="view-page backlog-page sp-studio-page" >
-        < !--1. UNIFIED STUDIO HEADER + CYCLE PIPELINE RIBBON-- >
+  <div class="view-page backlog-page sp-studio-page">
+        <!--1. UNIFIED STUDIO HEADER + CYCLE PIPELINE RIBBON-->
   <header class="sp-studio-header">
     <div class="sp-studio-top">
       <div class="sp-studio-title-cluster">
@@ -1513,7 +1513,7 @@ const BacklogView = {
             </section>
           </div>
         `}
-      </div >
+      </div>
   `;
 
     this.attachListeners(container);
@@ -1522,7 +1522,7 @@ const BacklogView = {
   renderSprintPlanningEmpty(plannedSprints) {
     const nextSprint = plannedSprints[0] || null;
     return `
-  < div class="sp-standby-hero" >
+  <div class="sp-standby-hero">
         <div class="sp-standby-orb">
           <i class="fa-solid fa-satellite-dish"></i>
         </div>
@@ -1549,7 +1549,7 @@ const BacklogView = {
               </button>
             `}
         </div>
-      </div >
+      </div>
   `;
   },
 
@@ -1616,7 +1616,7 @@ const BacklogView = {
     let executionCanvasHTML = '';
     if (sprintTasks.length === 0) {
       executionCanvasHTML = `
-  < div class="sp-empty-well sprint-drop-empty" >
+  <div class="sp-empty-well sprint-drop-empty">
           <i class="fa-solid fa-layer-group"></i>
           <strong>No Work Items Committed to ${esc(sprint.name)}</strong>
           <span>Type in the quick composer above, pull items from the backlog, or drag tasks here.</span>
@@ -1628,15 +1628,15 @@ const BacklogView = {
               <i class="fa-solid fa-plus"></i> Create Work Item
             </button>
           </div>
-        </div >
+        </div>
   `;
     } else if (visibleTasks.length === 0) {
       executionCanvasHTML = `
-  < div class="sp-empty-well" >
+  <div class="sp-empty-well">
           <i class="fa-solid fa-filter-circle-xmark"></i>
           <strong>No items match the current filter</strong>
           <button type="button" class="btn btn-secondary btn-sm" data-active-status-filter="all">Reset Filter</button>
-        </div >
+        </div>
   `;
     } else if (this.activeViewMode === 'lanes') {
       executionCanvasHTML = this.renderActiveStatusSwimlanes(sprint, visibleTasks);
@@ -1647,8 +1647,8 @@ const BacklogView = {
     }
 
     return `
-  < article class="sp-hero-studio" data - sprint - id="${esc(sprint.id)}" >
-        < !--LEFT TELEMETRY POD: Radial Burndown Ring, Timeline Pin, 2x2 Matrix Filter & Velocity-- >
+  <article class="sp-hero-studio" data-sprint-id="${esc(sprint.id)}">
+        <!--LEFT TELEMETRY POD: Radial Burndown Ring, Timeline Pin, 2x2 Matrix Filter & Velocity-->
         <aside class="sp-telemetry-pod">
           <div class="sp-pod-top">
             <div class="sp-pod-badges">
@@ -1762,7 +1762,7 @@ const BacklogView = {
           </div>
         </aside>
 
-        <!--RIGHT EXECUTION CANVAS: Workbench Bar + Inline Composer + Swimlanes / Matrix / Board-- >
+        <!--RIGHT EXECUTION CANVAS: Workbench Bar + Inline Composer + Swimlanes / Matrix / Board-->
   <div class="sp-execution-stage sprint-drop-zone" data-sprint-id="${esc(sprint.id)}">
     <div class="sp-stage-topbar">
       <div class="sp-stage-topbar-left">
@@ -1833,7 +1833,7 @@ const BacklogView = {
       ${executionCanvasHTML}
     </div>
   </div>
-      </article >
+      </article>
   `;
   },
 
@@ -1865,7 +1865,7 @@ const BacklogView = {
     ].filter(lane => lane.items.length > 0 || this.activeStatusFilter === 'all');
 
     return `
-  < div class="sp-swimlanes" >
+  <div class="sp-swimlanes">
     ${
       lanes.map(lane => {
         const pts = lane.items.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
@@ -1889,7 +1889,7 @@ const BacklogView = {
           `;
       }).join('')
 }
-      </div >
+      </div>
   `;
   },
 
@@ -1899,7 +1899,7 @@ const BacklogView = {
     const groups = this._groupTasksByProject(tasks);
 
     return `
-  < div class="sp-project-matrix" >
+  <div class="sp-project-matrix">
     ${
       groups.map(g => {
         const pColor = g.project.color || '#388bfd';
@@ -1926,7 +1926,7 @@ const BacklogView = {
           `;
       }).join('')
 }
-      </div >
+      </div>
   `;
   },
 
@@ -1961,7 +1961,7 @@ const BacklogView = {
     ];
 
     return `
-  < div class="sp-board-grid" >
+  <div class="sp-board-grid">
     ${
       columns.map(col => {
         const colPts = col.items.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
@@ -1984,7 +1984,7 @@ const BacklogView = {
           `;
       }).join('')
 }
-      </div >
+      </div>
   `;
   },
 
@@ -2019,13 +2019,13 @@ const BacklogView = {
       const due = new Date(task.dueDate);
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const overdue = !isDone && task.status !== 'cancelled' && due < today;
-      dueChip = `< span class="sp-mini-due ${overdue ? 'is-overdue' : ''}" > <i class="fa-regular fa-calendar"></i> ${ Utils.formatDate(task.dueDate) }</span > `;
+      dueChip = `<span class="sp-mini-due ${overdue ? 'is-overdue' : ''}"> <i class="fa-regular fa-calendar"></i> ${ Utils.formatDate(task.dueDate) }</span> `;
     }
 
     return `
-  < div class="sp-board-card backlog-item-row ${isDone ? 'is-done' : ''} ${isBlocked ? 'is-blocked' : ''}"
-style = "--card-proj-color: ${pColor};"
-draggable = "true" data - task - id="${esc(task.id)}" data - current - sprint="${esc(sprintId)}" >
+  <div class="sp-board-card backlog-item-row ${isDone ? 'is-done' : ''} ${isBlocked ? 'is-blocked' : ''}"
+style="--card-proj-color: ${pColor};"
+draggable="true" data-task-id="${esc(task.id)}" data-current-sprint="${esc(sprintId)}">
         <div class="sp-board-card-top">
           <div class="sp-board-card-id">
             <button type="button" class="sp-row-check ${isDone ? 'is-checked' : ''}" data-sprint-action="toggle-done" aria-pressed="${isDone}" title="${isDone ? 'Reopen item' : 'Mark done'}">
@@ -2053,7 +2053,7 @@ draggable = "true" data - task - id="${esc(task.id)}" data - current - sprint="$
           </div>
           ${StatusControl.pillHTML(task)}
         </div>
-      </div >
+      </div>
   `;
   },
 
@@ -2087,13 +2087,13 @@ draggable = "true" data - task - id="${esc(task.id)}" data - current - sprint="$
       const due = new Date(task.dueDate);
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const overdue = !isDone && task.status !== 'cancelled' && due < today;
-      dueTag = `< span class="sp-pill ${overdue ? 'tone-danger' : 'tone-neutral'}" > <i class="fa-regular fa-calendar"></i> ${ Utils.formatDate(task.dueDate) }</span > `;
+      dueTag = `<span class="sp-pill ${overdue ? 'tone-danger' : 'tone-neutral'}"> <i class="fa-regular fa-calendar"></i> ${ Utils.formatDate(task.dueDate) }</span> `;
     }
 
     return `
-  < div class="sp-workitem-row backlog-item-row ${isDone ? 'is-done' : ''}"
-style = "--row-proj-color: ${pColor};"
-draggable = "true" data - task - id="${esc(task.id)}" data - current - sprint="${esc(sprintId)}" >
+  <div class="sp-workitem-row backlog-item-row ${isDone ? 'is-done' : ''}"
+style="--row-proj-color: ${pColor};"
+draggable="true" data-task-id="${esc(task.id)}" data-current-sprint="${esc(sprintId)}">
         <span class="sp-row-drag" title="Drag to another status or sprint"><i class="fa-solid fa-grip-vertical"></i></span>
         <button type="button" class="sp-row-check ${isDone ? 'is-checked' : ''}" data-sprint-action="toggle-done" aria-pressed="${isDone}" aria-label="${isDone ? 'Mark as incomplete' : 'Mark as done'}">
           ${isDone ? '<i class="fa-solid fa-check"></i>' : ''}
@@ -2113,7 +2113,7 @@ draggable = "true" data - task - id="${esc(task.id)}" data - current - sprint="$
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-      </div >
+      </div>
   `;
   },
 
@@ -2134,25 +2134,25 @@ draggable = "true" data - task - id="${esc(task.id)}" data - current - sprint="$
     let cycleDays = '14d';
     if (sprint.startDate && sprint.endDate) {
       const d = Math.max(1, Math.round((new Date(sprint.endDate) - new Date(sprint.startDate)) / 86400000));
-      if (!isNaN(d)) cycleDays = `${ d } d`;
+      if (!isNaN(d)) cycleDays = `${d}d`;
     }
 
     const previewKeys = sortedTasks.slice(0, 3);
     const remainingKeys = Math.max(0, sortedTasks.length - previewKeys.length);
 
     return `
-  < article class="sp-timeline-card sprint-drop-zone ${index === 0 ? 'is-next-up' : ''}"
-style = "--card-accent: ${accentColor};"
-data - sprint - id="${esc(sprint.id)}"
-data - open - sprint - popup="${esc(sprint.id)}"
-title = "Click to expand ${esc(sprint.name)} in popup workspace" >
-        < !--Left Sequence Node-- >
+  <article class="sp-timeline-card sprint-drop-zone ${index === 0 ? 'is-next-up' : ''}"
+style="--card-accent: ${accentColor};"
+data-sprint-id="${esc(sprint.id)}"
+data-open-sprint-popup="${esc(sprint.id)}"
+title="Click to expand ${esc(sprint.name)} in popup workspace">
+        <!--Left Sequence Node-->
         <div class="sp-tl-node">
           <span class="sp-tl-seq">${index === 0 ? 'NEXT' : `0${index + 1}`}</span>
           <span class="sp-tl-dur">${cycleDays}</span>
         </div>
 
-        <!--Center Content-- >
+        <!--Center Content-->
         <div class="sp-tl-body">
           <div class="sp-tl-head">
             <h3 class="sp-tl-title">${esc(sprint.name)}</h3>
@@ -2182,7 +2182,7 @@ title = "Click to expand ${esc(sprint.name)} in popup workspace" >
           </div>
         </div>
 
-        <!--Right Action Dock-- >
+        <!--Right Action Dock-->
   <div class="sp-tl-dock">
     <button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); BacklogView.startSprint('${esc(sprint.id)}')">
       <i class="fa-solid fa-play"></i> Start
@@ -2200,7 +2200,7 @@ title = "Click to expand ${esc(sprint.name)} in popup workspace" >
       </button>
     </div>
   </div>
-      </article >
+      </article>
   `;
   },
 
@@ -2215,11 +2215,11 @@ title = "Click to expand ${esc(sprint.name)} in popup workspace" >
     const ringColor = stats.completionPct >= 80 ? 'var(--sp-success)' : stats.completionPct >= 50 ? 'var(--sp-warning)' : 'var(--sp-brand)';
 
     return `
-  < article class="sp-ledger-card"
-data - sprint - id="${esc(sprint.id)}"
-data - open - completed - popup="${esc(sprint.id)}"
-title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
-        < !--Left Radial Delivery Medallion-- >
+  <article class="sp-ledger-card"
+data-sprint-id="${esc(sprint.id)}"
+data-open-completed-popup="${esc(sprint.id)}"
+title="Click to open ${esc(sprint.name)} retrospective report in popup">
+        <!--Left Radial Delivery Medallion-->
         <div class="sp-medallion">
           <svg viewBox="0 0 44 44" aria-hidden="true">
             <circle class="sp-medallion-track" cx="22" cy="22" r="18"></circle>
@@ -2229,7 +2229,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
           <span>${stats.completionPct}%</span>
         </div>
 
-        <!--Center Ledger Info-- >
+        <!--Center Ledger Info-->
         <div class="sp-ledger-body">
           <div class="sp-tl-head">
             <h3 class="sp-tl-title">${esc(sprint.name)}</h3>
@@ -2249,7 +2249,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
           </div>
         </div>
 
-        <!--Right Report Dock-- >
+        <!--Right Report Dock-->
   <div class="sp-tl-dock">
     <button type="button" class="btn btn-secondary btn-sm" data-open-completed-popup-btn="${esc(sprint.id)}">
       <i class="fa-solid fa-chart-pie"></i> Report
@@ -2266,7 +2266,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
       </button>
     </div>
   </div>
-      </article >
+      </article>
   `;
   },
 
@@ -2315,7 +2315,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
       }
 
       const bodyHTML = `
-  < div class="sp-detail-popup" >
+  <div class="sp-detail-popup">
           <div class="sp-popup-summary-bar">
             <div class="sp-popup-summary-left">
               <div class="sp-popup-meta-row">
@@ -2401,7 +2401,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
               </div>
             `}
           </div>
-        </div >
+        </div>
   `;
 
       const footerButtons = [
@@ -2545,7 +2545,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
     ];
 
     return `
-  < div class="sc-task-row ${task.status === 'done' ? 'is-done' : ''}" data - popup - task - open="${esc(task.id)}" >
+  <div class="sc-task-row ${task.status === 'done' ? 'is-done' : ''}" data-popup-task-open="${esc(task.id)}">
         <span class="type-icon type-${esc(task.type || 'task')}"><i class="fa-solid ${typeIcon}"></i></span>
         <span class="sc-task-key">${esc(task.key)}</span>
         <span class="planner-prio prio-${esc(task.priority)}" title="${esc(task.priority)} priority"><i class="${priorityIcon}"></i></span>
@@ -2562,7 +2562,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-      </div >
+      </div>
   `;
   },
 
@@ -2674,7 +2674,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
     const currentSprint = task.sprintId ? AppState.sprints.find(s => s.id === task.sprintId) : null;
 
     return `
-  < div class="sc-task-row ${task.status === 'done' ? 'is-done' : ''}" data - completed - task - open="${esc(task.id)}" title = "Open ${esc(task.key)}" >
+  <div class="sc-task-row ${task.status === 'done' ? 'is-done' : ''}" data-completed-task-open="${esc(task.id)}" title="Open ${esc(task.key)}">
         <span class="type-icon type-${esc(task.type || 'task')}"><i class="fa-solid ${typeIcon}"></i></span>
         <span class="sc-task-key">${esc(task.key)}</span>
         <span class="planner-prio prio-${esc(task.priority)}" title="${esc(task.priority)} priority"><i class="${priorityIcon}"></i></span>
@@ -2688,7 +2688,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
           ${isRolledOver ? `<span class="sp-pill tone-warning">${currentSprint ? `In ${esc(currentSprint.name)}` : 'In Backlog'}</span>` : ''}
           ${typeof StatusControl !== 'undefined' ? StatusControl.pillHTML(task) : `<span class="sp-pill tone-neutral">${esc(task.status)}</span>`}
         </div>
-      </div >
+      </div>
   `;
   },
 
@@ -2704,7 +2704,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
     const incompleteGroups = this._groupTasksByProject(stats.incompleteTasks);
 
     const bodyHTML = `
-  < div class="sprint-report-modal" >
+  <div class="sprint-report-modal">
         <div class="sprint-report-banner">
           <div>
             <div class="sprint-report-dates">
@@ -2836,7 +2836,7 @@ title = "Click to open ${esc(sprint.name)} retrospective report in popup" >
           </div>
         ` : ''
 }
-      </div >
+      </div>
   `;
 
     Modal.open({

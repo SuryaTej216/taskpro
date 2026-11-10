@@ -79,6 +79,13 @@ const CommandPalette = {
     const actionCommands = [
       { id: 'act_new_task', title: 'Create New Task', icon: 'fa-plus', kbd: 'C', category: 'Actions', action: () => TaskModal.openCreate() },
       { id: 'act_bulk_create', title: 'Bulk Create Tasks', icon: 'fa-layer-group', kbd: 'Shift+C', category: 'Actions', action: () => TaskModal.openBulkCreate() },
+      { id: 'act_stack_sprints', title: 'Stack Multiple Sprints (Constant Time Interval)', icon: 'fa-layer-group', category: 'Sprints & Cycles', action: () => { if (typeof BacklogView !== 'undefined') BacklogView.openStackSprintsModal(); } },
+      { id: 'act_plan_sprint', title: 'Plan New Sprint Cycle', icon: 'fa-calendar-plus', category: 'Sprints & Cycles', action: () => { if (typeof BacklogView !== 'undefined') BacklogView.openCreateSprintModal(); } },
+      { id: 'act_complete_sprint', title: 'Complete Active Sprint (Auto-Rollover Pending Tasks)', icon: 'fa-flag-checkered', category: 'Sprints & Cycles', action: () => {
+        const active = (AppState.sprints || []).find(s => s.status === 'active');
+        if (active && typeof BacklogView !== 'undefined') BacklogView.completeSprint(active.id);
+        else Toast.info('No active sprint cycle in flight.');
+      } },
       { id: 'act_theme', title: 'Toggle Dark / Light Theme', icon: 'fa-circle-half-stroke', kbd: 'T', category: 'Actions', action: () => ThemeManager.toggle() },
       { id: 'act_export_json', title: 'Export Full Backup (JSON)', icon: 'fa-download', category: 'Actions', action: () => SettingsView.downloadBackup() },
       { id: 'act_export_csv', title: 'Export Tasks to CSV', icon: 'fa-file-csv', category: 'Actions', action: () => SettingsView.downloadCSV() },

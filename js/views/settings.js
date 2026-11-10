@@ -50,8 +50,34 @@ const SettingsView = {
             </div>
           </div>
 
-          <!-- 3. Workflow & Automation Section -->
-          <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 20px;">
+          <!-- 3. Workflow & Sprint Auto-Pilot Automation Section -->
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle);">
+              <div>
+                <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
+                  <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--accent-primary);"></i> Sprint Time Auto-Pilot & Pending Rollover
+                </h3>
+                <p style="font-size: 13px; color: var(--text-secondary);">
+                  Automatically open and close sprints based on scheduled dates, move pending tasks to the next sprint, and warn if no next sprint is scheduled.
+                </p>
+              </div>
+              <input type="checkbox" id="settings-sprint-autopilot-toggle" ${settings.autoSprintSchedule !== false ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer;">
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 10px;">
+              <div>
+                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px;">
+                  <i class="fa-solid fa-layer-group" style="color: var(--accent-primary);"></i> Stack Multiple Sprints (Constant Interval)
+                </div>
+                <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">
+                  Batch-schedule a chain of sprints at a fixed interval (e.g., 7d, 14d, 21d) with custom names for each cycle.
+                </p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="if (typeof BacklogView !== 'undefined') BacklogView.openStackSprintsModal();">
+                <i class="fa-solid fa-layer-group"></i> Stack Sprints
+              </button>
+            </div>
+
             <div style="display: flex; align-items: center; justify-content: space-between;">
               <div>
                 <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
@@ -145,8 +171,8 @@ const SettingsView = {
 
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 ${stats.items.map(item => {
-                  const itemPct = stats.taskforgeBytes > 0 ? ((item.bytes / stats.taskforgeBytes) * 100).toFixed(1) : 0;
-                  return `
+      const itemPct = stats.taskforgeBytes > 0 ? ((item.bytes / stats.taskforgeBytes) * 100).toFixed(1) : 0;
+      return `
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12px; gap: 10px;">
                       <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
                         <span style="width: 26px; height: 26px; border-radius: 6px; background: ${item.color}15; color: ${item.color}; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0;">
@@ -165,7 +191,7 @@ const SettingsView = {
                       </div>
                     </div>
                   `;
-                }).join('')}
+    }).join('')}
               </div>
             </div>
 
@@ -256,6 +282,19 @@ const SettingsView = {
         AppState.settings.autoSyncChecklistSubtasks = e.target.checked;
         StorageService.set(StorageService.KEYS.SETTINGS, AppState.settings);
         Toast.info(`Checklist & subtask auto-sync default ${e.target.checked ? 'enabled' : 'disabled'}`);
+      });
+    }
+
+    // Bind Sprint Auto-Pilot toggle
+    const sprintAutoToggle = container.querySelector('#settings-sprint-autopilot-toggle');
+    if (sprintAutoToggle) {
+      sprintAutoToggle.addEventListener('change', (e) => {
+        AppState.settings.autoSprintSchedule = e.target.checked;
+        StorageService.set(StorageService.KEYS.SETTINGS, AppState.settings);
+        Toast.info(`Sprint Time Auto-Pilot ${e.target.checked ? 'enabled' : 'paused'}`);
+        if (e.target.checked && typeof Automations !== 'undefined' && typeof Automations.checkSprintSchedule === 'function') {
+          Automations.checkSprintSchedule();
+        }
       });
     }
   },
@@ -401,7 +440,7 @@ const ThemeManager = {
     document.documentElement.setAttribute('data-theme', theme);
     AppState.settings.theme = theme;
     StorageService.set(StorageService.KEYS.SETTINGS, AppState.settings);
-    
+
     // Update theme toggle icon
     const toggleBtn = document.getElementById('topbar-theme-toggle');
     if (toggleBtn) {

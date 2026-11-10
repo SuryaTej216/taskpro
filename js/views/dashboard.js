@@ -761,9 +761,9 @@ const DashboardView = {
     return `
       <div class="dash-project-groups">
         ${groups.map(g => {
-          const p = g.project;
-          const pColor = p.color || '#388bfd';
-          return `
+      const p = g.project;
+      const pColor = p.color || '#388bfd';
+      return `
             <div class="dash-proj-group">
               <div class="dash-proj-group-header" style="--project-color: ${pColor};">
                 <span class="dash-proj-group-dot" style="background: ${pColor};"></span>
@@ -781,7 +781,7 @@ const DashboardView = {
               </div>
             </div>
           `;
-        }).join('')}
+    }).join('')}
       </div>
     `;
   },
@@ -889,10 +889,10 @@ const DashboardView = {
                 <i class="fa-solid ${focusing ? 'fa-pause' : 'fa-play'}"></i>
               </button>
               ${inToday
-                ? `<button type="button" class="dash-row-btn" data-dash="plan-tomorrow" title="Push to Tomorrow"><i class="fa-solid fa-arrow-right"></i></button>
+          ? `<button type="button" class="dash-row-btn" data-dash="plan-tomorrow" title="Push to Tomorrow"><i class="fa-solid fa-arrow-right"></i></button>
                    <button type="button" class="dash-row-btn" data-dash="unplan" title="Remove from Today"><i class="fa-solid fa-calendar-xmark"></i></button>`
-                : `<button type="button" class="dash-row-btn is-label" data-dash="plan-today" title="Schedule for Today"><i class="fa-solid fa-plus"></i>Today</button>`
-              }
+          : `<button type="button" class="dash-row-btn is-label" data-dash="plan-today" title="Schedule for Today"><i class="fa-solid fa-plus"></i>Today</button>`
+        }
               ${activeSprintId ? `
                 <button type="button" class="dash-row-btn ${inActiveSprint ? 'is-active' : ''}" data-dash="toggle-sprint" data-sprint-id="${this.esc(activeSprintId)}"
                   title="${inActiveSprint ? 'Remove from active sprint' : 'Add to active sprint'}">
@@ -924,9 +924,9 @@ const DashboardView = {
 
         <div class="dash-proj-matrix">
           ${ctx.projectStats.length ? ctx.projectStats.map(ps => {
-            const p = ps.project;
-            const isScoped = AppState.selectedProjectId === p.id;
-            return `
+      const p = ps.project;
+      const isScoped = AppState.selectedProjectId === p.id;
+      return `
               <div class="dash-proj-row ${isScoped ? 'is-scoped' : ''}" style="--proj-color:${p.color || '#388bfd'}">
                 <div class="dash-proj-row-top">
                   <button type="button" class="dash-proj-select" data-dash="scope-project" data-project-id="${this.esc(isScoped ? '' : p.id)}" title="${isScoped ? 'Click to show All Projects' : `Filter dashboard by ${this.esc(p.name)}`}">
@@ -961,7 +961,7 @@ const DashboardView = {
                 </div>
               </div>
             `;
-          }).join('') : `
+    }).join('') : `
             <div class="dash-empty is-compact">
               <span>No projects yet.</span>
               <button type="button" class="btn btn-primary btn-sm" data-dash="new-project"><i class="fa-solid fa-plus"></i> Create Project</button>
@@ -982,9 +982,10 @@ const DashboardView = {
             <span class="dash-card-icon tone-violet"><i class="fa-solid fa-flag-checkered"></i></span>
             <div class="dash-card-titles">
               <h2>Sprint Control</h2>
-              <p>${nextPlanned ? `Planned: ${this.esc(nextPlanned.name)}` : 'No active cycle'}</p>
+              <p>${nextPlanned ? `Next Scheduled: ${this.esc(nextPlanned.name)} (${ctx.plannedSprints.length} queued)` : 'No active or queued cycle'}</p>
             </div>
             <div class="dash-card-tools">
+              <button type="button" class="btn btn-ghost btn-sm" data-dash="stack-sprints" title="Stack Multiple Sprints (Constant Interval)"><i class="fa-solid fa-layer-group"></i></button>
               <button type="button" class="btn btn-ghost btn-sm" data-dash="go" data-view="backlog" title="Open Sprint Planning"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
             </div>
           </div>
@@ -993,12 +994,15 @@ const DashboardView = {
               <button type="button" class="btn btn-primary btn-sm" data-dash="start-sprint" data-sprint-id="${this.esc(nextPlanned.id)}">
                 <i class="fa-solid fa-play"></i> Start ${this.esc(nextPlanned.name)}
               </button>
-              <button type="button" class="btn btn-secondary btn-sm" data-dash="sprint-add-existing" data-sprint-id="${this.esc(nextPlanned.id)}">
-                <i class="fa-solid fa-link"></i> Add Existing
+              <button type="button" class="btn btn-secondary btn-sm" data-dash="stack-sprints">
+                <i class="fa-solid fa-layer-group"></i> Stack Sprints
               </button>
             ` : `
-              <button type="button" class="btn btn-primary btn-sm" data-dash="new-sprint">
-                <i class="fa-solid fa-plus"></i> Create Sprint
+              <button type="button" class="btn btn-primary btn-sm" data-dash="stack-sprints">
+                <i class="fa-solid fa-layer-group"></i> Stack Multiple Sprints
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" data-dash="new-sprint">
+                <i class="fa-solid fa-plus"></i> Single Sprint
               </button>
             `}
           </div>
@@ -1007,6 +1011,7 @@ const DashboardView = {
     }
 
     const schedule = s.daysLeft === null ? 'Active' : s.daysLeft > 0 ? `${s.daysLeft}d left` : s.daysLeft === 0 ? 'Ends today' : `${-s.daysLeft}d overdue`;
+    const nextRolloverSprint = typeof AppState.getNextScheduledSprint === 'function' ? AppState.getNextScheduledSprint(s.sprint.id) : null;
 
     return `
       <section class="dash-card dash-control-card dash-sprint" aria-label="Active Sprint Control">
@@ -1017,6 +1022,7 @@ const DashboardView = {
             <p>${this.esc(schedule)} · ${s.done}/${s.total} tasks · ${s.donePoints}/${s.points} pts</p>
           </div>
           <div class="dash-card-tools">
+            <button type="button" class="btn btn-ghost btn-sm" data-dash="stack-sprints" title="Stack Multiple Sprints (Constant Interval)"><i class="fa-solid fa-layer-group"></i></button>
             <button type="button" class="btn btn-ghost btn-sm" data-dash="go" data-view="backlog" title="Open Sprint Planning"><i class="fa-solid fa-arrow-up-right-from-square"></i></button>
           </div>
         </div>
@@ -1030,6 +1036,11 @@ const DashboardView = {
           <span><b>${s.todoCount}</b> To Do</span>
           <span><b>${s.wipCount}</b> In Flight</span>
           <span><b>${s.done}</b> Done (${s.percent}%)</span>
+        </div>
+
+        <div style="font-size: 11px; padding: 6px 9px; border-radius: 6px; margin-bottom: 8px; border: 1px solid ${nextRolloverSprint ? 'rgba(56,139,253,0.3)' : 'rgba(210,153,34,0.4)'}; background: ${nextRolloverSprint ? 'rgba(56,139,253,0.08)' : 'rgba(210,153,34,0.1)'}; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+          <span><i class="fa-solid ${nextRolloverSprint ? 'fa-arrow-right-arrow-left' : 'fa-triangle-exclamation'}" style="color: ${nextRolloverSprint ? 'var(--accent-primary)' : '#d29922'}; margin-right: 4px;"></i>${nextRolloverSprint ? `Auto-rollover → <strong>${this.esc(nextRolloverSprint.name)}</strong>` : 'No next sprint scheduled'}</span>
+          <button type="button" class="dash-mini-link" data-dash="stack-sprints" style="padding: 1px 6px;">+ Stack</button>
         </div>
 
         <div class="dash-sprint-ctrl-actions">
@@ -1065,13 +1076,13 @@ const DashboardView = {
 
         <div class="dash-deadlines">
           ${ctx.deadlines.length ? ctx.deadlines.map(t => {
-            const due = PlannerView.dueKey(t);
-            const diff = this.dayDiff(ctx.today, due);
-            const date = new Date(`${due}T00:00:00`);
-            const badgeLabel = diff < 0 ? `${-diff}d late` : diff === 0 ? 'Today' : diff === 1 ? 'Tmrw' : date.toLocaleDateString('en-US', { weekday: 'short' });
-            const toneClass = diff <= 0 ? 'is-today' : diff === 1 ? 'is-soon' : '';
-            const inToday = t.plannedDate === ctx.today;
-            return `
+      const due = PlannerView.dueKey(t);
+      const diff = this.dayDiff(ctx.today, due);
+      const date = new Date(`${due}T00:00:00`);
+      const badgeLabel = diff < 0 ? `${-diff}d late` : diff === 0 ? 'Today' : diff === 1 ? 'Tmrw' : date.toLocaleDateString('en-US', { weekday: 'short' });
+      const toneClass = diff <= 0 ? 'is-today' : diff === 1 ? 'is-soon' : '';
+      const inToday = t.plannedDate === ctx.today;
+      return `
               <div class="dash-deadline ${toneClass}" data-task-id="${this.esc(t.id)}" style="--row-project:${this.projectColor(t)}">
                 <span class="dash-deadline-date">
                   <b>${badgeLabel}</b>
@@ -1088,7 +1099,7 @@ const DashboardView = {
                 ` : '<span class="dash-plan-tag is-today">Today</span>'}
               </div>
             `;
-          }).join('') : `
+    }).join('') : `
             <div class="dash-empty is-compact">
               <i class="fa-regular fa-calendar-check"></i>
               <span>No upcoming deadlines in the next 7 days.</span>
@@ -1150,6 +1161,9 @@ const DashboardView = {
           break;
         case 'new-sprint':
           if (typeof BacklogView !== 'undefined') BacklogView.openCreateSprintModal();
+          break;
+        case 'stack-sprints':
+          if (typeof BacklogView !== 'undefined') BacklogView.openStackSprintsModal();
           break;
         case 'sprint-add-existing':
           if (typeof BacklogView !== 'undefined') BacklogView.openAddExistingTasksModal(el.dataset.sprintId);
