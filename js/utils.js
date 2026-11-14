@@ -46,14 +46,79 @@ const Utils = {
 
   /**
    * Formats date to YYYY-MM-DD for HTML input[type="date"]
-   * @param {string|Date} dateVal 
+   * @param {string|number|Date} dateVal 
    * @returns {string}
    */
   toDateInputValue(dateVal) {
     if (!dateVal) return '';
+    if (typeof dateVal === 'string' && (/^\d{4}-\d{2}-\d{2}$/.test(dateVal) || /T00:00:00(\.000)?Z$/.test(dateVal))) {
+      return dateVal.slice(0, 10);
+    }
     const date = new Date(dateVal);
     if (isNaN(date.getTime())) return '';
-    return date.toISOString().split('T')[0];
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  },
+
+  /**
+   * Formats a Date or timestamp into HH:MM:SS (24-hour local time)
+   * @param {string|number|Date} dateVal
+   * @returns {string} e.g. "14:05:09"
+   */
+  formatTimeHMS(dateVal) {
+    if (dateVal === null || dateVal === undefined || dateVal === '') return '00:00:00';
+    const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+    if (isNaN(d.getTime())) return '00:00:00';
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  },
+
+  /**
+   * Formats a date with HH:MM:SS e.g. "Nov 14, 2026 09:30:00"
+   * @param {string|number|Date} dateVal
+   * @returns {string}
+   */
+  formatDateTimeHMS(dateVal) {
+    if (dateVal === null || dateVal === undefined || dateVal === '') return '';
+    const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    return `${this.formatDate(d)} ${this.formatTimeHMS(d)}`;
+  },
+
+  /**
+   * Parses an "HH:MM:SS" or "HH:MM" string into { hours, minutes, seconds, formatted }
+   * @param {string} timeStr
+   * @param {string} fallbackHMS
+   * @returns {{ hours: number, minutes: number, seconds: number, formatted: string }}
+   */
+  parseTimeHMS(timeStr, fallbackHMS = '00:00:00') {
+    const raw = String(timeStr || fallbackHMS).trim();
+    const parts = raw.split(':').map(n => parseInt(n, 10));
+    const fbParts = String(fallbackHMS).split(':').map(n => parseInt(n, 10));
+    const hours = Number.isFinite(parts[0]) ? Math.min(23, Math.max(0, parts[0])) : (fbParts[0] || 0);
+    const minutes = Number.isFinite(parts[1]) ? Math.min(59, Math.max(0, parts[1])) : (fbParts[1] || 0);
+    const seconds = Number.isFinite(parts[2]) ? Math.min(59, Math.max(0, parts[2])) : (fbParts[2] || 0);
+    const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    return { hours, minutes, seconds, formatted };
+  },
+
+  /**
+   * Combines a YYYY-MM-DD date string and an HH:MM:SS time string into a local Date ISO string
+   * @param {string} dateStr YYYY-MM-DD
+   * @param {string} timeStr HH:MM:SS
+   * @param {string} fallbackHMS
+   * @returns {string|null}
+   */
+  combineDateAndTimeISO(dateStr, timeStr, fallbackHMS = '00:00:00') {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr).trim())) return null;
+    const [y, m, d] = String(dateStr).trim().split('-').map(Number);
+    const { hours, minutes, seconds } = this.parseTimeHMS(timeStr, fallbackHMS);
+    const dt = new Date(y, m - 1, d, hours, minutes, seconds, 0);
+    return isNaN(dt.getTime()) ? null : dt.toISOString();
   },
 
   /**

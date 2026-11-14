@@ -1854,6 +1854,149 @@
   color: var(--text-secondary);
 }
 
+.sp-popup-dates {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.sp-popup-dt-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sp-popup-dt-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.sp-popup-dt-pair strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.sp-hms-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(56, 139, 253, 0.34);
+  background: rgba(56, 139, 253, 0.1);
+  color: var(--sp-brand, #388bfd);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.sp-popup-dt-sep {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.sp-popup-dt-days {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+/* Inline Start/End Date + HH:MM:SS Editor Bar in Sprint Detail View */
+.sp-popup-datetime-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.sp-popup-dt-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 250px;
+  min-width: 0;
+}
+
+.sp-popup-dt-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.69rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.sp-popup-dt-field-label i {
+  color: var(--sp-brand, #388bfd);
+}
+
+.sp-popup-dt-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sp-popup-date-input {
+  flex: 1 1 130px;
+  height: 32px;
+  padding: 0 9px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+}
+
+.sp-popup-time-input {
+  flex: 1 1 115px;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.sp-hms-readout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--sp-brand, #388bfd);
+  white-space: nowrap;
+}
+
+.sp-popup-dt-bar-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.sp-popup-dt-save-btn {
+  height: 32px;
+  flex-shrink: 0;
+}
+
 .sp-popup-goal,
 .sprint-report-goal {
   margin: 2px 0 0;

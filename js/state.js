@@ -910,7 +910,8 @@ const AppState = {
 
   /**
    * Computes accurate start/end timestamps (ms) for a sprint window.
-   * Date-only / midnight UTC end dates extend through the end of that local calendar day (23:59:59.999).
+   * Date-only / midnight UTC end dates extend through the end of that local calendar day (23:59:59)
+   * unless an explicit HH:MM:SS custom time was set on the sprint.
    */
   getSprintWindowMs(sprint) {
     if (!sprint) return { startMs: 0, endMs: 0 };
@@ -918,15 +919,15 @@ const AppState = {
     const endRaw = sprint.endDate ? String(sprint.endDate) : '';
 
     let startMs = startRaw ? new Date(startRaw).getTime() : Date.now();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(startRaw) || /T00:00:00(\.000)?Z$/.test(startRaw)) {
+    if (!sprint.hasCustomTime && (/^\d{4}-\d{2}-\d{2}$/.test(startRaw) || /T00:00:00(\.000)?Z$/.test(startRaw))) {
       const [y, m, d] = startRaw.slice(0, 10).split('-').map(Number);
       startMs = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
     }
 
     let endMs = endRaw ? new Date(endRaw).getTime() : startMs + 14 * 86400000;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(endRaw) || /T00:00:00(\.000)?Z$/.test(endRaw)) {
+    if (!sprint.hasCustomTime && (/^\d{4}-\d{2}-\d{2}$/.test(endRaw) || /T00:00:00(\.000)?Z$/.test(endRaw))) {
       const [y, m, d] = endRaw.slice(0, 10).split('-').map(Number);
-      endMs = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+      endMs = new Date(y, m - 1, d, 23, 59, 59, 0).getTime();
     }
 
     return { startMs, endMs };

@@ -22,7 +22,7 @@ const Automations = {
     }, 450);
     this._sprintSchedulerHandle = setInterval(() => {
       this.checkSprintSchedule();
-    }, 30000);
+    }, 1000);
   },
 
   /**

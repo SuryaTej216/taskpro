@@ -1201,6 +1201,8 @@ const BacklogView = {
     const sprint = AppState.sprints.find(s => s.id === sprintId);
     if (!sprint) return;
 
+    const { startMs, endMs } = AppState.getSprintWindowMs(sprint);
+
     const modalBody = `
   <form id="edit-sprint-form">
         <div class="form-group">
@@ -1221,11 +1223,11 @@ const BacklogView = {
         <div class="form-row">
           <div class="form-group">
             <label class="form-label" for="edit-sprint-start">Start Date</label>
-            <input type="date" id="edit-sprint-start" class="form-input" value="${Utils.toDateInputValue(sprint.startDate)}">
+            <input type="date" id="edit-sprint-start" class="form-input" value="${Utils.toDateInputValue(startMs)}">
           </div>
           <div class="form-group">
             <label class="form-label" for="edit-sprint-end">Target End Date</label>
-            <input type="date" id="edit-sprint-end" class="form-input" value="${Utils.toDateInputValue(sprint.endDate)}">
+            <input type="date" id="edit-sprint-end" class="form-input" value="${Utils.toDateInputValue(endMs)}">
           </div>
         </div>
         <label class="sp-checkbox-row" style="margin-top: 0.35rem;">
@@ -1252,12 +1254,17 @@ const BacklogView = {
             const projectId = projSelect && projSelect.value !== '__all_projects__' ? projSelect.value : null;
             const autoScheduleCb = document.getElementById('edit-sprint-auto-schedule');
 
+            const startDateVal = document.getElementById('edit-sprint-start').value;
+            const endDateVal = document.getElementById('edit-sprint-end').value;
+            const existingStartHMS = Utils.formatTimeHMS(startMs);
+            const existingEndHMS = Utils.formatTimeHMS(endMs);
+
             const updates = {
               name,
               projectId,
               goal: document.getElementById('edit-sprint-goal').value.trim(),
-              startDate: document.getElementById('edit-sprint-start').value ? new Date(document.getElementById('edit-sprint-start').value).toISOString() : sprint.startDate,
-              endDate: document.getElementById('edit-sprint-end').value ? new Date(document.getElementById('edit-sprint-end').value).toISOString() : sprint.endDate,
+              startDate: startDateVal ? (Utils.combineDateAndTimeISO(startDateVal, existingStartHMS, '00:00:00') || sprint.startDate) : sprint.startDate,
+              endDate: endDateVal ? (Utils.combineDateAndTimeISO(endDateVal, existingEndHMS, '23:59:59') || sprint.endDate) : sprint.endDate,
               autoSchedule: autoScheduleCb ? autoScheduleCb.checked : true
             };
 
@@ -2307,10 +2314,15 @@ title="Click to open ${esc(sprint.name)} retrospective report in popup">
 
       const projGroups = this._groupTasksByProject(sprintTasks);
       const sprintProject = freshSprint.projectId ? AppState.projects.find(p => p.id === freshSprint.projectId) : null;
+      const { startMs, endMs } = AppState.getSprintWindowMs(freshSprint);
+      const startDateLabel = Utils.formatDate(startMs);
+      const startTimeHMS = Utils.formatTimeHMS(startMs);
+      const endDateLabel = Utils.formatDate(endMs);
+      const endTimeHMS = Utils.formatTimeHMS(endMs);
 
       let cycleDays = 14;
-      if (freshSprint.startDate && freshSprint.endDate) {
-        const d = Math.max(1, Math.round((new Date(freshSprint.endDate) - new Date(freshSprint.startDate)) / 86400000));
+      if (startMs && endMs) {
+        const d = Math.max(1, Math.round((endMs - startMs) / 86400000));
         if (!isNaN(d)) cycleDays = d;
       }
 
@@ -2323,7 +2335,21 @@ title="Click to open ${esc(sprint.name)} retrospective report in popup">
                 ${sprintProject
                   ? `<span class="sp-chip"><span class="sp-scope-dot" style="background:${sprintProject.color || '#388bfd'}"></span>${esc(sprintProject.name)}</span>`
                   : '<span class="sp-chip">All Workspaces</span>'}
-                <span class="sp-popup-dates"><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(freshSprint.startDate)} – ${Utils.formatDate(freshSprint.endDate)} (${cycleDays} days)</span>
+                <span class="sp-popup-dates">
+                  <i class="fa-regular fa-calendar"></i>
+                  <span class="sp-popup-dt-pair">
+                    <span class="sp-popup-dt-tag">Start:</span>
+                    <strong>${esc(startDateLabel)}</strong>
+                    <code class="sp-hms-badge" title="Start time (HH:MM:SS)"><i class="fa-regular fa-clock"></i> ${esc(startTimeHMS)}</code>
+                  </span>
+                  <span class="sp-popup-dt-sep">→</span>
+                  <span class="sp-popup-dt-pair">
+                    <span class="sp-popup-dt-tag">End:</span>
+                    <strong>${esc(endDateLabel)}</strong>
+                    <code class="sp-hms-badge" title="End time (HH:MM:SS)"><i class="fa-regular fa-clock"></i> ${esc(endTimeHMS)}</code>
+                  </span>
+                  <span class="sp-popup-dt-days">(${cycleDays} days)</span>
+                </span>
               </div>
               ${freshSprint.goal
                 ? `<p class="sp-popup-goal"><strong>Objective:</strong> ${esc(freshSprint.goal)}</p>`
@@ -2340,6 +2366,36 @@ title="Click to open ${esc(sprint.name)} retrospective report in popup">
                 <i class="fa-solid fa-pen"></i> Edit
               </button>
             </div>
+          </div>
+
+          <div class="sp-popup-datetime-bar" aria-label="Sprint start and end date with HH:MM:SS time">
+            <div class="sp-popup-dt-group">
+              <label class="sp-popup-dt-field-label" for="popup-sprint-start-date">
+                <i class="fa-regular fa-calendar-check"></i> Start Date &amp; Time (HH:MM:SS)
+              </label>
+              <div class="sp-popup-dt-inputs">
+                <input type="date" id="popup-sprint-start-date" class="form-input sp-popup-date-input" value="${esc(Utils.toDateInputValue(startMs))}" aria-label="Sprint start date">
+                <input type="time" id="popup-sprint-start-time" class="form-input sp-popup-time-input" step="1" value="${esc(startTimeHMS)}" aria-label="Sprint start time HH:MM:SS">
+                <span class="sp-hms-readout" id="popup-start-hms-readout" title="24-hour HH:MM:SS">${esc(startTimeHMS)}</span>
+              </div>
+            </div>
+
+            <span class="sp-popup-dt-bar-arrow"><i class="fa-solid fa-arrow-right-long"></i></span>
+
+            <div class="sp-popup-dt-group">
+              <label class="sp-popup-dt-field-label" for="popup-sprint-end-date">
+                <i class="fa-solid fa-flag-checkered"></i> End Date &amp; Time (HH:MM:SS)
+              </label>
+              <div class="sp-popup-dt-inputs">
+                <input type="date" id="popup-sprint-end-date" class="form-input sp-popup-date-input" value="${esc(Utils.toDateInputValue(endMs))}" aria-label="Sprint end date">
+                <input type="time" id="popup-sprint-end-time" class="form-input sp-popup-time-input" step="1" value="${esc(endTimeHMS)}" aria-label="Sprint end time HH:MM:SS">
+                <span class="sp-hms-readout" id="popup-end-hms-readout" title="24-hour HH:MM:SS">${esc(endTimeHMS)}</span>
+              </div>
+            </div>
+
+            <button type="button" class="btn btn-secondary btn-sm sp-popup-dt-save-btn" id="popup-btn-save-datetime">
+              <i class="fa-solid fa-floppy-disk"></i> Update Window
+            </button>
           </div>
 
           <div class="sc-kpi-grid">
@@ -2473,6 +2529,54 @@ title="Click to open ${esc(sprint.name)} retrospective report in popup">
           editSprintBtn.addEventListener('click', () => {
             Modal.close();
             this.openEditSprintModal(freshSprint.id);
+          });
+        }
+
+        const startDateInput = modalRoot.querySelector('#popup-sprint-start-date');
+        const startTimeInput = modalRoot.querySelector('#popup-sprint-start-time');
+        const endDateInput = modalRoot.querySelector('#popup-sprint-end-date');
+        const endTimeInput = modalRoot.querySelector('#popup-sprint-end-time');
+        const startReadout = modalRoot.querySelector('#popup-start-hms-readout');
+        const endReadout = modalRoot.querySelector('#popup-end-hms-readout');
+        const saveDateTimeBtn = modalRoot.querySelector('#popup-btn-save-datetime');
+
+        if (startTimeInput && startReadout) {
+          startTimeInput.addEventListener('input', () => {
+            startReadout.textContent = Utils.parseTimeHMS(startTimeInput.value, '00:00:00').formatted;
+          });
+        }
+        if (endTimeInput && endReadout) {
+          endTimeInput.addEventListener('input', () => {
+            endReadout.textContent = Utils.parseTimeHMS(endTimeInput.value, '23:59:59').formatted;
+          });
+        }
+
+        if (saveDateTimeBtn) {
+          saveDateTimeBtn.addEventListener('click', () => {
+            const sDateVal = startDateInput ? startDateInput.value : '';
+            const sTimeVal = startTimeInput ? startTimeInput.value : '00:00:00';
+            const eDateVal = endDateInput ? endDateInput.value : '';
+            const eTimeVal = endTimeInput ? endTimeInput.value : '23:59:59';
+
+            const newStartIso = Utils.combineDateAndTimeISO(sDateVal, sTimeVal, '00:00:00');
+            const newEndIso = Utils.combineDateAndTimeISO(eDateVal, eTimeVal, '23:59:59');
+
+            if (!newStartIso || !newEndIso) {
+              Toast.warning('Please enter valid start and end dates and HH:MM:SS times.');
+              return;
+            }
+            if (new Date(newEndIso).getTime() <= new Date(newStartIso).getTime()) {
+              Toast.warning('End date and time (HH:MM:SS) must be after start date and time.');
+              return;
+            }
+
+            AppState.updateSprint(freshSprint.id, {
+              startDate: newStartIso,
+              endDate: newEndIso,
+              hasCustomTime: true
+            });
+            Toast.success(`Updated schedule to ${Utils.formatDate(newStartIso)} ${Utils.formatTimeHMS(newStartIso)} → ${Utils.formatDate(newEndIso)} ${Utils.formatTimeHMS(newEndIso)}`);
+            renderModalContent();
           });
         }
 
@@ -2702,6 +2806,11 @@ title="Click to open ${esc(sprint.name)} retrospective report in popup">
     const stats = this._analyzeCompletedSprint(sprint, sprintTasks);
     const completedGroups = this._groupTasksByProject(stats.completedTasks);
     const incompleteGroups = this._groupTasksByProject(stats.incompleteTasks);
+    const { startMs, endMs } = AppState.getSprintWindowMs(sprint);
+    const startDateLabel = Utils.formatDate(startMs);
+    const startTimeHMS = Utils.formatTimeHMS(startMs);
+    const endDateLabel = Utils.formatDate(endMs);
+    const endTimeHMS = Utils.formatTimeHMS(endMs);
 
     const bodyHTML = `
   <div class="sprint-report-modal">
@@ -2709,7 +2818,21 @@ title="Click to open ${esc(sprint.name)} retrospective report in popup">
           <div>
             <div class="sprint-report-dates">
               <span class="sp-pill tone-success"><i class="fa-solid fa-check"></i> Completed Cycle</span>
-              <span>${Utils.formatDate(sprint.startDate)} – ${Utils.formatDate(sprint.endDate)} (${stats.durationDays} days)</span>
+              <span class="sp-popup-dates">
+                <i class="fa-regular fa-calendar"></i>
+                <span class="sp-popup-dt-pair">
+                  <span class="sp-popup-dt-tag">Start:</span>
+                  <strong>${esc(startDateLabel)}</strong>
+                  <code class="sp-hms-badge" title="Start time (HH:MM:SS)"><i class="fa-regular fa-clock"></i> ${esc(startTimeHMS)}</code>
+                </span>
+                <span class="sp-popup-dt-sep">→</span>
+                <span class="sp-popup-dt-pair">
+                  <span class="sp-popup-dt-tag">End:</span>
+                  <strong>${esc(endDateLabel)}</strong>
+                  <code class="sp-hms-badge" title="End time (HH:MM:SS)"><i class="fa-regular fa-clock"></i> ${esc(endTimeHMS)}</code>
+                </span>
+                <span class="sp-popup-dt-days">(${stats.durationDays} days)</span>
+              </span>
               <span>·</span>
               <span>Closed on ${esc(stats.completedAtLabel)}</span>
             </div>
