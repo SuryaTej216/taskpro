@@ -1,13 +1,14 @@
 /**
  * TaskForge — Sprint Planning & Iteration Workspace
  *
- * Scenario-driven agile workspace aligned with TaskForge's ADS design tokens:
- * - Adaptive Page Header + contextual primary CTAs (zero duplicate chrome)
- * - Active Sprint Executive Card: compact telemetry KPI bar, interactive status
- *   filter pills, inline work-item composer, Status Swimlanes / Project Matrix / Kanban Board
- * - Scenario-aware Planning Launchpad when no sprint is active
- * - Dedicated Planning & Backlog Workspace (Upcoming Sprints <-> Draggable Backlog Pool)
- *   plus tabbed Completed History & Retrospective Reports
+ * Modern, scenario-driven sprint planning interface:
+ * - Zero redundant chrome: adapts cleanly to empty, planning-only, active-sprint,
+ *   single-project, multi-project, and retrospective scenarios
+ * - Executive Active Sprint Command Card with adaptive KPIs, segmented status
+ *   distribution bar with elapsed-time pace marker, and 3 execution views
+ * - Promoted "Up Next" planning card when no sprint is active (zero duplication)
+ * - Scenario-adaptive lower workspace (Upcoming Pipeline, Backlog Pool, Completed History)
+ * - Refined Cycle Workspace, Retrospective Report, Stack Sprints, and Picker modals
  */
 
 const BacklogView = {
@@ -15,6 +16,8 @@ const BacklogView = {
   activeViewMode: 'lanes',   // 'lanes' | 'project' | 'board'
   lowerTab: 'planning',      // 'planning' | 'history'
   searchQuery: '',
+  doneLaneCollapsed: false,
+  _docMenuListenerBound: false,
 
   _getTypeIcon(type) {
     return {
@@ -53,7 +56,13 @@ const BacklogView = {
     }
 
     const activeSprint = projectSprints.find(s => s.status === 'active') || null;
-    const plannedSprints = projectSprints.filter(s => s.status === 'planned');
+    const plannedSprints = projectSprints
+      .filter(s => s.status === 'planned')
+      .sort((a, b) => {
+        const aTime = a.startDate ? new Date(a.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const bTime = b.startDate ? new Date(b.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+        return aTime - bTime;
+      });
     const completedSprints = [...projectSprints.filter(s => s.status === 'completed')].reverse();
 
     const activeTasks = activeSprint ? filteredTasks.filter(t => t.sprintId === activeSprint.id) : [];
@@ -92,7 +101,36 @@ const BacklogView = {
     };
   },
 
+  _closeAllActionMenus(exceptMenu = null) {
+    document.querySelectorAll('.sp-action-menu.is-open').forEach(menu => {
+      if (menu !== exceptMenu) {
+        menu.classList.remove('is-open');
+        const btn = menu.querySelector('[data-sp-menu-toggle]');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  },
+
+  _ensureGlobalMenuListeners() {
+    if (this._docMenuListenerBound) return;
+    this._docMenuListenerBound = true;
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.sp-action-menu')) {
+        this._closeAllActionMenus();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this._closeAllActionMenus();
+      }
+    });
+  },
+
   attachListeners(container) {
+    this._ensureGlobalMenuListeners();
+
     const createSprintBtn = container.querySelector('#btn-create-sprint');
     if (createSprintBtn) createSprintBtn.addEventListener('click', () => this.openCreateSprintModal());
 
@@ -173,7 +211,7 @@ const BacklogView = {
       });
     });
 
-    // Inline Quick-Add Work Item Form inside Active Sprint
+    // Inline Quick-Add Work Item Form (Active Sprint or Promoted Next-Up Sprint)
     const quickForm = container.querySelector('#sp-active-quick-form');
     if (quickForm) {
       quickForm.addEventListener('submit', (e) => {
@@ -187,9 +225,9 @@ const BacklogView = {
         const title = titleInput ? titleInput.value.trim() : '';
         if (!title || !sprintId) return;
 
-        const activeSprint = AppState.sprints.find(s => s.id === sprintId);
+        const targetSprint = AppState.sprints.find(s => s.id === sprintId);
         const projectId = (projSelect && projSelect.value)
-          || (activeSprint && activeSprint.projectId)
+          || (targetSprint && targetSprint.projectId)
           || AppState.selectedProjectId
           || (AppState.projects[0] && AppState.projects[0].id)
           || 'proj_web';
@@ -206,13 +244,12 @@ const BacklogView = {
           type: 'task'
         });
 
-        Toast.success('Added work item to active sprint');
+        Toast.success(`Added work item to ${targetSprint ? targetSprint.name : 'sprint'}`);
       });
     }
 
-    // Inline Quick-Add Work Item Form inside Backlog Pool
-    const backlogForm = container.querySelector('#sp-backlog-quick-form');
-    if (backlogForm) {
+    // Inline Quick-Add Work Item Form inside Backlog Pool (or compact capture strip)
+    container.querySelectorAll('#sp-backlog-quick-form').forEach(backlogForm => {
       backlogForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const titleInput = backlogForm.querySelector('#sp-backlog-quick-title');
@@ -236,18 +273,70 @@ const BacklogView = {
           type: 'task'
         });
 
-        Toast.success('Added item to backlog');
+        Toast.success('Captured item in product backlog');
       });
-    }
+    });
 
     this._bindDynamicInteractions(container);
 
-    // Delegated page-level actions (StatusControl, task detail, toggle done, context menu, modals)
+    // Delegated page-level actions
     const pageRoot = container.querySelector('.backlog-page');
     if (pageRoot && !pageRoot.dataset.spRootBound) {
       pageRoot.dataset.spRootBound = '1';
 
       pageRoot.addEventListener('click', (e) => {
+        // Overflow menu toggle
+        const menuToggle = e.target.closest('[data-sp-menu-toggle]');
+        if (menuToggle && pageRoot.contains(menuToggle)) {
+          e.stopPropagation();
+          const menuWrap = menuToggle.closest('.sp-action-menu');
+          if (!menuWrap) return;
+          const willOpen = !menuWrap.classList.contains('is-open');
+          this._closeAllActionMenus(willOpen ? menuWrap : null);
+          menuWrap.classList.toggle('is-open', willOpen);
+          menuToggle.setAttribute('aria-expanded', String(willOpen));
+          return;
+        }
+
+        // Overflow menu item click
+        const menuItem = e.target.closest('[data-sp-menu-action]');
+        if (menuItem && pageRoot.contains(menuItem)) {
+          e.stopPropagation();
+          const action = menuItem.dataset.spMenuAction;
+          const sprintId = menuItem.dataset.sprintId;
+          this._closeAllActionMenus();
+          if (!sprintId) return;
+
+          if (action === 'window') {
+            this.openSprintDetailModal(sprintId, { openSchedule: true });
+          } else if (action === 'edit') {
+            this.openEditSprintModal(sprintId);
+          } else if (action === 'pull') {
+            this.openAddExistingTasksModal(sprintId);
+          } else if (action === 'new-task') {
+            const sp = AppState.sprints.find(s => s.id === sprintId);
+            TaskModal.openCreate({ sprintId, projectId: (sp && sp.projectId) || '' });
+          } else if (action === 'delete') {
+            AppState.deleteSprint(sprintId);
+          } else if (action === 'start') {
+            this.startSprint(sprintId);
+          }
+          return;
+        }
+
+        // Collapsible Done swimlane toggle
+        const doneToggle = e.target.closest('[data-toggle-done-lane]');
+        if (doneToggle && pageRoot.contains(doneToggle)) {
+          e.stopPropagation();
+          this.doneLaneCollapsed = !this.doneLaneCollapsed;
+          const lane = doneToggle.closest('.sp-swimlane');
+          if (lane) {
+            lane.classList.toggle('is-collapsed', this.doneLaneCollapsed);
+            doneToggle.setAttribute('aria-expanded', String(!this.doneLaneCollapsed));
+          }
+          return;
+        }
+
         const statusFilterReset = e.target.closest('[data-reset-status-filter]');
         if (statusFilterReset && pageRoot.contains(statusFilterReset)) {
           this.activeStatusFilter = 'all';
@@ -283,13 +372,13 @@ const BacklogView = {
           e.stopPropagation();
           const taskId = removeSprintBtn.dataset.taskId;
           AppState.updateTask(taskId, { sprintId: null });
-          Toast.info('Moved work item to backlog');
+          Toast.info('Moved work item back to backlog');
           return;
         }
 
         const openSprintPopup = e.target.closest('[data-open-sprint-popup]');
         if (openSprintPopup && pageRoot.contains(openSprintPopup)) {
-          if (!e.target.closest('button:not([data-open-sprint-popup-btn])')) {
+          if (!e.target.closest('button:not([data-open-sprint-popup-btn]), .sp-action-menu')) {
             const sprintId = openSprintPopup.dataset.openSprintPopup;
             if (sprintId) this.openSprintDetailModal(sprintId);
             return;
@@ -342,6 +431,15 @@ const BacklogView = {
         }
       });
 
+      pageRoot.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const doneToggle = e.target.closest('[data-toggle-done-lane]');
+        if (doneToggle && pageRoot.contains(doneToggle)) {
+          e.preventDefault();
+          doneToggle.click();
+        }
+      });
+
       pageRoot.addEventListener('contextmenu', (e) => {
         const card = e.target.closest('.backlog-item-row');
         if (!card || typeof ContextMenu === 'undefined') return;
@@ -358,18 +456,26 @@ const BacklogView = {
 
     const canvasSlot = container.querySelector('[data-sp-refresh="active-canvas"]');
     if (canvasSlot && data.activeSprint) {
-      canvasSlot.innerHTML = this._renderActiveCanvasHTML(data.activeSprint, data.activeTasks);
+      canvasSlot.innerHTML = this._renderActiveCanvasHTML(data.activeSprint, data.activeTasks, data.selectedProjectId);
+    }
+
+    const nextUpSlot = container.querySelector('[data-sp-refresh="nextup-items"]');
+    if (nextUpSlot && !data.activeSprint && data.plannedSprints[0]) {
+      const nextSprint = data.plannedSprints[0];
+      const nextTasks = data.filteredTasks.filter(t => t.sprintId === nextSprint.id);
+      nextUpSlot.innerHTML = this._renderNextUpItemsHTML(nextSprint, nextTasks, data.selectedProjectId);
     }
 
     const upcomingSlot = container.querySelector('[data-sp-refresh="upcoming"]');
     if (upcomingSlot) {
-      upcomingSlot.innerHTML = this._renderUpcomingListHTML(data.plannedSprints, data.filteredTasks);
+      const remainingPlanned = data.activeSprint ? data.plannedSprints : data.plannedSprints.slice(1);
+      upcomingSlot.innerHTML = this._renderUpcomingListHTML(remainingPlanned, data.filteredTasks, Boolean(data.activeSprint));
     }
 
     const backlogSlot = container.querySelector('[data-sp-refresh="backlog"]');
     if (backlogSlot) {
       const quickTargetSprint = data.activeSprint || data.plannedSprints[0] || null;
-      backlogSlot.innerHTML = this._renderBacklogPoolList(data.backlogTasks, quickTargetSprint);
+      backlogSlot.innerHTML = this._renderBacklogPoolList(data.backlogTasks, quickTargetSprint, data.selectedProjectId);
     }
 
     const historySlot = container.querySelector('[data-sp-refresh="history"]');
@@ -381,7 +487,9 @@ const BacklogView = {
   },
 
   _bindDynamicInteractions(container) {
-    // Draggable work items (Active Sprint + Backlog Pool)
+    const pageRoot = container.querySelector('.backlog-page');
+
+    // Draggable work items (Active Sprint + Next-Up + Backlog Pool)
     container.querySelectorAll('.backlog-item-row').forEach(row => {
       if (row.dataset.spDragBound) return;
       row.dataset.spDragBound = '1';
@@ -389,19 +497,21 @@ const BacklogView = {
       row.addEventListener('dragstart', (e) => {
         const taskId = row.dataset.taskId;
         row.classList.add('dragging');
+        if (pageRoot) pageRoot.classList.add('is-dragging');
         e.dataTransfer.setData('text/plain', taskId);
         e.dataTransfer.effectAllowed = 'move';
       });
 
       row.addEventListener('dragend', () => {
         row.classList.remove('dragging');
-        container.querySelectorAll('.sprint-drop-zone, .sp-board-col-body, .sp-swimlane-body').forEach(z => {
+        if (pageRoot) pageRoot.classList.remove('is-dragging');
+        container.querySelectorAll('.sprint-drop-zone, .sp-board-col-body, .sp-swimlane-body, .sp-status-drop-chip').forEach(z => {
           z.classList.remove('drag-over');
         });
       });
     });
 
-    // Status Drop Zones (Board Columns & Swimlanes inside Active Sprint)
+    // Status Drop Zones (Board Columns, Swimlanes, and Drag-Revealed Status Dock)
     container.querySelectorAll('[data-status-col]').forEach(col => {
       if (col.dataset.spDropBound) return;
       col.dataset.spDropBound = '1';
@@ -423,6 +533,7 @@ const BacklogView = {
         e.preventDefault();
         e.stopPropagation();
         col.classList.remove('drag-over');
+        if (pageRoot) pageRoot.classList.remove('is-dragging');
 
         const taskId = e.dataTransfer.getData('text/plain');
         const targetStatus = col.dataset.statusCol;
@@ -465,6 +576,7 @@ const BacklogView = {
       zone.addEventListener('drop', (e) => {
         e.preventDefault();
         zone.classList.remove('drag-over');
+        if (pageRoot) pageRoot.classList.remove('is-dragging');
 
         const taskId = e.dataTransfer.getData('text/plain');
         if (!taskId) return;
@@ -537,12 +649,38 @@ const BacklogView = {
     );
   },
 
+  _renderSegmentedBarHTML(tasks, timeProgressPct = null) {
+    const total = tasks.length;
+    if (total === 0) return '';
+
+    const counts = {
+      done: tasks.filter(t => t.status === 'done').length,
+      inreview: tasks.filter(t => t.status === 'inreview').length,
+      inprogress: tasks.filter(t => t.status === 'inprogress').length,
+      blocked: tasks.filter(t => t.status === 'blocked').length
+    };
+
+    const pct = (n) => ((n / total) * 100).toFixed(2);
+    const showTimeTick = typeof timeProgressPct === 'number' && timeProgressPct > 2 && timeProgressPct < 98;
+
+    return `
+      <div class="sp-velocity-rail" role="img" aria-label="${counts.done} of ${total} items completed">
+        ${counts.done ? `<span class="sp-vel-seg is-done" style="width:${pct(counts.done)}%;" title="${counts.done} Done"></span>` : ''}
+        ${counts.inreview ? `<span class="sp-vel-seg is-review" style="width:${pct(counts.inreview)}%;" title="${counts.inreview} In Review"></span>` : ''}
+        ${counts.inprogress ? `<span class="sp-vel-seg is-progress" style="width:${pct(counts.inprogress)}%;" title="${counts.inprogress} In Progress"></span>` : ''}
+        ${counts.blocked ? `<span class="sp-vel-seg is-blocked" style="width:${pct(counts.blocked)}%;" title="${counts.blocked} Blocked"></span>` : ''}
+        ${showTimeTick ? `<span class="sp-vel-pace-tick" style="left:${timeProgressPct}%;" title="Elapsed cycle time: ${timeProgressPct}%"></span>` : ''}
+      </div>
+    `;
+  },
+
   // ── Add Existing Tasks Modal ──
   openAddExistingTasksModal(sprintId) {
     const sprint = AppState.sprints.find(s => s.id === sprintId);
     if (!sprint) return;
 
     const availableTasks = AppState.tasks.filter(t => t.sprintId !== sprintId);
+    const showProjectFilter = (AppState.projects || []).length > 1;
 
     const modalBody = `
       <div id="add-existing-tasks-container">
@@ -552,10 +690,12 @@ const BacklogView = {
             <i class="fa-solid fa-magnifying-glass"></i>
             <input type="text" id="add-task-search" class="form-input" placeholder="Search by title or key...">
           </div>
-          <select id="add-task-filter-project" class="form-select" aria-label="Filter by project">
-            <option value="">All projects</option>
-            ${AppState.projects.map(p => `<option value="${p.id}">${Utils.escapeHTML(p.name)} (${p.key})</option>`).join('')}
-          </select>
+          ${showProjectFilter ? `
+            <select id="add-task-filter-project" class="form-select" aria-label="Filter by project">
+              <option value="">All projects</option>
+              ${AppState.projects.map(p => `<option value="${p.id}">${Utils.escapeHTML(p.name)} (${p.key})</option>`).join('')}
+            </select>
+          ` : ''}
           <select id="add-task-filter-status" class="form-select" aria-label="Filter by status">
             <option value="">All statuses</option>
             <option value="backlog">Backlog</option>
@@ -564,15 +704,16 @@ const BacklogView = {
             <option value="inreview">In Review</option>
           </select>
           <select id="add-task-filter-assignment" class="form-select" aria-label="Filter by sprint assignment">
-            <option value="">All work items</option>
+            <option value="">All items</option>
             <option value="unassigned" selected>Unassigned (Backlog)</option>
             <option value="other">In other sprints</option>
           </select>
         </div>
 
-        <div class="sp-picker-Subbar">
+        <div class="sp-picker-subbar">
           <label class="sp-picker-select-all">
-            <input type="checkbox" id="add-task-select-all"> Select all visible
+            <input type="checkbox" id="add-task-select-all">
+            <span>Select all visible</span>
           </label>
           <span id="add-task-selected-count" class="sp-picker-count">0 selected</span>
         </div>
@@ -584,7 +725,7 @@ const BacklogView = {
     `;
 
     Modal.open({
-      title: `Commit Backlog Items to ${Utils.escapeHTML(sprint.name)}`,
+      title: `Commit Items to ${Utils.escapeHTML(sprint.name)}`,
       body: modalBody,
       size: 'lg',
       footerButtons: [
@@ -616,7 +757,7 @@ const BacklogView = {
   _renderTaskPickerList(tasks) {
     if (tasks.length === 0) {
       return `
-        <div class="sp-empty-well">
+        <div class="sp-empty-well is-compact">
           <i class="fa-solid fa-inbox"></i>
           <span>No work items match your current filters.</span>
         </div>
@@ -624,6 +765,15 @@ const BacklogView = {
     }
 
     const groups = this._groupTasksByProject(tasks);
+    const multiProject = groups.length > 1;
+
+    if (!multiProject) {
+      return `
+        <div class="add-task-project-items">
+          ${groups[0].tasks.map(task => this._renderTaskPickerRow(task)).join('')}
+        </div>
+      `;
+    }
 
     return groups.map(group => {
       const p = group.project;
@@ -647,12 +797,7 @@ const BacklogView = {
   },
 
   _renderTaskPickerRow(task) {
-    let typeIcon = 'fa-square-check';
-    if (task.type === 'bug') typeIcon = 'fa-circle-dot';
-    if (task.type === 'story') typeIcon = 'fa-bookmark';
-    if (task.type === 'epic') typeIcon = 'fa-bolt';
-    if (task.type === 'subtask') typeIcon = 'fa-network-wired';
-
+    const typeIcon = this._getTypeIcon(task.type);
     const currentSprint = task.sprintId ? AppState.sprints.find(s => s.id === task.sprintId) : null;
     const sprintTag = currentSprint
       ? `<span class="sp-chip">${Utils.escapeHTML(currentSprint.name)}</span>`
@@ -660,8 +805,8 @@ const BacklogView = {
 
     return `
       <label class="add-task-row" data-task-id="${task.id}">
-        <input type="checkbox" class="add-task-checkbox" data-task-id="${task.id}">
-        <span class="type-icon type-${task.type}"><i class="fa-solid ${typeIcon}"></i></span>
+        <input type="checkbox" class="add-task-checkbox" data-task-id="${task.id}" data-points="${Number(task.storyPoints) || 0}">
+        <span class="type-icon type-${task.type || 'task'}"><i class="fa-solid ${typeIcon}"></i></span>
         <span class="sp-mono-key">${Utils.escapeHTML(task.key)}</span>
         <span class="add-task-row-title">${Utils.escapeHTML(task.title)}</span>
         ${task.storyPoints > 0 ? `<span class="sp-pts-badge">${task.storyPoints} pts</span>` : ''}
@@ -682,8 +827,8 @@ const BacklogView = {
 
     const updateList = () => {
       const query = searchInput.value.toLowerCase().trim();
-      const statusVal = statusFilter.value;
-      const assignVal = assignmentFilter.value;
+      const statusVal = statusFilter ? statusFilter.value : '';
+      const assignVal = assignmentFilter ? assignmentFilter.value : '';
       const projectVal = projectFilter ? projectFilter.value : '';
 
       let tasks = AppState.tasks.filter(t => t.sprintId !== targetSprintId);
@@ -712,8 +857,8 @@ const BacklogView = {
     };
 
     searchInput.addEventListener('input', updateList);
-    statusFilter.addEventListener('change', updateList);
-    assignmentFilter.addEventListener('change', updateList);
+    if (statusFilter) statusFilter.addEventListener('change', updateList);
+    if (assignmentFilter) assignmentFilter.addEventListener('change', updateList);
     if (projectFilter) projectFilter.addEventListener('change', updateList);
 
     if (selectAllCb) {
@@ -729,10 +874,12 @@ const BacklogView = {
   },
 
   _updateSelectedCount() {
-    const count = document.querySelectorAll('.add-task-checkbox:checked').length;
+    const checked = Array.from(document.querySelectorAll('.add-task-checkbox:checked'));
+    const count = checked.length;
+    const pts = checked.reduce((sum, cb) => sum + (Number(cb.dataset.points) || 0), 0);
     const countEl = document.getElementById('add-task-selected-count');
     if (countEl) {
-      countEl.textContent = `${count} selected`;
+      countEl.textContent = pts > 0 ? `${count} selected · ${pts} pts` : `${count} selected`;
     }
   },
 
@@ -749,7 +896,6 @@ const BacklogView = {
     const incomplete = sprintTasks.filter(t => t.status !== 'done');
     const nextScheduled = AppState.getNextScheduledSprint(sprintId);
 
-    // If NO upcoming sprint is scheduled, open the warning popup modal!
     if (!nextScheduled) {
       this.openNoNextSprintWarningModal(sprintId, { isAutoExpired: false });
       return;
@@ -765,16 +911,16 @@ const BacklogView = {
     const bodyHTML = `
       <div class="complete-sprint-modal-body">
         <p class="sp-modal-intro">
-          Review the cycle delivery summary for <strong>${Utils.escapeHTML(sprint.name)}</strong> before closing this iteration.
+          Review delivery outcomes for <strong>${Utils.escapeHTML(sprint.name)}</strong> before closing this cycle.
         </p>
         <div class="complete-sprint-summary-grid">
           <div class="complete-sprint-stat is-success">
-            <span class="complete-sprint-stat-label"><i class="fa-solid fa-circle-check"></i> Delivered Items</span>
-            <strong>${completed.length} <small>item${completed.length === 1 ? '' : 's'} · ${donePts} pts</small></strong>
+            <span class="complete-sprint-stat-label"><i class="fa-solid fa-circle-check"></i> Delivered</span>
+            <strong>${completed.length} <small>item${completed.length === 1 ? '' : 's'}${donePts > 0 ? ` · ${donePts} pts` : ''}</small></strong>
           </div>
           <div class="complete-sprint-stat ${incomplete.length ? 'is-warning' : ''}">
-            <span class="complete-sprint-stat-label"><i class="fa-solid fa-clock-rotate-left"></i> Pending Auto-Rollover</span>
-            <strong>${incomplete.length} <small>item${incomplete.length === 1 ? '' : 's'} · ${openPts} pts</small></strong>
+            <span class="complete-sprint-stat-label"><i class="fa-solid fa-clock-rotate-left"></i> Pending Rollover</span>
+            <strong>${incomplete.length} <small>item${incomplete.length === 1 ? '' : 's'}${openPts > 0 ? ` · ${openPts} pts` : ''}</small></strong>
           </div>
         </div>
 
@@ -782,42 +928,42 @@ const BacklogView = {
           <div class="sp-autorollover-banner">
             <i class="fa-solid fa-arrow-right-arrow-left"></i>
             <div>
-              <strong>Automatic Pending Task Rollover</strong>
-              <span>All <strong>${incomplete.length}</strong> pending task${incomplete.length === 1 ? '' : 's'} will automatically move into the next scheduled sprint (<strong>${Utils.escapeHTML(nextScheduled.name)}</strong>).</span>
+              <strong>Automatic Pending Rollover</strong>
+              <span><strong>${incomplete.length}</strong> open item${incomplete.length === 1 ? '' : 's'} will carry forward into <strong>${Utils.escapeHTML(nextScheduled.name)}</strong>.</span>
             </div>
           </div>
           <div class="form-group" style="margin-top: 0.75rem;">
-            <label class="form-label" for="complete-sprint-move-target">Destination Sprint for Pending Tasks</label>
+            <label class="form-label" for="complete-sprint-move-target">Destination for Pending Items</label>
             <select id="complete-sprint-move-target" class="form-select">
               ${plannedSprints.map(ps => `<option value="${Utils.escapeHTML(ps.id)}" ${ps.id === nextScheduled.id ? 'selected' : ''}>${Utils.escapeHTML(ps.name)} (${Utils.formatDate(ps.startDate)} → ${Utils.formatDate(ps.endDate)})</option>`).join('')}
-              <option value="__backlog__">Backlog Pool (Unassigned)</option>
+              <option value="__backlog__">Product Backlog (Unassigned)</option>
             </select>
           </div>
         ` : `
           <div class="sp-autorollover-banner is-clean">
             <i class="fa-solid fa-trophy"></i>
             <div>
-              <strong>100% Sprint Completion</strong>
-              <span>All committed tasks are done! Next scheduled sprint: <strong>${Utils.escapeHTML(nextScheduled.name)}</strong>.</span>
+              <strong>100% Delivery Achieved</strong>
+              <span>Every committed item is complete. Next up: <strong>${Utils.escapeHTML(nextScheduled.name)}</strong>.</span>
             </div>
           </div>
         `}
 
         <label class="sp-checkbox-row" style="margin-top: 0.75rem;">
-  <input type="checkbox" id="complete-sprint-auto-start-next" checked>
-    <span>Automatically open <strong>${Utils.escapeHTML(nextScheduled.name)}</strong> upon completing this sprint</span>
-  </label>
+          <input type="checkbox" id="complete-sprint-auto-start-next" checked>
+          <span>Start <strong>${Utils.escapeHTML(nextScheduled.name)}</strong> immediately upon closing</span>
+        </label>
       </div>
-  `;
+    `;
 
     Modal.open({
-      title: `Complete Cycle: ${Utils.escapeHTML(sprint.name)} `,
+      title: `Complete Cycle: ${Utils.escapeHTML(sprint.name)}`,
       body: bodyHTML,
       size: 'md',
       footerButtons: [
         { text: 'Cancel', class: 'btn-secondary', onClick: () => Modal.close() },
         {
-          text: incomplete.length > 0 ? `Complete & Move Pending to ${nextScheduled.name} ` : 'Complete Cycle',
+          text: incomplete.length > 0 ? `Complete & Rollover` : 'Complete Cycle',
           class: 'btn-primary',
           onClick: () => {
             const selectEl = document.getElementById('complete-sprint-move-target');
@@ -853,39 +999,39 @@ const BacklogView = {
     const openPts = incomplete.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
 
     const suggestedNextNum = AppState.sprints.length + 1;
-    const suggestedName = `Sprint ${suggestedNextNum} `;
+    const suggestedName = `Sprint ${suggestedNextNum}`;
     const previewPending = incomplete.slice(0, 4);
 
     const bodyHTML = `
-  <div class="sp-no-sprint-warning-modal">
+      <div class="sp-no-sprint-warning-modal">
         <div class="sp-warning-popup-banner">
           <div class="sp-warning-popup-icon">
             <i class="fa-solid fa-triangle-exclamation"></i>
           </div>
           <div class="sp-warning-popup-copy">
-            <strong>${isAutoExpired ? `Time Window Elapsed for "${esc(sprint.name)}" — No Next Sprint Scheduled!` : `No Upcoming Sprint Scheduled After "${esc(sprint.name)}"!`}</strong>
+            <strong>${isAutoExpired ? `Time Window Elapsed for "${esc(sprint.name)}" — No Next Sprint Scheduled` : `No Upcoming Sprint Scheduled After "${esc(sprint.name)}"`}</strong>
             <p>
               ${incomplete.length > 0
-        ? `There ${incomplete.length === 1 ? 'is' : 'are'} <strong>${incomplete.length} pending task${incomplete.length === 1 ? '' : 's'} (${openPts} pts)</strong> that need to roll over, but no upcoming sprint is scheduled in the pipeline.`
-        : `This sprint has ${completed.length} completed item${completed.length === 1 ? '' : 's'} (${donePts} pts), and there is no upcoming sprint scheduled in the pipeline.`}
+                ? `<strong>${incomplete.length} open item${incomplete.length === 1 ? '' : 's'}</strong>${openPts > 0 ? ` (${openPts} pts)` : ''} need a rollover target, or can return to the backlog.`
+                : `${completed.length} item${completed.length === 1 ? '' : 's'} delivered${donePts > 0 ? ` (${donePts} pts)` : ''}. Schedule a follow-up cycle or close now.`}
             </p>
           </div>
         </div>
 
-        <div class="complete-sprint-summary-grid" style="margin-bottom: 0.85rem;">
+        <div class="complete-sprint-summary-grid">
           <div class="complete-sprint-stat is-success">
             <span class="complete-sprint-stat-label"><i class="fa-solid fa-circle-check"></i> Completed</span>
-            <strong>${completed.length} <small>item${completed.length === 1 ? '' : 's'} · ${donePts} pts</small></strong>
+            <strong>${completed.length} <small>item${completed.length === 1 ? '' : 's'}${donePts > 0 ? ` · ${donePts} pts` : ''}</small></strong>
           </div>
-          <div class="complete-sprint-stat is-warning">
-            <span class="complete-sprint-stat-label"><i class="fa-solid fa-triangle-exclamation"></i> Pending Unscheduled</span>
-            <strong>${incomplete.length} <small>item${incomplete.length === 1 ? '' : 's'} · ${openPts} pts</small></strong>
+          <div class="complete-sprint-stat ${incomplete.length ? 'is-warning' : ''}">
+            <span class="complete-sprint-stat-label"><i class="fa-solid fa-clock-rotate-left"></i> Pending</span>
+            <strong>${incomplete.length} <small>item${incomplete.length === 1 ? '' : 's'}${openPts > 0 ? ` · ${openPts} pts` : ''}</small></strong>
           </div>
         </div>
 
         ${previewPending.length > 0 ? `
           <div class="sp-warn-pending-box">
-            <span class="sp-warn-pending-title">Pending tasks awaiting next sprint destination:</span>
+            <span class="sp-warn-pending-title">Pending items awaiting destination</span>
             <div class="sp-warn-pending-list">
               ${previewPending.map(t => `
                 <div class="sp-warn-pending-item">
@@ -894,50 +1040,49 @@ const BacklogView = {
                   ${t.storyPoints ? `<span class="sp-pts-badge">${t.storyPoints} pts</span>` : ''}
                 </div>
               `).join('')}
-              ${incomplete.length > previewPending.length ? `<div class="sp-warn-pending-more">+${incomplete.length - previewPending.length} more pending task(s)</div>` : ''}
+              ${incomplete.length > previewPending.length ? `<div class="sp-warn-pending-more">+${incomplete.length - previewPending.length} more pending item(s)</div>` : ''}
             </div>
           </div>
-        ` : ''
-      }
+        ` : ''}
 
-<div class="sp-quick-next-creator">
-  <div class="sp-quick-next-head">
-    <i class="fa-solid fa-bolt"></i>
-    <span>Quick-Schedule Next Sprint & Auto-Transfer Pending Tasks</span>
-  </div>
-  <div class="form-row">
-    <div class="form-group" style="flex: 2;">
-      <label class="form-label" for="warn-next-sprint-name">Next Sprint Custom Name</label>
-      <input type="text" id="warn-next-sprint-name" class="form-input" value="${esc(suggestedName)}" placeholder="e.g. Sprint ${suggestedNextNum} — Core Delivery">
-    </div>
-    <div class="form-group" style="flex: 1;">
-      <label class="form-label" for="warn-next-sprint-days">Interval (Days)</label>
-      <input type="number" id="warn-next-sprint-days" class="form-input" value="14" min="1" max="365">
-    </div>
-  </div>
-  <label class="sp-checkbox-row">
-    <input type="checkbox" id="warn-start-immediately" checked>
-      <span>Activate this new sprint immediately & move all ${incomplete.length} pending task${incomplete.length === 1 ? '' : 's'} into it</span>
-  </label>
-</div>
+        <div class="sp-quick-next-creator">
+          <div class="sp-quick-next-head">
+            <i class="fa-solid fa-bolt"></i>
+            <span>Quick-Schedule Next Sprint${incomplete.length ? ' & Auto-Transfer Pending' : ''}</span>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+              <label class="form-label" for="warn-next-sprint-name">Next Sprint Name</label>
+              <input type="text" id="warn-next-sprint-name" class="form-input" value="${esc(suggestedName)}" placeholder="e.g. Sprint ${suggestedNextNum} — Core Delivery">
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label" for="warn-next-sprint-days">Duration (Days)</label>
+              <input type="number" id="warn-next-sprint-days" class="form-input" value="14" min="1" max="365">
+            </div>
+          </div>
+          <label class="sp-checkbox-row">
+            <input type="checkbox" id="warn-start-immediately" checked>
+            <span>Activate immediately${incomplete.length > 0 ? ` &amp; transfer ${incomplete.length} pending item${incomplete.length === 1 ? '' : 's'}` : ''}</span>
+          </label>
+        </div>
       </div>
-  `;
+    `;
 
     Modal.open({
-      title: 'Warning: No Scheduled Next Sprint',
+      title: 'No Next Sprint Scheduled',
       body: bodyHTML,
       size: 'md',
       footerButtons: [
         {
-          text: 'Complete to Backlog',
-          class: 'btn-ghost is-danger',
+          text: incomplete.length > 0 ? 'Move to Backlog & Close' : 'Close Cycle',
+          class: 'btn-ghost sp-footer-danger-left',
           onClick: () => {
             AppState.completeSprint(sprintId, null);
             Modal.close();
           }
         },
         {
-          text: 'Stack Multiple Sprints...',
+          text: 'Stack Sprints...',
           class: 'btn-secondary',
           onClick: () => {
             Modal.close();
@@ -945,7 +1090,7 @@ const BacklogView = {
           }
         },
         {
-          text: 'Create Next Sprint & Move Pending',
+          text: incomplete.length > 0 ? 'Create & Transfer' : 'Create & Start Next',
           class: 'btn-primary',
           onClick: () => {
             const nameInput = document.getElementById('warn-next-sprint-name');
@@ -982,14 +1127,13 @@ const BacklogView = {
 
   /**
    * Stack Multiple Sprints Modal:
-   * Allows stacking N sprints back-to-back in a constant time interval with custom names & goals for each.
+   * Allows stacking N sprints back-to-back in a constant time interval with custom names & goals.
    */
   openStackSprintsModal(options = {}) {
     const esc = Utils.escapeHTML;
     const defaultProj = AppState.selectedProjectId || '__all_projects__';
     const completeSprintIdAfterStack = options.completeSprintIdAfterStack || null;
 
-    // Determine smart anchor start date: day after the latest planned or active sprint endDate, or today
     let anchorDate = new Date();
     const activeAndPlanned = (AppState.sprints || [])
       .filter(s => (s.status === 'planned' || s.status === 'active') && s.id !== completeSprintIdAfterStack && s.endDate);
@@ -1003,34 +1147,33 @@ const BacklogView = {
     const baseNum = (AppState.sprints || []).length + 1;
     let stackItems = [
       { name: `Sprint ${baseNum} — Foundation & Architecture`, goal: 'Core infrastructure and high-priority deliverables' },
-      { name: `Sprint ${baseNum + 1} — Feature Execution`, goal: 'Primary user-facing workflows and API integration' },
-      { name: `Sprint ${baseNum + 2} — Hardening & Polish`, goal: 'QA verification, performance tuning, and release prep' }
+      { name: `Sprint ${baseNum + 1} — Feature Execution`, goal: 'Primary user-facing workflows and integration' },
+      { name: `Sprint ${baseNum + 2} — Hardening & Release`, goal: 'Verification, performance tuning, and release prep' }
     ];
 
     const modalBody = `
-  <div class="sp-stack-modal" id="sp-stack-modal-root">
-    ${completeSprintIdAfterStack ? `
-          <div class="sp-autorollover-banner" style="margin-bottom: 0.85rem;">
+      <div class="sp-stack-modal" id="sp-stack-modal-root">
+        ${completeSprintIdAfterStack ? `
+          <div class="sp-autorollover-banner">
             <i class="fa-solid fa-layer-group"></i>
             <div>
-              <strong>Stack & Rollover Active</strong>
-              <span>Creating this stack will automatically complete the current sprint and move all pending tasks into the 1st stacked sprint below.</span>
+              <strong>Stack &amp; Rollover Active</strong>
+              <span>Creating this stack will close the current sprint and move open items into the first stacked cycle.</span>
             </div>
           </div>
         ` : `
           <p class="sp-modal-intro">
-            Schedule a continuous chain of back-to-back sprints at a <strong>constant time interval</strong> with custom names for each cycle. Sprints automatically open and close on schedule.
+            Generate a continuous chain of back-to-back sprints at a fixed cadence with custom names and objectives.
           </p>
         `}
 
         <div class="sp-stack-config-grid">
           <div class="form-group">
-            <label class="form-label" for="stack-interval-days">Constant Time Interval (Days)</label>
+            <label class="form-label" for="stack-interval-days">Cadence (Days)</label>
             <div class="sp-interval-control-row">
               <input type="number" id="stack-interval-days" class="form-input" value="14" min="1" max="365">
               <div class="sp-interval-presets" role="group" aria-label="Interval presets">
                 <button type="button" class="sp-preset-chip" data-interval-preset="7">7d</button>
-                <button type="button" class="sp-preset-chip" data-interval-preset="10">10d</button>
                 <button type="button" class="sp-preset-chip is-active" data-interval-preset="14">14d</button>
                 <button type="button" class="sp-preset-chip" data-interval-preset="21">21d</button>
                 <button type="button" class="sp-preset-chip" data-interval-preset="28">28d</button>
@@ -1039,14 +1182,14 @@ const BacklogView = {
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="stack-anchor-start">First Sprint Start Date</label>
+            <label class="form-label" for="stack-anchor-start">First Start Date</label>
             <input type="date" id="stack-anchor-start" class="form-input" value="${Utils.toDateInputValue(anchorDate)}">
           </div>
 
           <div class="form-group">
             <label class="form-label" for="stack-project">Project Scope</label>
             <select id="stack-project" class="form-select">
-              <option value="__all_projects__" ${defaultProj === '__all_projects__' ? 'selected' : ''}>All Projects (Cross-Workspace)</option>
+              <option value="__all_projects__" ${defaultProj === '__all_projects__' ? 'selected' : ''}>All Projects</option>
               ${AppState.projects.map(p => `<option value="${esc(p.id)}" ${p.id === defaultProj ? 'selected' : ''}>${esc(p.name)} (${esc(p.key)})</option>`).join('')}
             </select>
           </div>
@@ -1055,11 +1198,12 @@ const BacklogView = {
         <div class="sp-stack-list-header">
           <div class="sp-stack-list-title">
             <i class="fa-solid fa-timeline"></i>
-            <span>Stacked Sprint Queue (<strong id="stack-count-badge">${stackItems.length}</strong> Sprints)</span>
+            <span>Cycle Queue</span>
+            <span class="sp-count-pill" id="stack-count-badge">${stackItems.length}</span>
           </div>
           <div class="sp-stack-list-actions">
             <button type="button" class="btn btn-secondary btn-sm" id="btn-add-stack-row">
-              <i class="fa-solid fa-plus"></i> Add Sprint to Stack
+              <i class="fa-solid fa-plus"></i> Add Cycle
             </button>
           </div>
         </div>
@@ -1069,20 +1213,20 @@ const BacklogView = {
         <div class="sp-stack-options-bar">
           <label class="sp-checkbox-row">
             <input type="checkbox" id="stack-auto-schedule" checked>
-            <span><strong>Auto-Pilot Schedule:</strong> Automatically open & close each sprint based on its time window and roll pending tasks to the next sprint</span>
+            <span><strong>Auto-Pilot:</strong> Open &amp; close cycles automatically on schedule and roll over pending items</span>
           </label>
         </div>
       </div>
-  `;
+    `;
 
     Modal.open({
-      title: 'Stack Multiple Sprints (Constant Interval)',
+      title: 'Stack Sprint Cadence',
       body: modalBody,
       size: 'lg',
       footerButtons: [
         { text: 'Cancel', class: 'btn-secondary', onClick: () => Modal.close() },
         {
-          text: completeSprintIdAfterStack ? 'Stack Sprints & Rollover Pending Tasks' : 'Create Sprint Stack',
+          text: completeSprintIdAfterStack ? 'Stack & Rollover Pending' : 'Create Sprint Stack',
           class: 'btn-primary',
           id: 'btn-confirm-stack-sprints',
           onClick: () => {
@@ -1109,7 +1253,7 @@ const BacklogView = {
               const goalInput = rowEls[i].querySelector('.stack-row-goal');
               const customName = nameInput ? nameInput.value.trim() : '';
               if (!customName) {
-                Toast.warning(`Please enter a custom name for Sprint #${i + 1}.`);
+                Toast.warning(`Please enter a name for Sprint #${i + 1}.`);
                 if (nameInput) nameInput.focus();
                 return;
               }
@@ -1184,25 +1328,25 @@ const BacklogView = {
         rowsContainer.innerHTML = stackItems.map((item, idx) => {
           const w = windows[idx];
           return `
-  <div class="sp-stack-row" data-stack-index="${idx}">
+            <div class="sp-stack-row" data-stack-index="${idx}">
               <div class="sp-stack-row-seq">
                 <span class="sp-stack-seq-num">#${idx + 1}</span>
                 <span class="sp-stack-seq-days">${w.intervalDays}d</span>
               </div>
               <div class="sp-stack-row-fields">
                 <div class="sp-stack-row-top">
-                  <input type="text" class="form-input stack-row-name" value="${esc(item.name)}" placeholder="Custom name for Sprint #${idx + 1} (e.g. Sprint ${baseNum + idx} — API & Auth)" required>
+                  <input type="text" class="form-input stack-row-name" value="${esc(item.name)}" placeholder="Sprint #${idx + 1} name..." required>
                   <span class="sp-stack-window-badge" data-stack-window="${idx}">
                     <i class="fa-regular fa-calendar"></i> ${esc(w.startLabel)} → ${esc(w.endLabel)}
                   </span>
                 </div>
-                <input type="text" class="form-input stack-row-goal" value="${esc(item.goal)}" placeholder="Optional cycle goal or milestone for Sprint #${idx + 1}...">
+                <input type="text" class="form-input stack-row-goal" value="${esc(item.goal)}" placeholder="Optional goal or milestone...">
               </div>
               <button type="button" class="sp-stack-row-remove" data-remove-stack-idx="${idx}" title="Remove from stack" ${stackItems.length <= 1 ? 'disabled' : ''}>
-                <i class="fa-solid fa-trash-can"></i>
+                <i class="fa-regular fa-trash-can"></i>
               </button>
             </div>
-  `;
+          `;
         }).join('');
 
         rowsContainer.querySelectorAll('[data-remove-stack-idx]').forEach(btn => {
@@ -1223,7 +1367,7 @@ const BacklogView = {
           if (!w) return;
           const badge = row.querySelector('[data-stack-window]');
           const daysEl = row.querySelector('.sp-stack-seq-days');
-          if (badge) badge.innerHTML = `<i class="fa-regular fa-calendar"></i> ${esc(w.startLabel)} → ${esc(w.endLabel)} `;
+          if (badge) badge.innerHTML = `<i class="fa-regular fa-calendar"></i> ${esc(w.startLabel)} → ${esc(w.endLabel)}`;
           if (daysEl) daysEl.textContent = `${w.intervalDays}d`;
         });
       };
@@ -1253,7 +1397,7 @@ const BacklogView = {
           syncFromDOM();
           const nextIdx = stackItems.length;
           stackItems.push({
-            name: `Sprint ${baseNum + nextIdx} — Cycle ${nextIdx + 1} `,
+            name: `Sprint ${baseNum + nextIdx} — Cycle ${nextIdx + 1}`,
             goal: ''
           });
           renderRows();
@@ -1274,10 +1418,10 @@ const BacklogView = {
     const defaultEnd = new Date(Date.now() + 14 * 86400000);
 
     const modalBody = `
-  <form id="create-sprint-form">
+      <form id="create-sprint-form">
         <div class="form-group">
-          <label class="form-label" for="sprint-name">Sprint / Cycle Name <span class="required">*</span></label>
-          <input type="text" id="sprint-name" class="form-input" placeholder="e.g. Cycle 04 — Performance & Realtime Sync" required autofocus>
+          <label class="form-label" for="sprint-name">Sprint Name <span class="required">*</span></label>
+          <input type="text" id="sprint-name" class="form-input" placeholder="e.g. Sprint 4 — Performance & Realtime Sync" required autofocus>
         </div>
         <div class="form-group">
           <label class="form-label" for="sprint-project">Project Scope</label>
@@ -1287,8 +1431,8 @@ const BacklogView = {
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label" for="sprint-goal">Cycle Objective / Goal</label>
-          <textarea id="sprint-goal" class="form-textarea" placeholder="Define the primary engineering milestone for this cycle..."></textarea>
+          <label class="form-label" for="sprint-goal">Sprint Goal</label>
+          <textarea id="sprint-goal" class="form-textarea" placeholder="Define the primary outcome or milestone for this cycle..."></textarea>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -1302,19 +1446,19 @@ const BacklogView = {
         </div>
         <label class="sp-checkbox-row" style="margin-top: 0.35rem;">
           <input type="checkbox" id="sprint-auto-schedule" checked>
-          <span>Auto-open & auto-close this sprint based on its scheduled dates</span>
+          <span>Auto-open &amp; auto-close this sprint on its scheduled dates</span>
         </label>
       </form>
-`;
+    `;
 
     Modal.open({
-      title: 'Plan New Sprint Cycle',
+      title: 'Plan New Sprint',
       body: modalBody,
       size: 'md',
       footerButtons: [
         { text: 'Cancel', class: 'btn-secondary', onClick: () => Modal.close() },
         {
-          text: 'Stack Multiple Sprints...',
+          text: 'Stack Multiple...',
           class: 'btn-ghost',
           onClick: () => {
             Modal.close();
@@ -1322,7 +1466,7 @@ const BacklogView = {
           }
         },
         {
-          text: 'Create Cycle',
+          text: 'Create Sprint',
           class: 'btn-primary',
           onClick: () => {
             const name = document.getElementById('sprint-name').value.trim();
@@ -1367,9 +1511,9 @@ const BacklogView = {
     const { startMs, endMs } = AppState.getSprintWindowMs(sprint);
 
     const modalBody = `
-  <form id="edit-sprint-form">
+      <form id="edit-sprint-form">
         <div class="form-group">
-          <label class="form-label" for="edit-sprint-name">Sprint / Cycle Name <span class="required">*</span></label>
+          <label class="form-label" for="edit-sprint-name">Sprint Name <span class="required">*</span></label>
           <input type="text" id="edit-sprint-name" class="form-input" value="${Utils.escapeHTML(sprint.name)}" required autofocus>
         </div>
         <div class="form-group">
@@ -1380,7 +1524,7 @@ const BacklogView = {
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label" for="edit-sprint-goal">Cycle Objective / Goal</label>
+          <label class="form-label" for="edit-sprint-goal">Sprint Goal</label>
           <textarea id="edit-sprint-goal" class="form-textarea">${Utils.escapeHTML(sprint.goal || '')}</textarea>
         </div>
         <div class="form-row">
@@ -1395,13 +1539,13 @@ const BacklogView = {
         </div>
         <label class="sp-checkbox-row" style="margin-top: 0.35rem;">
           <input type="checkbox" id="edit-sprint-auto-schedule" ${sprint.autoSchedule !== false ? 'checked' : ''}>
-          <span>Auto-open & auto-close this sprint based on its scheduled dates</span>
+          <span>Auto-open &amp; auto-close this sprint on its scheduled dates</span>
         </label>
       </form>
-  `;
+    `;
 
     Modal.open({
-      title: `Edit Sprint Cycle: ${Utils.escapeHTML(sprint.name)} `,
+      title: `Edit Sprint: ${Utils.escapeHTML(sprint.name)}`,
       body: modalBody,
       size: 'md',
       footerButtons: [
@@ -1447,6 +1591,7 @@ const BacklogView = {
     const esc = Utils.escapeHTML;
     const data = this._getViewData();
     const {
+      selectedProjectId,
       selectedProject,
       projectSprints,
       filteredTasks,
@@ -1455,31 +1600,38 @@ const BacklogView = {
       completedSprints,
       activeTasks,
       backlogTasks,
-      plannedTotalItems,
-      plannedTotalPts,
       avgDeliveryPct,
       totalCompletedPts
     } = data;
 
     const isAutoPilotOn = !(AppState.settings && AppState.settings.autoSprintSchedule === false);
     const hasCompleted = completedSprints.length > 0;
-    const effectiveLowerTab = (!hasCompleted || this.lowerTab !== 'history') ? 'planning' : 'history';
+
+    // When no sprint is active, plannedSprints[0] is promoted into the hero card (avoid duplicating it below)
+    const remainingPlanned = activeSprint ? plannedSprints : plannedSprints.slice(1);
+    const hasPlanningContent = remainingPlanned.length > 0 || backlogTasks.length > 0;
+
+    // Smart default tab: if planning & backlog are both empty while completed sprints exist, show history directly
+    let effectiveLowerTab = this.lowerTab;
+    if (!hasCompleted) {
+      effectiveLowerTab = 'planning';
+    } else if (!hasPlanningContent && !activeSprint && plannedSprints.length === 0) {
+      effectiveLowerTab = 'history';
+    } else if (effectiveLowerTab !== 'history') {
+      effectiveLowerTab = 'planning';
+    }
+
     const quickTargetSprint = activeSprint || plannedSprints[0] || null;
 
-    let headerSubtitle = 'Organize iterations, prioritize backlog, and track sprint velocity';
-    if (projectSprints.length === 0) {
-      headerSubtitle = 'Create your first sprint cycle to plan and track work';
-    } else if (activeSprint) {
-      headerSubtitle = `${activeSprint.name} in progress · ${plannedSprints.length} upcoming · ${backlogTasks.length} in backlog`;
-    } else {
-      headerSubtitle = `${plannedSprints.length} upcoming · ${backlogTasks.length} in backlog · ${completedSprints.length} completed`;
-    }
+    // Show search bar only when there are enough entities to warrant searching
+    const totalSearchableCount = activeTasks.length + backlogTasks.length + plannedSprints.length + completedSprints.length;
+    const showSearch = projectSprints.length > 0 && (totalSearchableCount >= 4 || Boolean(this.searchQuery));
 
     container.innerHTML = `
       <div class="view-page backlog-page sp-page">
-        <!-- 1. CLEAN PAGE HEADER -->
-        <header class="view-header sp-page-header">
-          <div class="view-title-group">
+        <!-- 1. EXECUTIVE PAGE HEADER -->
+        <header class="sp-page-header">
+          <div class="sp-header-left">
             <div class="sp-title-row">
               <h1>Sprint Planning</h1>
               ${selectedProject ? `
@@ -1490,27 +1642,29 @@ const BacklogView = {
                 </button>
               ` : ''}
             </div>
-            <p>${esc(headerSubtitle)}</p>
+            ${projectSprints.length === 0 ? `<p class="sp-header-sub">Plan focused iterations, prioritize backlog, and track delivery velocity.</p>` : ''}
           </div>
 
           ${projectSprints.length > 0 ? `
-            <div class="view-actions sp-header-actions">
-              <div class="sp-search-field ${this.searchQuery ? 'has-value' : ''}">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="sp-global-search" value="${esc(this.searchQuery)}" placeholder="Search sprints or tasks..." aria-label="Search sprints and tasks">
-                <button type="button" id="sp-clear-search" class="sp-search-clear ${this.searchQuery ? '' : 'is-hidden'}" title="Clear search">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </div>
-              <button type="button" id="btn-toggle-sprint-autopilot" class="sp-autopilot-toggle ${isAutoPilotOn ? 'is-on' : 'is-off'}" title="${isAutoPilotOn ? 'Auto-Pilot enabled: automatically starts, closes, and rolls over sprints on schedule' : 'Auto-Pilot paused: sprints require manual start/complete'}">
+            <div class="sp-header-actions">
+              ${showSearch ? `
+                <div class="sp-search-field ${this.searchQuery ? 'has-value' : ''}">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input type="text" id="sp-global-search" value="${esc(this.searchQuery)}" placeholder="Search sprints or tasks..." aria-label="Search sprints and tasks">
+                  <button type="button" id="sp-clear-search" class="sp-search-clear ${this.searchQuery ? '' : 'is-hidden'}" title="Clear search">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              ` : ''}
+              <button type="button" id="btn-toggle-sprint-autopilot" class="sp-autopilot-pill ${isAutoPilotOn ? 'is-on' : 'is-off'}" title="${isAutoPilotOn ? 'Auto-Pilot enabled: automatically starts, closes, and rolls over sprints on schedule' : 'Auto-Pilot paused: sprints require manual start and completion'}">
                 <span class="sp-autopilot-dot"></span>
-                <span>Auto-Pilot ${isAutoPilotOn ? 'On' : 'Off'}</span>
+                <span>Auto-Pilot</span>
               </button>
-              <button type="button" id="btn-stack-sprints" class="btn btn-secondary btn-sm" title="Create multiple back-to-back sprints">
+              <button type="button" id="btn-stack-sprints" class="btn btn-secondary btn-sm" title="Batch-create back-to-back sprints at a fixed cadence">
                 <i class="fa-solid fa-layer-group"></i>
-                <span>Stack Sprints</span>
+                <span>Stack</span>
               </button>
-              <button type="button" id="btn-create-sprint" class="btn ${activeSprint ? 'btn-secondary' : 'btn-primary'} btn-sm">
+              <button type="button" id="btn-create-sprint" class="btn ${activeSprint || plannedSprints.length > 0 ? 'btn-secondary' : 'btn-primary'} btn-sm">
                 <i class="fa-solid fa-plus"></i>
                 <span>New Sprint</span>
               </button>
@@ -1519,99 +1673,50 @@ const BacklogView = {
         </header>
 
         ${projectSprints.length === 0 ? `
-          <!-- SCENARIO 1: NO SPRINTS CREATED -->
-          <section class="sp-empty-state">
-            <div class="sp-empty-icon"><i class="fa-regular fa-calendar-check"></i></div>
-            <h3>No Sprints Scheduled Yet</h3>
-            <p>Break your product backlog into focused iterations, or generate a series of back-to-back sprints at a fixed cadence.</p>
+          <!-- SCENARIO 1: NO SPRINTS SCHEDULED YET -->
+          <section class="sp-empty-hero">
+            <div class="sp-empty-hero-icon">
+              <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <h2>Plan your first sprint cycle</h2>
+            <p>Organize work into time-boxed iterations with automatic rollover, or stack multiple cycles ahead at a fixed cadence.</p>
             <div class="sp-empty-actions">
               <button type="button" class="btn btn-primary" onclick="BacklogView.openCreateSprintModal()">
                 <i class="fa-solid fa-plus"></i> Plan First Sprint
               </button>
               <button type="button" class="btn btn-secondary" onclick="BacklogView.openStackSprintsModal()">
-                <i class="fa-solid fa-layer-group"></i> Stack Multiple Sprints
+                <i class="fa-solid fa-layer-group"></i> Stack Sprint Cadence
               </button>
             </div>
           </section>
 
           ${backlogTasks.length > 0 ? `
             <section class="sp-solo-backlog-wrap">
-              ${this._renderBacklogPoolPanel(backlogTasks, null)}
+              ${this._renderBacklogPoolPanel(backlogTasks, null, selectedProjectId, { showDropHint: false })}
             </section>
           ` : ''}
         ` : `
-          <!-- SCENARIO 2 / 3: ACTIVE SPRINT CARD OR PLANNING LAUNCHPAD -->
-          <section class="sp-primary-zone" aria-label="${activeSprint ? 'Active sprint' : 'Sprint launchpad'}">
+          <!-- SCENARIO 2 / 3: ACTIVE SPRINT CARD OR PROMOTED NEXT-UP / COMPLETED LAUNCHPAD -->
+          <section class="sp-primary-zone" aria-label="${activeSprint ? 'Active sprint' : 'Next sprint planning'}">
             ${activeSprint
-        ? this.renderActiveSprintStudio(activeSprint, activeTasks, backlogTasks.length)
-        : this.renderSprintPlanningEmpty(plannedSprints, filteredTasks)}
+              ? this.renderActiveSprintStudio(activeSprint, activeTasks, backlogTasks.length, selectedProjectId)
+              : this.renderNoActiveSprintHero(plannedSprints, filteredTasks, backlogTasks.length, completedSprints, avgDeliveryPct, selectedProjectId)}
           </section>
 
-          <!-- SCENARIO-AWARE LOWER WORKSPACE: PLANNING & BACKLOG / COMPLETED HISTORY -->
-          <section class="sp-lower-workspace" aria-label="Sprint pipeline and backlog">
-            <div class="sp-lower-bar">
-              ${hasCompleted ? `
-                <div class="sp-segmented sp-lower-tabs" role="tablist" aria-label="Planning sections">
-                  <button type="button" role="tab" aria-selected="${effectiveLowerTab === 'planning'}" class="sp-seg-btn ${effectiveLowerTab === 'planning' ? 'is-active' : ''}" data-sp-lower-tab="planning">
-                    <i class="fa-solid fa-bars-progress"></i>
-                    <span>Pipeline &amp; Backlog</span>
-                    <span class="sp-seg-count">${plannedSprints.length + backlogTasks.length}</span>
-                  </button>
-                  <button type="button" role="tab" aria-selected="${effectiveLowerTab === 'history'}" class="sp-seg-btn ${effectiveLowerTab === 'history' ? 'is-active' : ''}" data-sp-lower-tab="history">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                    <span>Completed History</span>
-                    <span class="sp-seg-count">${completedSprints.length}</span>
-                  </button>
-                </div>
-              ` : `
-                <div class="sp-section-heading">
-                  <h2>Pipeline &amp; Backlog</h2>
-                  <span class="sp-muted-meta">${plannedSprints.length} planned sprint${plannedSprints.length === 1 ? '' : 's'} · ${backlogTasks.length} unassigned item${backlogTasks.length === 1 ? '' : 's'}</span>
-                </div>
-              `}
-            </div>
-
-            ${effectiveLowerTab === 'planning' ? `
-              <div class="sp-planning-grid">
-                <!-- LEFT: UPCOMING SPRINT PIPELINE -->
-                <div class="sp-panel sp-upcoming-panel">
-                  <div class="sp-panel-head">
-                    <div class="sp-panel-title-wrap">
-                      <h3>Upcoming Sprints</h3>
-                      <span class="sp-count-pill">${plannedSprints.length}</span>
-                    </div>
-                    ${plannedSprints.length > 0 ? `
-                      <span class="sp-muted-meta">${plannedTotalItems} item${plannedTotalItems === 1 ? '' : 's'} · ${plannedTotalPts} pts</span>
-                    ` : ''}
-                  </div>
-                  <div class="sp-upcoming-list" data-sp-refresh="upcoming">
-                    ${this._renderUpcomingListHTML(plannedSprints, filteredTasks)}
-                  </div>
-                </div>
-
-                <!-- RIGHT: UNASSIGNED PRODUCT BACKLOG -->
-                ${this._renderBacklogPoolPanel(backlogTasks, quickTargetSprint)}
-              </div>
-            ` : `
-              <!-- TAB 2: COMPLETED SPRINT HISTORY -->
-              <div class="sp-panel sp-history-panel">
-                <div class="sp-panel-head">
-                  <div class="sp-panel-title-wrap">
-                    <h3>Completed Sprints</h3>
-                    <span class="sp-count-pill is-success">${completedSprints.length}</span>
-                  </div>
-                  <div class="sp-history-summary">
-                    <span><strong>${avgDeliveryPct}%</strong> avg delivery</span>
-                    <span class="sp-sep-dot"></span>
-                    <span><strong>${totalCompletedPts}</strong> pts delivered</span>
-                  </div>
-                </div>
-                <div class="sp-history-grid" data-sp-refresh="history">
-                  ${this._renderCompletedHistoryHTML(completedSprints, filteredTasks)}
-                </div>
-              </div>
-            `}
-          </section>
+          <!-- SCENARIO 4: ADAPTIVE LOWER WORKSPACE -->
+          ${this._renderLowerWorkspace({
+            activeSprint,
+            remainingPlanned,
+            backlogTasks,
+            completedSprints,
+            filteredTasks,
+            hasCompleted,
+            effectiveLowerTab,
+            quickTargetSprint,
+            avgDeliveryPct,
+            totalCompletedPts,
+            selectedProjectId
+          })}
         `}
       </div>
     `;
@@ -1619,62 +1724,377 @@ const BacklogView = {
     this.attachListeners(container);
   },
 
-  renderSprintPlanningEmpty(plannedSprints, filteredTasks = []) {
+  _renderLowerWorkspace(ctx) {
+    const {
+      activeSprint,
+      remainingPlanned,
+      backlogTasks,
+      completedSprints,
+      filteredTasks,
+      hasCompleted,
+      effectiveLowerTab,
+      quickTargetSprint,
+      avgDeliveryPct,
+      totalCompletedPts,
+      selectedProjectId
+    } = ctx;
+
+    const plannedItemsCount = remainingPlanned.reduce(
+      (sum, sp) => sum + filteredTasks.filter(t => t.sprintId === sp.id).length,
+      0
+    );
+    const plannedPtsCount = remainingPlanned.reduce(
+      (sum, sp) => sum + filteredTasks.filter(t => t.sprintId === sp.id).reduce((p, t) => p + (Number(t.storyPoints) || 0), 0),
+      0
+    );
+
+    const planningBadgeCount = remainingPlanned.length + backlogTasks.length;
+    const hasPlanned = remainingPlanned.length > 0;
+    const hasBacklog = backlogTasks.length > 0;
+
+    // Header bar for lower workspace: only show tabs when Completed History exists AND there is planning/active context
+    const showTabs = hasCompleted && (activeSprint || hasPlanned || hasBacklog);
+
+    const upcomingHeading = activeSprint ? 'Upcoming Sprints' : 'Later in Queue';
+
+    let lowerBodyHTML = '';
+    if (effectiveLowerTab === 'history' && hasCompleted) {
+      lowerBodyHTML = `
+        <div class="sp-panel sp-history-panel">
+          <div class="sp-panel-head">
+            <div class="sp-panel-title-wrap">
+              <h3>Completed Cycles</h3>
+              <span class="sp-count-pill is-success">${completedSprints.length}</span>
+            </div>
+            <div class="sp-history-summary">
+              <span><strong>${avgDeliveryPct}%</strong> avg delivery</span>
+              ${totalCompletedPts > 0 ? `<span class="sp-sep-dot"></span><span><strong>${totalCompletedPts}</strong> pts burned</span>` : ''}
+            </div>
+          </div>
+          <div class="sp-history-grid" data-sp-refresh="history">
+            ${this._renderCompletedHistoryHTML(completedSprints, filteredTasks)}
+          </div>
+        </div>
+      `;
+    } else if (hasPlanned && hasBacklog) {
+      // Scenario A: Both upcoming sprints & backlog items exist -> Side-by-side planning workbench
+      lowerBodyHTML = `
+        <div class="sp-planning-grid">
+          <div class="sp-panel sp-upcoming-panel">
+            <div class="sp-panel-head">
+              <div class="sp-panel-title-wrap">
+                <h3>${upcomingHeading}</h3>
+                <span class="sp-count-pill">${remainingPlanned.length}</span>
+              </div>
+              <span class="sp-muted-meta">${plannedItemsCount} item${plannedItemsCount === 1 ? '' : 's'}${plannedPtsCount > 0 ? ` · ${plannedPtsCount} pts` : ''}</span>
+            </div>
+            <div class="sp-upcoming-list" data-sp-refresh="upcoming">
+              ${this._renderUpcomingListHTML(remainingPlanned, filteredTasks, Boolean(activeSprint))}
+            </div>
+          </div>
+
+          ${this._renderBacklogPoolPanel(backlogTasks, quickTargetSprint, selectedProjectId)}
+        </div>
+      `;
+    } else if (hasPlanned && !hasBacklog) {
+      // Scenario B: Upcoming sprints exist, backlog is clear -> Give full width to upcoming pipeline + compact backlog capture/drop strip
+      lowerBodyHTML = `
+        <div class="sp-stack-layout">
+          <div class="sp-panel sp-upcoming-panel">
+            <div class="sp-panel-head">
+              <div class="sp-panel-title-wrap">
+                <h3>${upcomingHeading}</h3>
+                <span class="sp-count-pill">${remainingPlanned.length}</span>
+              </div>
+              <span class="sp-muted-meta">${plannedItemsCount} item${plannedItemsCount === 1 ? '' : 's'}${plannedPtsCount > 0 ? ` · ${plannedPtsCount} pts` : ''}</span>
+            </div>
+            <div class="sp-upcoming-list ${remainingPlanned.length >= 2 ? 'is-grid' : ''}" data-sp-refresh="upcoming">
+              ${this._renderUpcomingListHTML(remainingPlanned, filteredTasks, Boolean(activeSprint))}
+            </div>
+          </div>
+
+          ${this._renderCompactBacklogCaptureBar()}
+        </div>
+      `;
+    } else if (!hasPlanned && hasBacklog) {
+      // Scenario C: Backlog items exist, no extra upcoming sprints -> Full-width crisp backlog workbench
+      lowerBodyHTML = `
+        <div class="sp-solo-panel-wrap">
+          ${this._renderBacklogPoolPanel(backlogTasks, quickTargetSprint, selectedProjectId, { showPlanSprintHint: Boolean(activeSprint) })}
+        </div>
+      `;
+    } else {
+      // Scenario D: Both upcoming queue and backlog are clear -> Minimal single-line capture & drop bar (zero empty boxes!)
+      lowerBodyHTML = this._renderCompactBacklogCaptureBar({ showPlanPrompt: Boolean(activeSprint) });
+    }
+
+    return `
+      <section class="sp-lower-workspace" aria-label="Sprint pipeline and backlog">
+        ${showTabs ? `
+          <div class="sp-lower-bar">
+            <div class="sp-segmented sp-lower-tabs" role="tablist" aria-label="Planning sections">
+              <button type="button" role="tab" aria-selected="${effectiveLowerTab === 'planning'}" class="sp-seg-btn ${effectiveLowerTab === 'planning' ? 'is-active' : ''}" data-sp-lower-tab="planning">
+                <i class="fa-solid fa-bars-progress"></i>
+                <span>Pipeline &amp; Backlog</span>
+                ${planningBadgeCount > 0 ? `<span class="sp-seg-count">${planningBadgeCount}</span>` : ''}
+              </button>
+              <button type="button" role="tab" aria-selected="${effectiveLowerTab === 'history'}" class="sp-seg-btn ${effectiveLowerTab === 'history' ? 'is-active' : ''}" data-sp-lower-tab="history">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>Completed</span>
+                <span class="sp-seg-count">${completedSprints.length}</span>
+              </button>
+            </div>
+          </div>
+        ` : ''}
+
+        ${lowerBodyHTML}
+      </section>
+    `;
+  },
+
+  _renderCompactBacklogCaptureBar(options = {}) {
+    return `
+      <div class="sp-compact-backlog-bar sprint-drop-zone" data-sprint-id="">
+        <div class="sp-compact-backlog-label">
+          <i class="fa-solid fa-inbox"></i>
+          <span>Product Backlog</span>
+          <span class="sp-muted-hint">All open items scheduled · Drop here to unassign</span>
+        </div>
+        <form id="sp-backlog-quick-form" class="sp-compact-backlog-form">
+          <input type="text" id="sp-backlog-quick-title" placeholder="Capture new backlog item... (Enter)" maxlength="160" autocomplete="off">
+          <button type="submit" class="btn btn-secondary btn-sm">Add</button>
+        </form>
+        ${options.showPlanPrompt ? `
+          <button type="button" class="btn btn-ghost btn-sm" onclick="BacklogView.openCreateSprintModal()">
+            <i class="fa-regular fa-calendar-plus"></i> Queue Next Sprint
+          </button>
+        ` : ''}
+      </div>
+    `;
+  },
+
+  // ── SCENARIO 3: NO ACTIVE SPRINT HERO (PROMOTED NEXT-UP OR ALL-COMPLETED LAUNCHPAD) ──
+  renderNoActiveSprintHero(plannedSprints, filteredTasks = [], unassignedCount = 0, completedSprints = [], avgDeliveryPct = 0, selectedProjectId = null) {
     const esc = Utils.escapeHTML;
     const nextSprint = plannedSprints[0] || null;
 
     if (!nextSprint) {
       return `
-        <div class="sp-launchpad is-empty-queue">
+        <div class="sp-launchpad">
           <div class="sp-launchpad-copy">
-            <span class="sp-pill tone-neutral"><i class="fa-regular fa-pause-circle"></i> No Active Sprint</span>
-            <div>
-              <h2>Ready for your next iteration</h2>
-              <p>No active or upcoming sprints are currently scheduled. Plan a new cycle from your backlog or stack multiple sprints ahead.</p>
+            <div class="sp-launchpad-icon"><i class="fa-regular fa-flag"></i></div>
+            <div class="sp-launchpad-text">
+              <div class="sp-launchpad-kicker">
+                <span class="sp-pill tone-neutral">No Active Cycle</span>
+                ${completedSprints.length > 0 ? `<span class="sp-muted-meta">${completedSprints.length} completed · ${avgDeliveryPct}% avg delivery</span>` : ''}
+              </div>
+              <h2>Ready for your next sprint</h2>
+              <p>Create a single sprint cycle or generate a stacked cadence to start executing from your backlog.</p>
             </div>
           </div>
           <div class="sp-launchpad-actions">
-            <button type="button" class="btn btn-primary btn-sm" onclick="BacklogView.openCreateSprintModal()">
-              <i class="fa-solid fa-plus"></i> Plan Sprint
-            </button>
             <button type="button" class="btn btn-secondary btn-sm" onclick="BacklogView.openStackSprintsModal()">
               <i class="fa-solid fa-layer-group"></i> Stack Sprints
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="BacklogView.openCreateSprintModal()">
+              <i class="fa-solid fa-plus"></i> Plan Next Sprint
             </button>
           </div>
         </div>
       `;
     }
 
-    const nextTasks = filteredTasks.filter(t => t.sprintId === nextSprint.id);
-    const nextPts = nextTasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+    const nextTasks = filteredTasks
+      .filter(t => t.sprintId === nextSprint.id)
+      .sort((a, b) => this._sortByItemId(a, b));
+    const total = nextTasks.length;
+    const totalPts = nextTasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+    const sprintProject = (!selectedProjectId && nextSprint.projectId)
+      ? AppState.projects.find(p => p.id === nextSprint.projectId)
+      : null;
+
+    let cycleDays = '';
+    let startCountdown = 'Ready to launch';
+    if (nextSprint.startDate && nextSprint.endDate) {
+      const startMs = new Date(nextSprint.startDate).getTime();
+      const endMs = new Date(nextSprint.endDate).getTime();
+      const d = Math.max(1, Math.round((endMs - startMs) / 86400000));
+      if (!isNaN(d)) cycleDays = `${d}d`;
+      const daysUntil = Math.ceil((startMs - Date.now()) / 86400000);
+      if (daysUntil > 0) startCountdown = `Starts in ${daysUntil}d`;
+      else if (daysUntil === 0) startCountdown = 'Scheduled today';
+    }
+
+    const defaultProjectId = nextSprint.projectId || AppState.selectedProjectId || (AppState.projects[0] && AppState.projects[0].id) || '';
+    const showQuickProjectSelect = !nextSprint.projectId && !selectedProjectId && (AppState.projects || []).length > 1;
 
     return `
-      <div class="sp-launchpad">
-        <div class="sp-launchpad-copy">
-          <span class="sp-pill tone-brand"><i class="fa-regular fa-circle-play"></i> Up Next</span>
-          <div class="sp-launchpad-text">
-            <h2>${esc(nextSprint.name)}</h2>
-            <p>
-              ${nextSprint.startDate && nextSprint.endDate ? `<span><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(nextSprint.startDate)} – ${Utils.formatDate(nextSprint.endDate)}</span>` : ''}
-              <span>· ${nextTasks.length} item${nextTasks.length === 1 ? '' : 's'}</span>
-              ${nextPts > 0 ? `<span>· ${nextPts} pts</span>` : ''}
-              ${nextSprint.goal ? `<span class="sp-launchpad-goal">· ${esc(nextSprint.goal)}</span>` : ''}
-            </p>
+      <article class="sp-active-card sp-next-hero sprint-drop-zone" data-sprint-id="${esc(nextSprint.id)}">
+        <header class="sp-active-head">
+          <div class="sp-active-identity">
+            <div class="sp-active-badges">
+              <span class="sp-pill tone-brand"><i class="fa-regular fa-circle-play"></i> Up Next</span>
+              <span class="sp-pill tone-neutral">${esc(startCountdown)}</span>
+              ${sprintProject ? `
+                <span class="sp-chip">
+                  <span class="sp-dot" style="background:${sprintProject.color || 'var(--accent-primary)'};"></span>
+                  ${esc(sprintProject.name)}
+                </span>
+              ` : ''}
+            </div>
+
+            <h2 class="sp-sprint-title">${esc(nextSprint.name)}</h2>
+
+            <div class="sp-meta-line">
+              ${nextSprint.startDate && nextSprint.endDate ? `
+                <span class="sp-meta-item">
+                  <i class="fa-regular fa-calendar"></i>
+                  ${Utils.formatDate(nextSprint.startDate)} – ${Utils.formatDate(nextSprint.endDate)}${cycleDays ? ` (${cycleDays})` : ''}
+                </span>
+              ` : ''}
+              <span class="sp-meta-sep"></span>
+              <span class="sp-meta-item"><strong>${total}</strong> item${total === 1 ? '' : 's'} scoped</span>
+              ${totalPts > 0 ? `<span class="sp-meta-sep"></span><span class="sp-meta-item"><strong>${totalPts}</strong> pts</span>` : ''}
+            </div>
+
+            ${nextSprint.goal ? `<p class="sp-active-goal">${esc(nextSprint.goal)}</p>` : ''}
+          </div>
+
+          <div class="sp-active-actions">
+            <button type="button" class="btn btn-primary btn-sm" onclick="BacklogView.startSprint('${esc(nextSprint.id)}')">
+              <i class="fa-solid fa-play"></i> Start Sprint
+            </button>
+            ${unassignedCount > 0 ? `
+              <button type="button" class="btn btn-secondary btn-sm btn-add-existing" data-sprint-id="${esc(nextSprint.id)}">
+                <i class="fa-solid fa-arrow-down-short-wide"></i> Pull Backlog (${unassignedCount})
+              </button>
+            ` : ''}
+            <button type="button" class="btn btn-secondary btn-sm" onclick="BacklogView.openSprintDetailModal('${esc(nextSprint.id)}')" title="Open cycle workspace & schedule window">
+              <i class="fa-regular fa-clock"></i> Schedule
+            </button>
+            ${this._renderSprintOverflowMenu(nextSprint.id, { unassignedCount, isActive: false })}
+          </div>
+        </header>
+
+        <div class="sp-execution-body">
+          ${this._renderQuickAddComposer(nextSprint, { defaultProjectId, showQuickProjectSelect })}
+
+          <div class="sp-stage-canvas" data-sp-refresh="nextup-items">
+            ${this._renderNextUpItemsHTML(nextSprint, nextTasks, selectedProjectId)}
           </div>
         </div>
-        <div class="sp-launchpad-actions">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="BacklogView.openSprintDetailModal('${esc(nextSprint.id)}')">
-            <i class="fa-solid fa-sliders"></i> Manage Scope
+      </article>
+    `;
+  },
+
+  _renderNextUpItemsHTML(sprint, tasks, selectedProjectId = null) {
+    const esc = Utils.escapeHTML;
+    const visible = tasks.filter(t => this._matchesQuery(t));
+
+    if (tasks.length === 0) {
+      return `
+        <div class="sp-empty-well is-compact">
+          <i class="fa-regular fa-square-plus"></i>
+          <strong>Scope ${esc(sprint.name)} before launching</strong>
+          <span>Add items above or drag tasks from the backlog below into this sprint.</span>
+        </div>
+      `;
+    }
+
+    if (visible.length === 0) {
+      return `
+        <div class="sp-empty-well is-compact">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <strong>No scoped items match "${esc(this.searchQuery)}"</strong>
+        </div>
+      `;
+    }
+
+    const distinctProjects = new Set(tasks.map(t => t.projectId).filter(Boolean));
+    const showProjectChip = !sprint.projectId && !selectedProjectId && distinctProjects.size > 1;
+
+    return `
+      <div class="sp-workitem-surface">
+        ${visible.map(t => this.renderActiveWorkItemRow(t, sprint.id, { showProjectChip })).join('')}
+      </div>
+    `;
+  },
+
+  _renderSprintOverflowMenu(sprintId, opts = {}) {
+    const esc = Utils.escapeHTML;
+    return `
+      <div class="sp-action-menu">
+        <button type="button" class="sp-icon-btn sp-menu-trigger" data-sp-menu-toggle="1" aria-haspopup="menu" aria-expanded="false" title="Sprint options">
+          <i class="fa-solid fa-ellipsis"></i>
+        </button>
+        <div class="sp-menu-popover" role="menu">
+          <button type="button" class="sp-menu-item" role="menuitem" data-sp-menu-action="window" data-sprint-id="${esc(sprintId)}">
+            <i class="fa-regular fa-clock"></i>
+            <span>Adjust Time Window</span>
           </button>
-          <button type="button" class="btn btn-primary btn-sm" onclick="BacklogView.startSprint('${esc(nextSprint.id)}')">
-            <i class="fa-solid fa-play"></i> Start Sprint
+          <button type="button" class="sp-menu-item" role="menuitem" data-sp-menu-action="edit" data-sprint-id="${esc(sprintId)}">
+            <i class="fa-solid fa-pen"></i>
+            <span>Edit Sprint Details</span>
+          </button>
+          ${opts.unassignedCount > 0 ? `
+            <button type="button" class="sp-menu-item" role="menuitem" data-sp-menu-action="pull" data-sprint-id="${esc(sprintId)}">
+              <i class="fa-solid fa-arrow-down-short-wide"></i>
+              <span>Pull from Backlog (${opts.unassignedCount})</span>
+            </button>
+          ` : ''}
+          <button type="button" class="sp-menu-item" role="menuitem" data-sp-menu-action="new-task" data-sprint-id="${esc(sprintId)}">
+            <i class="fa-solid fa-plus"></i>
+            <span>Create Full Task</span>
+          </button>
+          <div class="sp-menu-divider"></div>
+          <button type="button" class="sp-menu-item is-danger" role="menuitem" data-sp-menu-action="delete" data-sprint-id="${esc(sprintId)}">
+            <i class="fa-regular fa-trash-can"></i>
+            <span>Delete Sprint</span>
           </button>
         </div>
       </div>
     `;
   },
 
-  renderActiveSprintStudio(sprint, sprintTasks, unassignedCount = 0) {
+  _renderQuickAddComposer(sprint, opts = {}) {
+    const esc = Utils.escapeHTML;
+    const { defaultProjectId, showQuickProjectSelect } = opts;
+
+    return `
+      <form id="sp-active-quick-form" class="sp-composer" data-sprint-id="${esc(sprint.id)}">
+        <span class="sp-composer-icon"><i class="fa-solid fa-plus"></i></span>
+        <input type="text" id="sp-quick-title" placeholder="Add work item to ${esc(sprint.name)}... (Enter)" maxlength="180" autocomplete="off">
+        <div class="sp-composer-controls">
+          ${showQuickProjectSelect ? `
+            <select id="sp-quick-project" aria-label="Project">
+              ${AppState.projects.map(p => `<option value="${esc(p.id)}" ${p.id === defaultProjectId ? 'selected' : ''}>${esc(p.key || p.name)}</option>`).join('')}
+            </select>
+          ` : ''}
+          <select id="sp-quick-priority" aria-label="Priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+            <option value="critical">Critical</option>
+          </select>
+          <select id="sp-quick-points" aria-label="Story points">
+            <option value="0">0 pts</option>
+            <option value="1">1 pt</option>
+            <option value="2">2 pts</option>
+            <option value="3" selected>3 pts</option>
+            <option value="5">5 pts</option>
+            <option value="8">8 pts</option>
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm">Add</button>
+          <button type="button" class="sp-icon-btn sp-composer-expand" onclick="TaskModal.openCreate({ sprintId: '${esc(sprint.id)}', projectId: '${esc(sprint.projectId || '')}' })" title="Open full task editor">
+            <i class="fa-solid fa-up-right-from-square"></i>
+          </button>
+        </div>
+      </form>
+    `;
+  },
+
+  // ── SCENARIO 2: ACTIVE SPRINT EXECUTIVE COMMAND CARD ──
+  renderActiveSprintStudio(sprint, sprintTasks, unassignedCount = 0, selectedProjectId = null) {
     const esc = Utils.escapeHTML;
     const total = sprintTasks.length;
     const doneTasks = sprintTasks.filter(t => t.status === 'done').length;
@@ -1689,13 +2109,15 @@ const BacklogView = {
     const breakdown = {
       todo: sprintTasks.filter(t => t.status === 'todo' || t.status === 'backlog').length,
       inprogress: sprintTasks.filter(t => t.status === 'inprogress').length,
+      inreview: sprintTasks.filter(t => t.status === 'inreview').length,
+      blocked: sprintTasks.filter(t => t.status === 'blocked').length,
       reviewBlocked: sprintTasks.filter(t => t.status === 'inreview' || t.status === 'blocked').length,
       done: doneTasks
     };
 
-    let timeProgressPct = 0;
-    let countdownLabel = 'Active';
-    let countdownTone = 'tone-brand';
+    let timeProgressPct = null;
+    let countdownLabel = '';
+    let countdownTone = 'tone-neutral';
     if (sprint.startDate && sprint.endDate) {
       const startMs = new Date(sprint.startDate).getTime();
       const endMs = new Date(sprint.endDate).getTime();
@@ -1708,10 +2130,18 @@ const BacklogView = {
       countdownLabel = diff > 0 ? `${diff}d left` : diff === 0 ? 'Ends today' : `${Math.abs(diff)}d overdue`;
     }
 
-    const sprintProject = sprint.projectId ? AppState.projects.find(p => p.id === sprint.projectId) : null;
+    const sprintProject = (!selectedProjectId && sprint.projectId)
+      ? AppState.projects.find(p => p.id === sprint.projectId)
+      : null;
     const defaultProjectId = sprint.projectId || AppState.selectedProjectId || (AppState.projects[0] && AppState.projects[0].id) || '';
     const nextScheduledSprint = AppState.getNextScheduledSprint(sprint.id);
 
+    // Distinct projects across active sprint tasks (only offer "By Project" mode when > 1 project!)
+    const distinctProjects = new Set(sprintTasks.map(t => t.projectId).filter(Boolean));
+    const supportsProjectView = distinctProjects.size > 1;
+    const effectiveViewMode = (this.activeViewMode === 'project' && !supportsProjectView) ? 'lanes' : this.activeViewMode;
+
+    // Status filter pills: only show when not in Board mode and >= 2 populated status buckets exist
     const filterPills = [
       { id: 'all', label: 'All', count: total },
       { id: 'todo', label: 'To Do', count: breakdown.todo },
@@ -1719,8 +2149,60 @@ const BacklogView = {
       { id: 'inreview', label: 'Review / Blocked', count: breakdown.reviewBlocked },
       { id: 'done', label: 'Done', count: breakdown.done }
     ].filter(f => f.id === 'all' || f.count > 0 || this.activeStatusFilter === f.id);
+    const showStatusFilters = total > 0 && effectiveViewMode !== 'board' && filterPills.length > 2;
 
-    const showQuickProjectSelect = !sprint.projectId && (AppState.projects || []).length > 1;
+    const showQuickProjectSelect = !sprint.projectId && !selectedProjectId && (AppState.projects || []).length > 1;
+
+    // Scenario-adaptive KPI cards (zero empty filler columns!)
+    const kpiItems = [];
+    if (total > 0) {
+      let paceBadge = '';
+      if (typeof timeProgressPct === 'number' && timeProgressPct >= 15 && progress < 100) {
+        const delta = progress - timeProgressPct;
+        if (delta >= 10) paceBadge = `<span class="sp-pace-tag is-ahead">Ahead</span>`;
+        else if (delta <= -20) paceBadge = `<span class="sp-pace-tag is-behind">Behind pace</span>`;
+        else paceBadge = `<span class="sp-pace-tag is-ontrack">On track</span>`;
+      } else if (progress === 100) {
+        paceBadge = `<span class="sp-pace-tag is-ahead">Complete</span>`;
+      }
+
+      kpiItems.push({
+        label: 'Completion',
+        value: `${progress}%`,
+        sub: `${doneTasks}/${total} items`,
+        badge: paceBadge
+      });
+
+      if (totalPoints > 0) {
+        kpiItems.push({
+          label: 'Story Points',
+          value: `${donePoints}<small>/${totalPoints}</small>`,
+          sub: remainingPoints > 0 ? `${remainingPoints} pts remaining` : 'All points burned'
+        });
+      }
+
+      const flowSubParts = [];
+      if (breakdown.blocked > 0) flowSubParts.push(`<span class="sp-inline-danger">${breakdown.blocked} blocked</span>`);
+      if (breakdown.inreview > 0) flowSubParts.push(`${breakdown.inreview} review`);
+      if (flowSubParts.length === 0) flowSubParts.push(`${breakdown.todo} to do`);
+
+      kpiItems.push({
+        label: 'In Flight',
+        value: `${breakdown.inprogress}`,
+        subHTML: flowSubParts.join(' · ')
+      });
+
+      if (typeof timeProgressPct === 'number' || totalTracked > 0 || totalEstimate > 0) {
+        const timeSub = totalTracked > 0
+          ? `${Utils.formatMinutes(totalTracked)} logged`
+          : (totalEstimate > 0 ? `${Utils.formatMinutes(totalEstimate)} est.` : (countdownLabel || 'Cycle progress'));
+        kpiItems.push({
+          label: typeof timeProgressPct === 'number' ? 'Cycle Elapsed' : 'Time Logged',
+          value: typeof timeProgressPct === 'number' ? `${timeProgressPct}%` : Utils.formatMinutes(totalTracked),
+          sub: timeSub
+        });
+      }
+    }
 
     return `
       <article class="sp-active-card sprint-drop-zone" data-sprint-id="${esc(sprint.id)}">
@@ -1732,9 +2214,7 @@ const BacklogView = {
                 <span class="sp-live-dot"></span>
                 Active Sprint
               </span>
-              <span class="sp-pill ${countdownTone}">
-                <i class="fa-regular fa-clock"></i> ${esc(countdownLabel)}
-              </span>
+              ${countdownLabel ? `<span class="sp-pill ${countdownTone}"><i class="fa-regular fa-clock"></i> ${esc(countdownLabel)}</span>` : ''}
               ${sprintProject ? `
                 <span class="sp-chip">
                   <span class="sp-dot" style="background:${sprintProject.color || 'var(--accent-primary)'};"></span>
@@ -1743,20 +2223,22 @@ const BacklogView = {
               ` : ''}
             </div>
 
-            <div class="sp-active-title-row">
-              <h2>${esc(sprint.name)}</h2>
+            <h2 class="sp-sprint-title">${esc(sprint.name)}</h2>
+
+            <div class="sp-meta-line">
               ${sprint.startDate && sprint.endDate ? `
-                <span class="sp-active-dates">
+                <span class="sp-meta-item">
                   <i class="fa-regular fa-calendar"></i>
                   ${Utils.formatDate(sprint.startDate)} – ${Utils.formatDate(sprint.endDate)}
                 </span>
               ` : ''}
+              ${sprint.startDate && sprint.endDate ? `<span class="sp-meta-sep"></span>` : ''}
               ${nextScheduledSprint ? `
-                <span class="sp-rollover-note is-linked" title="Unfinished tasks can automatically roll over into ${esc(nextScheduledSprint.name)}">
-                  <i class="fa-solid fa-arrow-right-arrow-left"></i> Next: ${esc(nextScheduledSprint.name)}
+                <span class="sp-rollover-note is-linked" title="Unfinished tasks automatically carry forward into ${esc(nextScheduledSprint.name)}">
+                  <i class="fa-solid fa-arrow-right-arrow-left"></i> Rollover → ${esc(nextScheduledSprint.name)}
                 </span>
               ` : `
-                <button type="button" class="sp-rollover-note is-unscheduled" onclick="BacklogView.openStackSprintsModal()" title="Schedule upcoming sprints so pending items roll over seamlessly">
+                <button type="button" class="sp-rollover-note is-unscheduled" onclick="BacklogView.openStackSprintsModal()" title="Schedule upcoming sprint so pending items roll over cleanly">
                   <i class="fa-regular fa-calendar-plus"></i> Schedule next sprint
                 </button>
               `}
@@ -1769,148 +2251,110 @@ const BacklogView = {
             <button type="button" class="btn btn-primary btn-sm" onclick="BacklogView.completeSprint('${esc(sprint.id)}')">
               <i class="fa-solid fa-flag-checkered"></i> Complete Sprint
             </button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="BacklogView.openSprintDetailModal('${esc(sprint.id)}')" title="Open full sprint workspace & HH:MM:SS time window">
-              <i class="fa-solid fa-up-right-and-down-left-from-center"></i> Workspace
+            <button type="button" class="btn btn-secondary btn-sm" onclick="BacklogView.openSprintDetailModal('${esc(sprint.id)}')" title="Open full cycle workspace & HH:MM:SS window">
+              <i class="fa-regular fa-clock"></i> Cycle Window
             </button>
-            <button type="button" class="btn btn-ghost btn-sm sp-icon-action" onclick="BacklogView.openEditSprintModal('${esc(sprint.id)}')" title="Edit sprint details">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            <button type="button" class="btn btn-ghost btn-sm sp-icon-action is-danger" onclick="AppState.deleteSprint('${esc(sprint.id)}')" title="Delete sprint">
-              <i class="fa-regular fa-trash-can"></i>
-            </button>
+            ${this._renderSprintOverflowMenu(sprint.id, { unassignedCount, isActive: true })}
           </div>
         </header>
 
-        <!-- CLEAN 4-METRIC TELEMETRY STRIP -->
-        <div class="sp-kpi-strip">
-          <div class="sp-kpi-item">
-            <span class="sp-kpi-label">Completion</span>
-            <div class="sp-kpi-value-row">
-              <strong>${progress}%</strong>
-              <span>${doneTasks}/${total} tasks</span>
+        <!-- SCENARIO-ADAPTIVE TELEMETRY STRIP & SEGMENTED VELOCITY BAR (ONLY WHEN ITEMS EXIST) -->
+        ${total > 0 ? `
+          <div class="sp-telemetry-band">
+            <div class="sp-kpi-strip" style="--kpi-cols: ${kpiItems.length};">
+              ${kpiItems.map(item => `
+                <div class="sp-kpi-item">
+                  <div class="sp-kpi-top">
+                    <span class="sp-kpi-label">${item.label}</span>
+                    ${item.badge || ''}
+                  </div>
+                  <div class="sp-kpi-value-row">
+                    <strong>${item.value}</strong>
+                    <span>${item.subHTML || esc(item.sub || '')}</span>
+                  </div>
+                </div>
+              `).join('')}
             </div>
+            ${this._renderSegmentedBarHTML(sprintTasks, timeProgressPct)}
           </div>
-          <div class="sp-kpi-item">
-            <span class="sp-kpi-label">Story Points</span>
-            <div class="sp-kpi-value-row">
-              <strong>${donePoints}<small>/${totalPoints}</small></strong>
-              <span>${totalPoints > 0 ? `${remainingPoints} pts left` : 'No points set'}</span>
-            </div>
-          </div>
-          <div class="sp-kpi-item">
-            <span class="sp-kpi-label">In Progress</span>
-            <div class="sp-kpi-value-row">
-              <strong>${breakdown.inprogress}</strong>
-              <span>${breakdown.reviewBlocked > 0 ? `${breakdown.reviewBlocked} review/blocked` : `${breakdown.todo} to do`}</span>
-            </div>
-          </div>
-          <div class="sp-kpi-item">
-            <span class="sp-kpi-label">Cycle Timeline</span>
-            <div class="sp-kpi-value-row">
-              <strong>${timeProgressPct}%</strong>
-              <span>${totalTracked > 0 ? `${Utils.formatMinutes(totalTracked)} logged` : (totalEstimate > 0 ? `${Utils.formatMinutes(totalEstimate)} est.` : 'Time elapsed')}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="sp-progress-rail" title="${progress}% work completed">
-          <div class="sp-progress-fill" style="width:${progress}%;"></div>
-        </div>
+        ` : ''}
 
         <!-- EXECUTION WORKSPACE -->
         <div class="sp-execution-body">
-          <div class="sp-stage-toolbar">
-            <div class="sp-stage-toolbar-left">
-              <div class="sp-segmented" role="group" aria-label="View mode">
-                <button type="button" class="sp-seg-btn ${this.activeViewMode === 'lanes' ? 'is-active' : ''}" data-active-view-mode="lanes">
-                  <i class="fa-solid fa-bars-staggered"></i>
-                  <span>List</span>
-                </button>
-                <button type="button" class="sp-seg-btn ${this.activeViewMode === 'project' ? 'is-active' : ''}" data-active-view-mode="project">
-                  <i class="fa-solid fa-folder-tree"></i>
-                  <span>By Project</span>
-                </button>
-                <button type="button" class="sp-seg-btn ${this.activeViewMode === 'board' ? 'is-active' : ''}" data-active-view-mode="board">
-                  <i class="fa-solid fa-table-columns"></i>
-                  <span>Board</span>
-                </button>
+          ${total > 0 ? `
+            <div class="sp-stage-toolbar">
+              <div class="sp-stage-toolbar-left">
+                <div class="sp-segmented" role="group" aria-label="View mode">
+                  <button type="button" class="sp-seg-btn ${effectiveViewMode === 'lanes' ? 'is-active' : ''}" data-active-view-mode="lanes">
+                    <i class="fa-solid fa-bars-staggered"></i>
+                    <span>List</span>
+                  </button>
+                  ${supportsProjectView ? `
+                    <button type="button" class="sp-seg-btn ${effectiveViewMode === 'project' ? 'is-active' : ''}" data-active-view-mode="project">
+                      <i class="fa-solid fa-folder-tree"></i>
+                      <span>By Project</span>
+                    </button>
+                  ` : ''}
+                  <button type="button" class="sp-seg-btn ${effectiveViewMode === 'board' ? 'is-active' : ''}" data-active-view-mode="board">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <span>Board</span>
+                  </button>
+                </div>
+
+                ${showStatusFilters ? `
+                  <div class="sp-status-pills" role="group" aria-label="Filter active sprint items">
+                    ${filterPills.map(f => `
+                      <button type="button" class="sp-filter-pill ${this.activeStatusFilter === f.id ? 'is-active' : ''}" data-active-status-filter="${f.id}">
+                        <span>${f.label}</span>
+                        <span class="sp-filter-count">${f.count}</span>
+                      </button>
+                    `).join('')}
+                  </div>
+                ` : ''}
               </div>
 
-              ${total > 0 ? `
-                <div class="sp-status-pills" role="group" aria-label="Filter active sprint items">
-                  ${filterPills.map(f => `
-                    <button type="button" class="sp-filter-pill ${this.activeStatusFilter === f.id ? 'is-active' : ''}" data-active-status-filter="${f.id}">
-                      <span>${f.label}</span>
-                      <span class="sp-filter-count">${f.count}</span>
-                    </button>
-                  `).join('')}
+              ${unassignedCount > 0 ? `
+                <div class="sp-stage-toolbar-right">
+                  <button type="button" class="btn btn-secondary btn-sm btn-add-existing" data-sprint-id="${esc(sprint.id)}">
+                    <i class="fa-solid fa-arrow-down-short-wide"></i>
+                    <span>Pull Backlog (${unassignedCount})</span>
+                  </button>
                 </div>
               ` : ''}
             </div>
+          ` : ''}
 
-            <div class="sp-stage-toolbar-right">
-              ${unassignedCount > 0 ? `
-                <button type="button" class="btn btn-secondary btn-sm btn-add-existing" data-sprint-id="${esc(sprint.id)}">
-                  <i class="fa-solid fa-arrow-down-short-wide"></i>
-                  <span>Pull Backlog (${unassignedCount})</span>
-                </button>
-              ` : ''}
-            </div>
-          </div>
-
-          <!-- SLEEK INLINE WORK ITEM COMPOSER -->
-          <form id="sp-active-quick-form" class="sp-composer" data-sprint-id="${esc(sprint.id)}">
-            <span class="sp-composer-icon"><i class="fa-solid fa-plus"></i></span>
-            <input type="text" id="sp-quick-title" placeholder="Add work item to ${esc(sprint.name)}... (Press Enter)" maxlength="180" autocomplete="off">
-            <div class="sp-composer-controls">
-              ${showQuickProjectSelect ? `
-                <select id="sp-quick-project" aria-label="Project">
-                  ${AppState.projects.map(p => `<option value="${esc(p.id)}" ${p.id === defaultProjectId ? 'selected' : ''}>${esc(p.key || p.name)}</option>`).join('')}
-                </select>
-              ` : ''}
-              <select id="sp-quick-priority" aria-label="Priority">
-                <option value="high">High</option>
-                <option value="medium" selected>Medium</option>
-                <option value="low">Low</option>
-                <option value="critical">Critical</option>
-              </select>
-              <select id="sp-quick-points" aria-label="Story points">
-                <option value="0">0 pts</option>
-                <option value="1">1 pt</option>
-                <option value="2">2 pts</option>
-                <option value="3" selected>3 pts</option>
-                <option value="5">5 pts</option>
-                <option value="8">8 pts</option>
-              </select>
-              <button type="submit" class="btn btn-primary btn-sm">Add</button>
-              <button type="button" class="btn btn-ghost btn-sm sp-composer-expand" onclick="TaskModal.openCreate({ sprintId: '${esc(sprint.id)}', projectId: '${esc(sprint.projectId || '')}' })" title="Open full task form">
-                <i class="fa-solid fa-up-right-from-square"></i>
-              </button>
-            </div>
-          </form>
+          <!-- INLINE WORK ITEM COMPOSER -->
+          ${this._renderQuickAddComposer(sprint, { defaultProjectId, showQuickProjectSelect })}
 
           <!-- DYNAMIC EXECUTION CANVAS -->
           <div class="sp-stage-canvas" data-sp-refresh="active-canvas">
-            ${this._renderActiveCanvasHTML(sprint, sprintTasks)}
+            ${this._renderActiveCanvasHTML(sprint, sprintTasks, selectedProjectId)}
           </div>
         </div>
       </article>
     `;
   },
 
-  _renderActiveCanvasHTML(sprint, sprintTasks) {
+  _renderActiveCanvasHTML(sprint, sprintTasks, selectedProjectId = null) {
     const esc = Utils.escapeHTML;
 
     if (sprintTasks.length === 0) {
+      const unassignedCount = (AppState.tasks || []).filter(
+        t => !t.sprintId && t.status !== 'done' && t.status !== 'cancelled' && (!sprint.projectId || t.projectId === sprint.projectId)
+      ).length;
+
       return `
         <div class="sp-empty-well sprint-drop-empty">
           <i class="fa-regular fa-square-plus"></i>
-          <strong>No items in ${esc(sprint.name)} yet</strong>
-          <span>Use the quick-add input above, drag tasks from the backlog below, or pull existing items.</span>
+          <strong>No work items in ${esc(sprint.name)} yet</strong>
+          <span>Use the quick-add bar above, drag tasks from your backlog, or commit existing items.</span>
           <div class="sp-empty-actions">
-            <button type="button" class="btn btn-secondary btn-sm btn-add-existing" data-sprint-id="${esc(sprint.id)}">
-              <i class="fa-solid fa-link"></i> Pull from Backlog
-            </button>
+            ${unassignedCount > 0 ? `
+              <button type="button" class="btn btn-secondary btn-sm btn-add-existing" data-sprint-id="${esc(sprint.id)}">
+                <i class="fa-solid fa-arrow-down-short-wide"></i> Pull from Backlog (${unassignedCount})
+              </button>
+            ` : ''}
             <button type="button" class="btn btn-primary btn-sm" onclick="TaskModal.openCreate({ sprintId: '${esc(sprint.id)}', projectId: '${esc(sprint.projectId || '')}' })">
               <i class="fa-solid fa-plus"></i> Create Task
             </button>
@@ -1919,10 +2363,15 @@ const BacklogView = {
       `;
     }
 
+    const distinctProjects = new Set(sprintTasks.map(t => t.projectId).filter(Boolean));
+    const supportsProjectView = distinctProjects.size > 1;
+    const effectiveViewMode = (this.activeViewMode === 'project' && !supportsProjectView) ? 'lanes' : this.activeViewMode;
+    const showProjectChip = !sprint.projectId && !selectedProjectId && distinctProjects.size > 1;
+
     const visibleTasks = sprintTasks
       .filter(t => this._matchesQuery(t))
       .filter(t => {
-        if (this.activeStatusFilter === 'all') return true;
+        if (effectiveViewMode === 'board' || this.activeStatusFilter === 'all') return true;
         if (this.activeStatusFilter === 'todo') return t.status === 'todo' || t.status === 'backlog';
         if (this.activeStatusFilter === 'inreview') return t.status === 'inreview' || t.status === 'blocked';
         return t.status === this.activeStatusFilter;
@@ -1931,25 +2380,25 @@ const BacklogView = {
 
     if (visibleTasks.length === 0) {
       return `
-        <div class="sp-empty-well">
+        <div class="sp-empty-well is-compact">
           <i class="fa-solid fa-filter-circle-xmark"></i>
           <strong>No matching work items</strong>
           <span>${this.searchQuery ? `Nothing matched "${esc(this.searchQuery)}"` : 'No items match the selected status filter.'}</span>
-          ${this.activeStatusFilter !== 'all' ? `<button type="button" class="btn btn-secondary btn-sm" data-reset-status-filter="1">Reset Filter</button>` : ''}
+          ${this.activeStatusFilter !== 'all' ? `<button type="button" class="btn btn-secondary btn-sm" data-reset-status-filter="1">Show All Items</button>` : ''}
         </div>
       `;
     }
 
-    if (this.activeViewMode === 'project') {
+    if (effectiveViewMode === 'project') {
       return this.renderActiveProjectMatrix(sprint, visibleTasks);
     }
-    if (this.activeViewMode === 'board') {
-      return this.renderActiveKanbanBoard(sprint, visibleTasks);
+    if (effectiveViewMode === 'board') {
+      return this.renderActiveKanbanBoard(sprint, visibleTasks, { showProjectChip });
     }
-    return this.renderActiveStatusSwimlanes(sprint, visibleTasks);
+    return this.renderActiveStatusSwimlanes(sprint, visibleTasks, { showProjectChip });
   },
 
-  _renderUpcomingListHTML(plannedSprints, filteredTasks) {
+  _renderUpcomingListHTML(plannedSprints, filteredTasks, hasActiveSprint = false) {
     const q = (this.searchQuery || '').trim().toLowerCase();
     const matchingSprints = !q
       ? plannedSprints
@@ -1957,24 +2406,6 @@ const BacklogView = {
         if ((sprint.name || '').toLowerCase().includes(q) || (sprint.goal || '').toLowerCase().includes(q)) return true;
         return filteredTasks.some(t => t.sprintId === sprint.id && this._matchesQuery(t));
       });
-
-    if (plannedSprints.length === 0) {
-      return `
-        <div class="sp-empty-well is-compact">
-          <i class="fa-regular fa-calendar-plus"></i>
-          <strong>No upcoming sprints planned</strong>
-          <span>Queue future sprints so pending items roll over cleanly.</span>
-          <div class="sp-empty-actions">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="BacklogView.openCreateSprintModal()">
-              <i class="fa-solid fa-plus"></i> Plan Sprint
-            </button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="BacklogView.openStackSprintsModal()">
-              <i class="fa-solid fa-layer-group"></i> Stack Sprints
-            </button>
-          </div>
-        </div>
-      `;
-    }
 
     if (matchingSprints.length === 0) {
       return `
@@ -1986,11 +2417,11 @@ const BacklogView = {
     }
 
     return matchingSprints
-      .map((sprint, idx) => this.renderCompressedUpcomingSprint(sprint, filteredTasks.filter(t => t.sprintId === sprint.id), idx))
+      .map((sprint, idx) => this.renderCompressedUpcomingSprint(sprint, filteredTasks.filter(t => t.sprintId === sprint.id), idx, { hasActiveSprint }))
       .join('');
   },
 
-  _renderBacklogPoolPanel(backlogTasks, quickTargetSprint) {
+  _renderBacklogPoolPanel(backlogTasks, quickTargetSprint, selectedProjectId = null, options = {}) {
     const esc = Utils.escapeHTML;
     const totalPts = backlogTasks.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0);
 
@@ -2001,10 +2432,18 @@ const BacklogView = {
             <h3>Product Backlog</h3>
             <span class="sp-count-pill">${backlogTasks.length}</span>
           </div>
-          ${totalPts > 0 ? `<span class="sp-muted-meta">${totalPts} pts</span>` : `<span class="sp-muted-meta">Unassigned</span>`}
+          <div class="sp-panel-head-right">
+            ${totalPts > 0 ? `<span class="sp-muted-meta">${totalPts} pts</span>` : ''}
+            ${options.showPlanSprintHint ? `
+              <button type="button" class="btn btn-ghost btn-sm" onclick="BacklogView.openCreateSprintModal()">
+                <i class="fa-regular fa-calendar-plus"></i> Queue Next Sprint
+              </button>
+            ` : (options.showDropHint !== false && quickTargetSprint ? `<span class="sp-muted-hint">Drag into a sprint</span>` : '')}
+          </div>
         </div>
 
         <form id="sp-backlog-quick-form" class="sp-backlog-composer">
+          <span class="sp-composer-icon"><i class="fa-solid fa-plus"></i></span>
           <input type="text" id="sp-backlog-quick-title" placeholder="Capture backlog item... (Enter)" maxlength="160" autocomplete="off">
           <select id="sp-backlog-quick-priority" aria-label="Backlog priority">
             <option value="high">High</option>
@@ -2024,27 +2463,17 @@ const BacklogView = {
         </form>
 
         <div class="sp-backlog-list" data-sp-refresh="backlog">
-          ${this._renderBacklogPoolList(backlogTasks, quickTargetSprint)}
+          ${this._renderBacklogPoolList(backlogTasks, quickTargetSprint, selectedProjectId)}
         </div>
       </div>
     `;
   },
 
-  _renderBacklogPoolList(backlogTasks, quickTargetSprint) {
+  _renderBacklogPoolList(backlogTasks, quickTargetSprint, selectedProjectId = null) {
     const esc = Utils.escapeHTML;
     const matching = backlogTasks.filter(t => this._matchesQuery(t));
 
-    if (backlogTasks.length === 0) {
-      return `
-        <div class="sp-empty-well is-compact">
-          <i class="fa-solid fa-check-double"></i>
-          <strong>Backlog is clear</strong>
-          <span>Every open task is scheduled in a sprint, or capture new ideas above.</span>
-        </div>
-      `;
-    }
-
-    if (matching.length === 0) {
+    if (matching.length === 0 && backlogTasks.length > 0) {
       return `
         <div class="sp-empty-well is-compact">
           <i class="fa-solid fa-magnifying-glass"></i>
@@ -2052,6 +2481,12 @@ const BacklogView = {
         </div>
       `;
     }
+
+    const distinctProjects = new Set(backlogTasks.map(t => t.projectId).filter(Boolean));
+    const showProjDot = !selectedProjectId && distinctProjects.size > 1;
+    const shortTargetLabel = quickTargetSprint
+      ? (quickTargetSprint.status === 'active' ? 'Active' : 'Next')
+      : '';
 
     return matching.map(task => {
       const project = AppState.projects.find(p => p.id === task.projectId);
@@ -2069,6 +2504,7 @@ const BacklogView = {
           <span class="sp-mono-key" data-sprint-action="open">${esc(task.key)}</span>
           <span class="sp-backlog-row-title" data-sprint-action="open">${esc(task.title)}</span>
           <div class="sp-backlog-row-meta">
+            ${showProjDot && project ? `<span class="sp-dot" style="background:${pColor};" title="${esc(project.name)}"></span>` : ''}
             <span class="planner-prio prio-${esc(task.priority)}" title="${esc(task.priority)} priority"><i class="${priorityIcon}"></i></span>
             ${task.storyPoints > 0 ? `<span class="sp-pts-badge">${task.storyPoints}p</span>` : ''}
             ${quickTargetSprint ? `
@@ -2076,9 +2512,9 @@ const BacklogView = {
                       class="sp-assign-btn"
                       data-quick-assign-task="${esc(task.id)}"
                       data-target-sprint-id="${esc(quickTargetSprint.id)}"
-                      title="Assign to ${esc(quickTargetSprint.name)}">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                <span>${esc(quickTargetSprint.name)}</span>
+                      title="Move to ${esc(quickTargetSprint.name)}">
+                <i class="fa-solid fa-arrow-turn-up"></i>
+                <span>${esc(shortTargetLabel)}</span>
               </button>
             ` : ''}
           </div>
@@ -2110,41 +2546,44 @@ const BacklogView = {
       .join('');
   },
 
-  // ── MODE 1: STATUS SWIMLANES ──
-  renderActiveStatusSwimlanes(sprint, tasks) {
+  // ── MODE 1: STATUS SWIMLANES (NO EMPTY LANE CLUTTER + DRAG-REVEALED STATUS DOCK) ──
+  renderActiveStatusSwimlanes(sprint, tasks, opts = {}) {
     const esc = Utils.escapeHTML;
-    const lanes = [
+    const allLanes = [
       {
         id: 'inprogress',
         label: 'In Progress & Review',
         accent: 'var(--status-inprogress)',
-        icon: 'fa-solid fa-circle-half-stroke',
         items: tasks.filter(t => t.status === 'inprogress' || t.status === 'inreview' || t.status === 'blocked')
       },
       {
         id: 'todo',
         label: 'To Do',
         accent: 'var(--status-todo)',
-        icon: 'fa-regular fa-circle',
         items: tasks.filter(t => t.status === 'todo' || t.status === 'backlog')
       },
       {
         id: 'done',
         label: 'Done',
-        accent: 'var(--status-done)',
-        icon: 'fa-solid fa-circle-check',
+        accent: 'var(--sp-success-dot)',
+        collapsible: true,
         items: tasks.filter(t => t.status === 'done')
       }
-    ].filter(lane => lane.items.length > 0 || this.activeStatusFilter === 'all');
+    ];
+
+    const populatedLanes = allLanes.filter(l => l.items.length > 0);
+    const emptyLanes = allLanes.filter(l => l.items.length === 0);
 
     return `
       <div class="sp-swimlanes">
-        ${lanes.map(lane => {
-      const pts = lane.items.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
-      return `
-            <div class="sp-swimlane" style="--lane-color: ${lane.accent};">
-              <div class="sp-swimlane-head">
+        ${populatedLanes.map(lane => {
+          const pts = lane.items.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+          const isCollapsed = lane.collapsible && this.doneLaneCollapsed;
+          return `
+            <div class="sp-swimlane ${lane.id === 'done' ? 'is-done-lane' : ''} ${isCollapsed ? 'is-collapsed' : ''}" style="--lane-color: ${lane.accent};">
+              <div class="sp-swimlane-head" ${lane.collapsible ? `data-toggle-done-lane="1" role="button" tabindex="0" aria-expanded="${!isCollapsed}"` : ''}>
                 <div class="sp-swimlane-title">
+                  ${lane.collapsible ? `<i class="fa-solid fa-chevron-down sp-lane-chevron"></i>` : ''}
                   <span class="sp-swimlane-dot"></span>
                   <strong>${lane.label}</strong>
                   <span class="sp-swimlane-count">${lane.items.length}</span>
@@ -2152,18 +2591,28 @@ const BacklogView = {
                 ${pts > 0 ? `<span class="sp-swimlane-pts">${pts} pts</span>` : ''}
               </div>
               <div class="sp-swimlane-body" data-status-col="${lane.id}" data-sprint-id="${esc(sprint.id)}">
-                ${lane.items.length
-          ? lane.items.map(t => this.renderActiveWorkItemRow(t, sprint.id)).join('')
-          : `<div class="sp-swimlane-empty">Drop items here to move to ${lane.label}</div>`}
+                ${lane.items.map(t => this.renderActiveWorkItemRow(t, sprint.id, opts)).join('')}
               </div>
             </div>
           `;
-    }).join('')}
+        }).join('')}
+
+        ${emptyLanes.length > 0 ? `
+          <div class="sp-drag-status-dock" aria-hidden="true">
+            <span class="sp-drag-dock-label"><i class="fa-solid fa-arrows-up-down-left-right"></i> Drop to update status:</span>
+            ${emptyLanes.map(lane => `
+              <div class="sp-status-drop-chip" style="--lane-color: ${lane.accent};" data-status-col="${lane.id}" data-sprint-id="${esc(sprint.id)}">
+                <span class="sp-swimlane-dot"></span>
+                <span>${lane.label}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
       </div>
     `;
   },
 
-  // ── MODE 2: PROJECT MATRIX ──
+  // ── MODE 2: PROJECT MATRIX (MULTI-PROJECT ONLY, ZERO REDUNDANT PROJECT CHIPS) ──
   renderActiveProjectMatrix(sprint, tasks) {
     const esc = Utils.escapeHTML;
     const groups = this._groupTasksByProject(tasks);
@@ -2171,11 +2620,11 @@ const BacklogView = {
     return `
       <div class="sp-project-matrix">
         ${groups.map(g => {
-      const pColor = g.project.color || 'var(--accent-primary)';
-      const grpDone = g.tasks.filter(t => t.status === 'done').length;
-      const grpPct = g.tasks.length ? Math.round((grpDone / g.tasks.length) * 100) : 0;
-      const grpPts = g.tasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
-      return `
+          const pColor = g.project.color || 'var(--accent-primary)';
+          const grpDone = g.tasks.filter(t => t.status === 'done').length;
+          const grpPct = g.tasks.length ? Math.round((grpDone / g.tasks.length) * 100) : 0;
+          const grpPts = g.tasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+          return `
             <div class="sp-matrix-project-card" style="--proj-accent: ${pColor};">
               <div class="sp-matrix-project-head">
                 <div class="sp-matrix-project-id">
@@ -2184,22 +2633,23 @@ const BacklogView = {
                   ${g.project.key ? `<span class="sp-mono-key">${esc(g.project.key)}</span>` : ''}
                 </div>
                 <div class="sp-matrix-project-stats">
-                  <span>${grpDone}/${g.tasks.length} done (${grpPct}%)</span>
+                  <div class="sp-mini-bar"><span style="width:${grpPct}%; background:${pColor};"></span></div>
+                  <span>${grpDone}/${g.tasks.length} done</span>
                   ${grpPts > 0 ? `<span class="sp-pts-badge">${grpPts} pts</span>` : ''}
                 </div>
               </div>
               <div class="sp-workitem-table">
-                ${g.tasks.map(t => this.renderActiveWorkItemRow(t, sprint.id)).join('')}
+                ${g.tasks.map(t => this.renderActiveWorkItemRow(t, sprint.id, { showProjectChip: false })).join('')}
               </div>
             </div>
           `;
-    }).join('')}
+        }).join('')}
       </div>
     `;
   },
 
   // ── MODE 3: 4-COLUMN KANBAN BOARD ──
-  renderActiveKanbanBoard(sprint, tasks) {
+  renderActiveKanbanBoard(sprint, tasks, opts = {}) {
     const esc = Utils.escapeHTML;
     const columns = [
       {
@@ -2223,7 +2673,7 @@ const BacklogView = {
       {
         id: 'done',
         title: 'Done',
-        accent: 'var(--status-done)',
+        accent: 'var(--sp-success-dot)',
         items: tasks.filter(t => t.status === 'done')
       }
     ];
@@ -2231,8 +2681,8 @@ const BacklogView = {
     return `
       <div class="sp-board-grid">
         ${columns.map(col => {
-      const colPts = col.items.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
-      return `
+          const colPts = col.items.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+          return `
             <div class="sp-board-col" style="--col-accent: ${col.accent};">
               <div class="sp-board-col-head">
                 <div class="sp-board-col-title">
@@ -2244,17 +2694,17 @@ const BacklogView = {
               </div>
               <div class="sp-board-col-body" data-status-col="${col.id}" data-sprint-id="${esc(sprint.id)}">
                 ${col.items.length
-          ? col.items.map(t => this.renderBoardMiniCard(t, sprint.id)).join('')
-          : `<div class="sp-board-col-empty">Drop items here</div>`}
+                  ? col.items.map(t => this.renderBoardMiniCard(t, sprint.id, opts)).join('')
+                  : `<div class="sp-board-col-empty">Drop items here</div>`}
               </div>
             </div>
           `;
-    }).join('')}
+        }).join('')}
       </div>
     `;
   },
 
-  renderBoardMiniCard(task, sprintId) {
+  renderBoardMiniCard(task, sprintId, opts = {}) {
     const esc = Utils.escapeHTML;
     const isDone = task.status === 'done';
     const isBlocked = task.status === 'blocked';
@@ -2298,7 +2748,9 @@ const BacklogView = {
 
         <div class="sp-board-card-foot">
           <div class="sp-board-card-badges">
-            ${task.storyPoints > 0 ? `<span class="sp-pts-badge">${task.storyPoints} pts</span>` : ''}
+            ${opts.showProjectChip && project ? `<span class="sp-dot" style="background:${pColor};" title="${esc(project.name)}"></span>` : ''}
+            ${isBlocked ? `<span class="sp-pill tone-danger">Blocked</span>` : ''}
+            ${task.storyPoints > 0 ? `<span class="sp-pts-badge">${task.storyPoints}p</span>` : ''}
             ${subtasks.length ? `<span class="sp-chip"><i class="fa-solid fa-network-wired"></i> ${completedSubtasks}/${subtasks.length}</span>` : ''}
             ${dueChip}
           </div>
@@ -2308,7 +2760,7 @@ const BacklogView = {
     `;
   },
 
-  renderActiveWorkItemRow(task, sprintId) {
+  renderActiveWorkItemRow(task, sprintId, opts = {}) {
     const esc = Utils.escapeHTML;
     const isDone = task.status === 'done';
     const project = AppState.projects.find(p => p.id === task.projectId);
@@ -2323,7 +2775,7 @@ const BacklogView = {
       const due = new Date(task.dueDate);
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const overdue = !isDone && task.status !== 'cancelled' && due < today;
-      dueTag = `<span class="sp-pill ${overdue ? 'tone-danger' : 'tone-neutral'}"><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(task.dueDate)}</span>`;
+      dueTag = `<span class="sp-due-tag ${overdue ? 'is-overdue' : ''}"><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(task.dueDate)}</span>`;
     }
 
     return `
@@ -2340,7 +2792,7 @@ const BacklogView = {
         <span class="sp-row-title" data-sprint-action="open">${esc(task.title)}</span>
 
         <div class="sp-row-meta">
-          ${project ? `<span class="sp-chip"><span class="sp-dot" style="background:${pColor}"></span>${esc(project.key || project.name)}</span>` : ''}
+          ${opts.showProjectChip && project ? `<span class="sp-chip"><span class="sp-dot" style="background:${pColor}"></span>${esc(project.key || project.name)}</span>` : ''}
           ${subtasks.length ? `<span class="sp-chip" title="Subtasks"><i class="fa-solid fa-network-wired"></i> ${completedSubtasks}/${subtasks.length}</span>` : ''}
           ${dueTag}
           ${task.storyPoints > 0 ? `<span class="sp-pts-badge">${task.storyPoints} pts</span>` : ''}
@@ -2353,15 +2805,19 @@ const BacklogView = {
     `;
   },
 
-  // ── UPCOMING SPRINT CARD ──
-  renderCompressedUpcomingSprint(sprint, sprintTasks, index = 0) {
+  // ── UPCOMING SPRINT CARD (SCENARIO-AWARE ACTIONS, EXCEPTION-ONLY BADGES) ──
+  renderCompressedUpcomingSprint(sprint, sprintTasks, index = 0, opts = {}) {
     const esc = Utils.escapeHTML;
+    const hasActiveSprint = Boolean(opts.hasActiveSprint);
     const sortedTasks = [...sprintTasks].sort((a, b) => this._sortByItemId(a, b));
     const total = sortedTasks.length;
     const totalPoints = sortedTasks.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0);
-    const sprintProject = sprint.projectId ? AppState.projects.find(p => p.id === sprint.projectId) : null;
-    const accentColor = (sprintProject && sprintProject.color) || 'var(--accent-primary)';
+    const sprintProject = (!AppState.selectedProjectId && sprint.projectId)
+      ? AppState.projects.find(p => p.id === sprint.projectId)
+      : null;
+    const accentColor = (sprintProject && sprintProject.color) || 'var(--sp-brand)';
     const isAutoGlobal = !(AppState.settings && AppState.settings.autoSprintSchedule === false);
+    const isManualOverride = isAutoGlobal && sprint.autoSchedule === false;
 
     let cycleDays = '';
     if (sprint.startDate && sprint.endDate) {
@@ -2373,7 +2829,7 @@ const BacklogView = {
     const remainingKeys = Math.max(0, sortedTasks.length - previewKeys.length);
 
     return `
-      <article class="sp-upcoming-card sprint-drop-zone ${index === 0 ? 'is-next-up' : ''}"
+      <article class="sp-upcoming-card sprint-drop-zone ${index === 0 && hasActiveSprint ? 'is-next-up' : ''}"
                style="--card-accent: ${accentColor};"
                data-sprint-id="${esc(sprint.id)}"
                data-open-sprint-popup="${esc(sprint.id)}"
@@ -2381,19 +2837,19 @@ const BacklogView = {
         <div class="sp-up-main">
           <div class="sp-up-head">
             <div class="sp-up-title-group">
-              ${index === 0 ? `<span class="sp-pill tone-brand">Next</span>` : `<span class="sp-seq-tag">#${index + 1}</span>`}
+              ${index === 0 && hasActiveSprint ? `<span class="sp-pill tone-brand">Next</span>` : `<span class="sp-seq-tag">#${hasActiveSprint ? index + 1 : index + 2}</span>`}
               <h4>${esc(sprint.name)}</h4>
               ${sprintProject ? `
                 <span class="sp-chip">
                   <span class="sp-dot" style="background:${sprintProject.color || 'var(--accent-primary)'};"></span>
-                  ${esc(sprintProject.name)}
+                  ${esc(sprintProject.key || sprintProject.name)}
                 </span>
               ` : ''}
-              ${isAutoGlobal && sprint.autoSchedule !== false ? `<span class="sp-pill tone-neutral" title="Scheduled to auto-open on start date">Auto</span>` : ''}
+              ${isManualOverride ? `<span class="sp-pill tone-neutral" title="Auto-Pilot disabled for this sprint">Manual</span>` : ''}
             </div>
             ${sprint.startDate && sprint.endDate ? `
               <span class="sp-up-window">
-                ${Utils.formatDate(sprint.startDate)} – ${Utils.formatDate(sprint.endDate)}${cycleDays ? ` (${cycleDays})` : ''}
+                ${Utils.formatDate(sprint.startDate)} – ${Utils.formatDate(sprint.endDate)}${cycleDays ? ` · ${cycleDays}` : ''}
               </span>
             ` : ''}
           </div>
@@ -2409,22 +2865,24 @@ const BacklogView = {
                   ${previewKeys.map(t => `<span class="sp-key-chip ${t.status === 'done' ? 'is-done' : ''}">${esc(t.key)}</span>`).join('')}
                   ${remainingKeys > 0 ? `<span class="sp-key-more">+${remainingKeys}</span>` : ''}
                 </div>
-              ` : `<span class="sp-muted-hint">Drop backlog items here to scope</span>`}
+              ` : `<span class="sp-muted-hint">Drop backlog items here</span>`}
             </div>
 
             <div class="sp-up-actions">
-              <button type="button" class="btn btn-secondary btn-sm btn-add-existing" data-sprint-id="${esc(sprint.id)}" title="Add items from backlog">
-                <i class="fa-solid fa-plus"></i> Items
+              <button type="button" class="btn btn-secondary btn-sm btn-add-existing" data-sprint-id="${esc(sprint.id)}" title="Commit backlog items">
+                <i class="fa-solid fa-plus"></i> Scope
               </button>
-              <button type="button" class="sp-icon-btn" onclick="event.stopPropagation(); BacklogView.openEditSprintModal('${esc(sprint.id)}')" title="Edit sprint">
+              <button type="button" class="sp-icon-btn sp-reveal-action" onclick="event.stopPropagation(); BacklogView.openEditSprintModal('${esc(sprint.id)}')" title="Edit sprint">
                 <i class="fa-solid fa-pen"></i>
               </button>
-              <button type="button" class="sp-icon-btn" data-open-sprint-popup-btn="${esc(sprint.id)}" title="Open workspace & window">
+              <button type="button" class="sp-icon-btn sp-reveal-action" data-open-sprint-popup-btn="${esc(sprint.id)}" title="Open cycle workspace">
                 <i class="fa-solid fa-up-right-from-square"></i>
               </button>
-              <button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); BacklogView.startSprint('${esc(sprint.id)}')">
-                <i class="fa-solid fa-play"></i> Start
-              </button>
+              ${!hasActiveSprint ? `
+                <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); BacklogView.startSprint('${esc(sprint.id)}')">
+                  <i class="fa-solid fa-play"></i> Start
+                </button>
+              ` : ''}
             </div>
           </div>
         </div>
@@ -2436,15 +2894,17 @@ const BacklogView = {
   renderCompressedCompletedSprint(sprint, sprintTasks) {
     const esc = Utils.escapeHTML;
     const stats = this._analyzeCompletedSprint(sprint, sprintTasks);
-    const sprintProject = sprint.projectId ? AppState.projects.find(p => p.id === sprint.projectId) : null;
+    const sprintProject = (!AppState.selectedProjectId && sprint.projectId)
+      ? AppState.projects.find(p => p.id === sprint.projectId)
+      : null;
 
     const ringC = 2 * Math.PI * 18;
     const ringOffset = ringC * (1 - stats.completionPct / 100);
     const ringColor = stats.completionPct >= 80
-      ? 'var(--accent-success)'
+      ? 'var(--sp-success-dot)'
       : stats.completionPct >= 50
-        ? 'var(--accent-warning)'
-        : 'var(--accent-primary)';
+        ? 'var(--sp-warning-dot)'
+        : 'var(--sp-brand)';
 
     return `
       <article class="sp-history-card"
@@ -2467,7 +2927,7 @@ const BacklogView = {
               ${sprintProject ? `
                 <span class="sp-chip">
                   <span class="sp-dot" style="background:${sprintProject.color || 'var(--accent-primary)'};"></span>
-                  ${esc(sprintProject.name)}
+                  ${esc(sprintProject.key || sprintProject.name)}
                 </span>
               ` : ''}
             </div>
@@ -2479,19 +2939,19 @@ const BacklogView = {
         <div class="sp-history-bottom">
           <div class="sp-history-metrics">
             <span class="sp-metric-chip is-done"><strong>${stats.completedCount}/${stats.committedCount}</strong> delivered</span>
-            <span class="sp-metric-chip is-pts"><strong>${stats.completedPoints}/${stats.committedPoints}</strong> pts</span>
+            ${stats.committedPoints > 0 ? `<span class="sp-metric-chip is-pts"><strong>${stats.completedPoints}/${stats.committedPoints}</strong> pts</span>` : ''}
             ${stats.totalTracked > 0 ? `<span class="sp-metric-chip"><i class="fa-regular fa-clock"></i> ${Utils.formatMinutes(stats.totalTracked)}</span>` : ''}
             ${stats.incompleteCount > 0 ? `<span class="sp-pill tone-warning">${stats.incompleteCount} rolled over</span>` : ''}
           </div>
 
           <div class="sp-history-actions">
-            <button type="button" class="sp-icon-btn" onclick="event.stopPropagation(); AppState.reopenSprint('${esc(sprint.id)}')" title="Reopen sprint">
+            <button type="button" class="sp-icon-btn sp-reveal-action" onclick="event.stopPropagation(); AppState.reopenSprint('${esc(sprint.id)}')" title="Reopen sprint">
               <i class="fa-solid fa-rotate-left"></i>
             </button>
-            <button type="button" class="sp-icon-btn" onclick="event.stopPropagation(); BacklogView.openEditSprintModal('${esc(sprint.id)}')" title="Edit sprint">
+            <button type="button" class="sp-icon-btn sp-reveal-action" onclick="event.stopPropagation(); BacklogView.openEditSprintModal('${esc(sprint.id)}')" title="Edit sprint">
               <i class="fa-solid fa-pen"></i>
             </button>
-            <button type="button" class="sp-icon-btn is-danger" onclick="event.stopPropagation(); AppState.deleteSprint('${esc(sprint.id)}')" title="Delete sprint">
+            <button type="button" class="sp-icon-btn sp-reveal-action is-danger" onclick="event.stopPropagation(); AppState.deleteSprint('${esc(sprint.id)}')" title="Delete sprint">
               <i class="fa-regular fa-trash-can"></i>
             </button>
             <button type="button" class="btn btn-secondary btn-sm" data-open-completed-popup-btn="${esc(sprint.id)}">
@@ -2504,7 +2964,7 @@ const BacklogView = {
   },
 
   // ── POPUP MODAL FOR UPCOMING / ACTIVE SPRINT DETAILS (CYCLE WORKSPACE) ──
-  openSprintDetailModal(sprintId) {
+  openSprintDetailModal(sprintId, options = {}) {
     const sprint = AppState.sprints.find(s => s.id === sprintId);
     if (!sprint) return;
 
@@ -2513,7 +2973,7 @@ const BacklogView = {
       return;
     }
 
-    let isScheduleOpen = false;
+    let isScheduleOpen = Boolean(options.openSchedule);
     let popupSearchQuery = '';
 
     const renderModalContent = (focusSelector = null) => {
@@ -2553,7 +3013,7 @@ const BacklogView = {
       const endTimeHMS = Utils.formatTimeHMS(endMs);
 
       let cycleDays = 14;
-      let timeElapsedPct = 0;
+      let timeElapsedPct = null;
       let timingLabel = `${cycleDays}d cycle`;
       let timingTone = 'tone-brand';
       const nowMs = Date.now();
@@ -2583,13 +3043,12 @@ const BacklogView = {
       const defaultProjectId = freshSprint.projectId || AppState.selectedProjectId || (AppState.projects[0] && AppState.projects[0].id) || '';
       const showQuickProjectSelect = !freshSprint.projectId && (AppState.projects || []).length > 1;
 
-      // Scenario-driven KPI cards: omit cards that carry no signal (e.g. 0/0 pts or 0m tracked)
       const kpiCards = [];
       if (total > 0) {
         kpiCards.push({
           label: 'Completion',
           value: `${progress}%`,
-          sub: `${doneCount} of ${total} items done`
+          sub: `${doneCount} of ${total} done`
         });
         const breakdownParts = [`${todoCount} to do`, `${activeCount} active`];
         if (blockedCount > 0) breakdownParts.push(`${blockedCount} blocked`);
@@ -2613,8 +3072,8 @@ const BacklogView = {
           });
         } else {
           kpiCards.push({
-            label: isActive ? 'Elapsed Window' : 'Duration',
-            value: isActive ? `${timeElapsedPct}%` : `${cycleDays}d`,
+            label: isActive ? 'Elapsed' : 'Duration',
+            value: isActive && timeElapsedPct !== null ? `${timeElapsedPct}%` : `${cycleDays}d`,
             sub: timingLabel
           });
         }
@@ -2628,7 +3087,7 @@ const BacklogView = {
           <div class="sp-popup-summary-bar">
             <div class="sp-popup-summary-left">
               <div class="sp-popup-meta-row">
-                <span class="sp-pill ${isActive ? 'tone-success' : 'tone-brand'}">
+                <span class="${isActive ? 'sp-live-pill' : 'sp-pill tone-brand'}">
                   ${isActive ? '<span class="sp-live-dot"></span> Active Sprint' : 'Planned Sprint'}
                 </span>
                 <span class="sp-pill ${timingTone}">${esc(timingLabel)}</span>
@@ -2638,9 +3097,9 @@ const BacklogView = {
                     ${esc(sprintProject.name)}
                   </span>
                 ` : ''}
-                ${freshSprint.autoSchedule !== false && !(AppState.settings && AppState.settings.autoSprintSchedule === false)
-          ? `<span class="sp-pill tone-neutral" title="Automatically transitions based on start/end timestamps">Auto-Pilot</span>`
-          : ''}
+                ${freshSprint.autoSchedule === false && !(AppState.settings && AppState.settings.autoSprintSchedule === false)
+                  ? `<span class="sp-pill tone-neutral">Manual Schedule</span>`
+                  : ''}
               </div>
 
               <div class="sp-popup-schedule-row">
@@ -2672,10 +3131,10 @@ const BacklogView = {
                   <i class="fa-solid fa-arrow-down-short-wide"></i> Pull Backlog (${unassignedCount})
                 </button>
               ` : ''}
-              <button type="button" class="btn btn-secondary btn-sm" id="popup-btn-edit-sprint" title="Edit sprint name, goal, or auto-schedule">
+              <button type="button" class="btn btn-secondary btn-sm" id="popup-btn-edit-sprint" title="Edit sprint details">
                 <i class="fa-solid fa-pen"></i> Settings
               </button>
-              <button type="button" class="btn btn-primary btn-sm" id="popup-btn-new-issue" title="Open full task modal">
+              <button type="button" class="btn btn-primary btn-sm" id="popup-btn-new-issue" title="Open full task editor">
                 <i class="fa-solid fa-plus"></i> Full Task
               </button>
             </div>
@@ -2685,12 +3144,12 @@ const BacklogView = {
           <div class="sp-popup-datetime-bar ${isScheduleOpen ? '' : 'sp-is-hidden'}" data-sp-schedule-drawer="1" aria-label="Edit sprint schedule">
             <div class="sp-popup-dt-group">
               <label class="sp-popup-dt-field-label" for="popup-sprint-start-date">
-                <i class="fa-regular fa-calendar-check"></i> Start Date &amp; Time (HH:MM:SS)
+                <i class="fa-regular fa-calendar-check"></i> Start (Date &amp; HH:MM:SS)
               </label>
               <div class="sp-popup-dt-inputs">
                 <input type="date" id="popup-sprint-start-date" class="form-input sp-popup-date-input" value="${esc(Utils.toDateInputValue(startMs))}" aria-label="Sprint start date">
                 <input type="time" id="popup-sprint-start-time" class="form-input sp-popup-time-input" step="1" value="${esc(startTimeHMS)}" aria-label="Sprint start time HH:MM:SS">
-                <span class="sp-hms-readout" id="popup-start-hms-readout" title="24-hour HH:MM:SS">${esc(startTimeHMS)}</span>
+                <span class="sp-hms-readout" id="popup-start-hms-readout">${esc(startTimeHMS)}</span>
               </div>
             </div>
 
@@ -2698,12 +3157,12 @@ const BacklogView = {
 
             <div class="sp-popup-dt-group">
               <label class="sp-popup-dt-field-label" for="popup-sprint-end-date">
-                <i class="fa-solid fa-flag-checkered"></i> End Date &amp; Time (HH:MM:SS)
+                <i class="fa-solid fa-flag-checkered"></i> End (Date &amp; HH:MM:SS)
               </label>
               <div class="sp-popup-dt-inputs">
                 <input type="date" id="popup-sprint-end-date" class="form-input sp-popup-date-input" value="${esc(Utils.toDateInputValue(endMs))}" aria-label="Sprint end date">
                 <input type="time" id="popup-sprint-end-time" class="form-input sp-popup-time-input" step="1" value="${esc(endTimeHMS)}" aria-label="Sprint end time HH:MM:SS">
-                <span class="sp-hms-readout" id="popup-end-hms-readout" title="24-hour HH:MM:SS">${esc(endTimeHMS)}</span>
+                <span class="sp-hms-readout" id="popup-end-hms-readout">${esc(endTimeHMS)}</span>
               </div>
             </div>
 
@@ -2712,7 +3171,7 @@ const BacklogView = {
             </button>
           </div>
 
-          <!-- SCENARIO-ADAPTIVE KPI BAR + PROGRESS RAIL (ONLY WHEN TASKS EXIST) -->
+          <!-- SCENARIO-ADAPTIVE KPI BAR + SEGMENTED VELOCITY RAIL -->
           ${total > 0 ? `
             <div class="sc-kpi-wrap">
               <div class="sc-kpi-grid" style="--kpi-cols:${kpiCards.length};">
@@ -2724,16 +3183,14 @@ const BacklogView = {
                   </div>
                 `).join('')}
               </div>
-              <div class="sp-progress-rail" title="${progress}% completed">
-                <div class="sp-progress-fill" style="width:${progress}%;"></div>
-              </div>
+              ${this._renderSegmentedBarHTML(sprintTasks, isActive ? timeElapsedPct : null)}
             </div>
           ` : ''}
 
           <!-- INLINE QUICK-ADD INSIDE WORKSPACE POPUP -->
           <form id="popup-quick-add-form" class="sp-composer">
             <span class="sp-composer-icon"><i class="fa-solid fa-plus"></i></span>
-            <input type="text" id="popup-quick-title" placeholder="Quick-add task to ${esc(freshSprint.name)}... (Press Enter)" maxlength="180" autocomplete="off">
+            <input type="text" id="popup-quick-title" placeholder="Quick-add task to ${esc(freshSprint.name)}... (Enter)" maxlength="180" autocomplete="off">
             <div class="sp-composer-controls">
               ${showQuickProjectSelect ? `
                 <select id="popup-quick-project" aria-label="Project">
@@ -2762,10 +3219,10 @@ const BacklogView = {
           <div class="sc-tasks-section">
             <div class="sc-tasks-section-head">
               <h4>Scoped Work Items <span class="sp-count-pill">${total}</span></h4>
-              ${total >= 6 ? `
+              ${total >= 5 ? `
                 <div class="sp-popup-search">
                   <i class="fa-solid fa-magnifying-glass"></i>
-                  <input type="text" id="popup-task-search" value="${esc(popupSearchQuery)}" placeholder="Filter cycle tasks..." aria-label="Filter tasks in sprint">
+                  <input type="text" id="popup-task-search" value="${esc(popupSearchQuery)}" placeholder="Filter items..." aria-label="Filter tasks in sprint">
                 </div>
               ` : ''}
             </div>
@@ -2773,7 +3230,7 @@ const BacklogView = {
             ${total === 0 ? `
               <div class="sc-empty-box">
                 <strong>No work items in ${esc(freshSprint.name)} yet</strong>
-                <p>Type a task above to create one immediately, or pull existing items from your backlog.</p>
+                <p>Capture a task above or pull existing items from your product backlog.</p>
                 ${unassignedCount > 0 ? `
                   <button type="button" class="btn btn-secondary btn-sm" id="popup-empty-pull-btn">
                     <i class="fa-solid fa-arrow-down-short-wide"></i> Pull from Backlog (${unassignedCount})
@@ -2787,11 +3244,11 @@ const BacklogView = {
             ` : showProjectGroups ? `
               <div class="sc-project-groups">
                 ${projGroups.map(group => {
-            const p = group.project;
-            const pColor = p.color || 'var(--accent-primary)';
-            const grpPoints = group.tasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
-            const grpDone = group.tasks.filter(t => t.status === 'done').length;
-            return `
+                  const p = group.project;
+                  const pColor = p.color || 'var(--accent-primary)';
+                  const grpPoints = group.tasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+                  const grpDone = group.tasks.filter(t => t.status === 'done').length;
+                  return `
                     <div class="sc-project-group">
                       <div class="sc-project-group-header">
                         <div class="sc-project-group-left">
@@ -2806,7 +3263,7 @@ const BacklogView = {
                       </div>
                     </div>
                   `;
-          }).join('')}
+                }).join('')}
               </div>
             ` : `
               <div class="sc-project-group">
@@ -2822,24 +3279,23 @@ const BacklogView = {
       const footerButtons = [
         {
           text: '<i class="fa-regular fa-trash-can"></i> Delete Sprint',
-          class: 'btn-ghost is-danger sp-footer-danger-left',
+          class: 'btn-ghost sp-footer-danger-left',
           onClick: () => {
             Modal.confirm(
               `Delete ${freshSprint.name}?`,
               'This removes the sprint and moves any open tasks back to the backlog.',
               () => {
-                AppState.deleteSprint(freshSprint.id);
+                AppState.deleteSprint(freshSprint.id, true, false);
               }
             );
           }
+        },
+        {
+          text: 'Close',
+          class: 'btn-secondary',
+          onClick: () => Modal.close()
         }
       ];
-
-      footerButtons.push({
-        text: 'Close',
-        class: 'btn-secondary',
-        onClick: () => Modal.close()
-      });
 
       if (isActive) {
         footerButtons.push({
@@ -2850,12 +3306,10 @@ const BacklogView = {
             this.completeSprint(freshSprint.id);
           }
         });
-      } else {
+      } else if (!hasAnotherActiveSprint) {
         footerButtons.push({
-          text: hasAnotherActiveSprint
-            ? '<i class="fa-solid fa-play"></i> Start (Active Running)'
-            : '<i class="fa-solid fa-play"></i> Start Sprint',
-          class: hasAnotherActiveSprint ? 'btn-secondary' : 'btn-primary',
+          text: '<i class="fa-solid fa-play"></i> Start Sprint',
+          class: 'btn-primary',
           onClick: () => {
             const started = AppState.startSprint(freshSprint.id);
             if (started) Modal.close();
@@ -2864,7 +3318,7 @@ const BacklogView = {
       }
 
       Modal.open({
-        title: `<i class="fa-regular fa-calendar-check"></i> Cycle Workspace: ${esc(freshSprint.name)}`,
+        title: `<i class="fa-regular fa-calendar-check"></i> ${esc(freshSprint.name)}`,
         body: bodyHTML,
         size: 'xl',
         footerButtons
@@ -3023,7 +3477,7 @@ const BacklogView = {
 
         modalRoot.querySelectorAll('[data-popup-task-open]').forEach(el => {
           el.addEventListener('click', (e) => {
-            if (e.target.closest('button') || e.target.closest('select')) return;
+            if (e.target.closest('button') || e.target.closest('select') || e.target.closest('.tf-dropdown-trigger')) return;
             const tId = el.dataset.popupTaskOpen;
             Modal.close();
             if (tId) TaskModal.openDetail(tId);
@@ -3048,7 +3502,7 @@ const BacklogView = {
             const tId = btn.dataset.popupRemoveTask;
             if (tId) {
               AppState.updateTask(tId, { sprintId: null });
-              Toast.info('Moved work item to backlog');
+              Toast.info('Moved work item back to backlog');
               renderModalContent();
             }
           });
@@ -3073,7 +3527,7 @@ const BacklogView = {
       const due = new Date(task.dueDate);
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const overdue = !isDone && task.status !== 'cancelled' && due < today;
-      dueChip = `<span class="sp-pill ${overdue ? 'tone-danger' : 'tone-neutral'}"><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(task.dueDate)}</span>`;
+      dueChip = `<span class="sp-due-tag ${overdue ? 'is-overdue' : ''}"><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(task.dueDate)}</span>`;
     }
 
     const statuses = [
@@ -3197,28 +3651,15 @@ const BacklogView = {
 
   _renderCompletedSprintTaskRow(task, isRolledOver = false) {
     const esc = Utils.escapeHTML;
-    const typeIcon = {
-      bug: 'fa-circle-dot',
-      story: 'fa-bookmark',
-      epic: 'fa-bolt',
-      subtask: 'fa-network-wired'
-    }[task.type] || 'fa-square-check';
-
-    const priorityIcon = {
-      critical: 'fa-solid fa-angles-up',
-      highest: 'fa-solid fa-angles-up',
-      high: 'fa-solid fa-angle-up',
-      medium: 'fa-solid fa-equals',
-      low: 'fa-solid fa-angle-down',
-      lowest: 'fa-solid fa-angles-down'
-    }[task.priority] || 'fa-solid fa-equals';
+    const typeIcon = this._getTypeIcon(task.type);
+    const priorityIcon = this._getPriorityIcon(task.priority);
 
     const subtasks = AppState.tasks.filter(item => item.parentId === task.id);
     const completedSubtasks = subtasks.filter(item => item.status === 'done').length;
     const currentSprint = task.sprintId ? AppState.sprints.find(s => s.id === task.sprintId) : null;
 
     return `
-  <div class="sc-task-row ${task.status === 'done' ? 'is-done' : ''}" data-completed-task-open="${esc(task.id)}" title="Open ${esc(task.key)}">
+      <div class="sc-task-row ${task.status === 'done' ? 'is-done' : ''}" data-completed-task-open="${esc(task.id)}" title="Open ${esc(task.key)}">
         <span class="type-icon type-${esc(task.type || 'task')}"><i class="fa-solid ${typeIcon}"></i></span>
         <span class="sc-task-key">${esc(task.key)}</span>
         <span class="planner-prio prio-${esc(task.priority)}" title="${esc(task.priority)} priority"><i class="${priorityIcon}"></i></span>
@@ -3228,15 +3669,14 @@ const BacklogView = {
           ${subtasks.length ? `<span class="sp-chip"><i class="fa-solid fa-network-wired"></i> ${completedSubtasks}/${subtasks.length}</span>` : ''}
           ${task.trackedTime > 0 || task.estimate > 0 ? `<span class="sp-chip">${Utils.formatMinutes(task.trackedTime || 0)}${task.estimate ? ` / ${Utils.formatMinutes(task.estimate)}` : ''}</span>` : ''}
           ${task.storyPoints > 0 ? `<span class="sp-pts-badge">${task.storyPoints} pts</span>` : ''}
-          ${task.completedAt ? `<span class="sp-chip">Done ${Utils.formatDate(task.completedAt)}</span>` : ''}
           ${isRolledOver ? `<span class="sp-pill tone-warning">${currentSprint ? `In ${esc(currentSprint.name)}` : 'In Backlog'}</span>` : ''}
           ${typeof StatusControl !== 'undefined' ? StatusControl.pillHTML(task) : `<span class="sp-pill tone-neutral">${esc(task.status)}</span>`}
         </div>
       </div>
-  `;
+    `;
   },
 
-  // ── POPUP MODAL FOR COMPLETED SPRINT REPORT ──
+  // ── POPUP MODAL FOR COMPLETED SPRINT RETROSPECTIVE REPORT ──
   openSprintReportModal(sprintId) {
     const sprint = AppState.sprints.find(s => s.id === sprintId);
     if (!sprint) return;
@@ -3252,62 +3692,136 @@ const BacklogView = {
     const endDateLabel = Utils.formatDate(endMs);
     const endTimeHMS = Utils.formatTimeHMS(endMs);
 
+    const multiProject = stats.projectBreakdown.length > 1;
+
+    // Scenario-adaptive retrospective KPIs (omit zero-signal metrics)
+    const reportKpis = [
+      {
+        label: 'Items Delivered',
+        value: `${stats.completedCount}<small>/${stats.committedCount}</small>`,
+        sub: stats.incompleteCount > 0
+          ? `${stats.incompleteCount} rolled over ${stats.movedToSprint ? `to ${stats.movedToSprint.name}` : 'to backlog'}`
+          : '100% of scope delivered'
+      }
+    ];
+    if (stats.committedPoints > 0) {
+      reportKpis.push({
+        label: 'Points Burned',
+        value: `${stats.completedPoints}<small>/${stats.committedPoints} pts</small>`,
+        sub: `${stats.pointsPct}% point velocity`
+      });
+    }
+    if (stats.totalTracked > 0 || stats.totalEstimate > 0) {
+      reportKpis.push({
+        label: 'Time Logged',
+        value: Utils.formatMinutes(stats.totalTracked),
+        sub: stats.totalEstimate ? `of ${Utils.formatMinutes(stats.totalEstimate)} estimated` : 'Logged across cycle'
+      });
+    }
+    if (multiProject) {
+      reportKpis.push({
+        label: 'Projects',
+        value: `${stats.projectBreakdown.length}`,
+        sub: `${stats.allTasks.length} total work items`
+      });
+    } else if (reportKpis.length < 3) {
+      reportKpis.push({
+        label: 'Cycle Length',
+        value: `${stats.durationDays}d`,
+        sub: `Closed ${stats.completedAtLabel}`
+      });
+    }
+
+    const ringC = 2 * Math.PI * 22;
+    const ringOffset = ringC * (1 - stats.completionPct / 100);
+    const ringColor = stats.completionPct >= 80
+      ? 'var(--sp-success-dot)'
+      : stats.completionPct >= 50
+        ? 'var(--sp-warning-dot)'
+        : 'var(--sp-brand)';
+
+    const renderGroupList = (groups, isRolledOver) => {
+      if (groups.length === 1) {
+        return `
+          <div class="sc-project-group">
+            <div class="sc-task-list">
+              ${groups[0].tasks.map(t => this._renderCompletedSprintTaskRow(t, isRolledOver)).join('')}
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="sc-project-groups">
+          ${groups.map(group => {
+            const grpPts = group.tasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
+            return `
+              <div class="sc-project-group">
+                <div class="sc-project-group-header">
+                  <div class="sc-project-group-left">
+                    <span class="sc-dot" style="background: ${group.project.color || '#388bfd'};"></span>
+                    <strong>${esc(group.project.name)}</strong>
+                    ${group.project.key ? `<span class="sc-proj-key">${esc(group.project.key)}</span>` : ''}
+                  </div>
+                  <span class="sc-proj-meta">${group.tasks.length} item${group.tasks.length === 1 ? '' : 's'}${grpPts > 0 ? ` · ${grpPts} pts` : ''}</span>
+                </div>
+                <div class="sc-task-list">
+                  ${group.tasks.map(t => this._renderCompletedSprintTaskRow(t, isRolledOver)).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    };
+
     const bodyHTML = `
-  <div class="sprint-report-modal">
+      <div class="sprint-report-modal">
         <div class="sprint-report-banner">
-          <div>
+          <div class="sp-popup-summary-left">
             <div class="sprint-report-dates">
               <span class="sp-pill tone-success"><i class="fa-solid fa-check"></i> Completed Cycle</span>
               <span class="sp-popup-dates">
                 <i class="fa-regular fa-calendar"></i>
                 <span class="sp-popup-dt-pair">
-                  <span class="sp-popup-dt-tag">Start:</span>
                   <strong>${esc(startDateLabel)}</strong>
-                  <code class="sp-hms-badge" title="Start time (HH:MM:SS)"><i class="fa-regular fa-clock"></i> ${esc(startTimeHMS)}</code>
+                  <code class="sp-hms-badge">${esc(startTimeHMS)}</code>
                 </span>
                 <span class="sp-popup-dt-sep">→</span>
                 <span class="sp-popup-dt-pair">
-                  <span class="sp-popup-dt-tag">End:</span>
                   <strong>${esc(endDateLabel)}</strong>
-                  <code class="sp-hms-badge" title="End time (HH:MM:SS)"><i class="fa-regular fa-clock"></i> ${esc(endTimeHMS)}</code>
+                  <code class="sp-hms-badge">${esc(endTimeHMS)}</code>
                 </span>
-                <span class="sp-popup-dt-days">(${stats.durationDays} days)</span>
+                <span class="sp-popup-dt-days">(${stats.durationDays}d)</span>
               </span>
-              <span>·</span>
-              <span>Closed on ${esc(stats.completedAtLabel)}</span>
             </div>
-            ${sprint.goal ? `<p class="sprint-report-goal"><strong>Objective:</strong> ${esc(sprint.goal)}</p>` : ''}
+            ${sprint.goal ? `<p class="sprint-report-goal">${esc(sprint.goal)}</p>` : ''}
           </div>
-          <div class="sprint-report-score">
-            <strong>${stats.completionPct}%</strong>
-            <span>Delivery Rate</span>
-          </div>
-        </div>
-
-        <div class="sc-kpi-grid" style="margin-bottom: 1rem;">
-          <div class="sc-kpi-card">
-            <span class="sc-kpi-label">Items Delivered</span>
-            <strong class="sc-kpi-value">${stats.completedCount} / ${stats.committedCount}</strong>
-            <span class="sc-kpi-sub">${stats.incompleteCount > 0 ? `${stats.incompleteCount} rolled over ${stats.movedToSprint ? `to ${esc(stats.movedToSprint.name)}` : 'to backlog'}` : '100% of committed items delivered'}</span>
-          </div>
-          <div class="sc-kpi-card">
-            <span class="sc-kpi-label">Story Points Burned</span>
-            <strong class="sc-kpi-value">${stats.completedPoints} / ${stats.committedPoints} pts</strong>
-            <span class="sc-kpi-sub">${stats.pointsPct}% point velocity</span>
-          </div>
-          <div class="sc-kpi-card">
-            <span class="sc-kpi-label">Time Logged</span>
-            <strong class="sc-kpi-value">${Utils.formatMinutes(stats.totalTracked)}</strong>
-            <span class="sc-kpi-sub">${stats.totalEstimate ? `Estimated: ${Utils.formatMinutes(stats.totalEstimate)}` : 'Logged across sprint items'}</span>
-          </div>
-          <div class="sc-kpi-card">
-            <span class="sc-kpi-label">Projects Covered</span>
-            <strong class="sc-kpi-value">${stats.projectBreakdown.length}</strong>
-            <span class="sc-kpi-sub">${stats.allTasks.length} total work items</span>
+          <div class="sp-report-ring-wrap">
+            <div class="sp-medallion is-lg">
+              <svg viewBox="0 0 52 52" aria-hidden="true">
+                <circle class="sp-medallion-track" cx="26" cy="26" r="22"></circle>
+                <circle class="sp-medallion-fill" cx="26" cy="26" r="22"
+                  style="stroke: ${ringColor}; stroke-dasharray: ${ringC.toFixed(2)}; stroke-dashoffset: ${ringOffset.toFixed(2)};"></circle>
+              </svg>
+              <span>${stats.completionPct}%</span>
+            </div>
+            <span class="sp-report-ring-label">Delivery</span>
           </div>
         </div>
 
-        ${stats.projectBreakdown.length > 0 ? `
+        <div class="sc-kpi-wrap">
+          <div class="sc-kpi-grid" style="--kpi-cols:${reportKpis.length};">
+            ${reportKpis.map(k => `
+              <div class="sc-kpi-card">
+                <span class="sc-kpi-label">${k.label}</span>
+                <strong class="sc-kpi-value">${k.value}</strong>
+                <span class="sc-kpi-sub">${esc(k.sub)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        ${multiProject ? `
           <div class="sprint-report-section">
             <h4>Project Delivery Breakdown</h4>
             <div class="sprint-report-table-wrap">
@@ -3316,92 +3830,59 @@ const BacklogView = {
                   <tr>
                     <th>Project</th>
                     <th>Delivered</th>
-                    <th>Story Points</th>
-                    <th>Time Logged</th>
-                    <th>Completion</th>
+                    ${stats.committedPoints > 0 ? '<th>Points</th>' : ''}
+                    ${stats.totalTracked > 0 ? '<th>Logged</th>' : ''}
+                    <th>Rate</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${stats.projectBreakdown.map(pb => `
                     <tr>
                       <td>
-                        <span class="sc-dot" style="background:${pb.project.color || '#388bfd'};display:inline-block;margin-right:6px;"></span>
+                        <span class="sc-dot" style="background:${pb.project.color || '#388bfd'};margin-right:6px;"></span>
                         <strong>${esc(pb.project.name)}</strong>
                         ${pb.project.key ? `<span class="sc-proj-key" style="margin-left:4px;">${esc(pb.project.key)}</span>` : ''}
                       </td>
-                      <td>${pb.done} / ${pb.total} items</td>
-                      <td>${pb.ptsDone} / ${pb.ptsTotal} pts</td>
-                      <td>${Utils.formatMinutes(pb.tracked)}</td>
-                      <td><strong>${pb.pct}%</strong></td>
+                      <td>${pb.done} / ${pb.total}</td>
+                      ${stats.committedPoints > 0 ? `<td>${pb.ptsDone} / ${pb.ptsTotal} pts</td>` : ''}
+                      ${stats.totalTracked > 0 ? `<td>${Utils.formatMinutes(pb.tracked)}</td>` : ''}
+                      <td>
+                        <div class="sp-table-rate">
+                          <div class="sp-mini-bar"><span style="width:${pb.pct}%;background:${pb.project.color || 'var(--sp-brand)'};"></span></div>
+                          <strong>${pb.pct}%</strong>
+                        </div>
+                      </td>
                     </tr>
                   `).join('')}
                 </tbody>
               </table>
             </div>
           </div>
-        ` : ''
-      }
+        ` : ''}
 
-<div class="sprint-report-section">
-  <div class="sc-tasks-section-head">
-    <h4>Completed Work Items (${stats.completedTasks.length})</h4>
-    <span>Grouped by project · Sorted by key</span>
-  </div>
-  ${completedGroups.length ? `
-            <div class="sc-project-groups">
-              ${completedGroups.map(group => {
-        const grpPts = group.tasks.reduce((s, t) => s + (Number(t.storyPoints) || 0), 0);
-        return `
-                  <div class="sc-project-group">
-                    <div class="sc-project-group-header">
-                      <div class="sc-project-group-left">
-                        <span class="sc-dot" style="background: ${group.project.color || '#388bfd'};"></span>
-                        <strong>${esc(group.project.name)}</strong>
-                        ${group.project.key ? `<span class="sc-proj-key">${esc(group.project.key)}</span>` : ''}
-                      </div>
-                      <span class="sc-proj-meta">${group.tasks.length} item${group.tasks.length === 1 ? '' : 's'} · ${grpPts} pts</span>
-                    </div>
-                    <div class="sc-task-list">
-                      ${group.tasks.map(t => this._renderCompletedSprintTaskRow(t, false)).join('')}
-                    </div>
-                  </div>
-                `;
-      }).join('')}
-            </div>
-          ` : '<div class="sc-empty-box">No completed work items in this sprint.</div>'}
-</div>
+        <div class="sprint-report-section">
+          <div class="sc-tasks-section-head">
+            <h4>Delivered Work Items <span class="sp-count-pill is-success">${stats.completedTasks.length}</span></h4>
+          </div>
+          ${completedGroups.length
+            ? renderGroupList(completedGroups, false)
+            : '<div class="sc-empty-box">No completed work items recorded in this sprint.</div>'}
+        </div>
 
         ${incompleteGroups.length ? `
-          <div class="sprint-report-section" style="margin-top: 1rem;">
+          <div class="sprint-report-section">
             <div class="sc-tasks-section-head">
-              <h4>Incomplete / Rolled-Over Work Items (${stats.incompleteTasks.length})</h4>
-              <span>${stats.movedToSprint ? `Moved to ${esc(stats.movedToSprint.name)}` : 'Returned to Backlog'}</span>
+              <h4>Rolled-Over Work Items <span class="sp-count-pill">${stats.incompleteTasks.length}</span></h4>
+              <span class="sp-muted-meta">${stats.movedToSprint ? `Moved to ${esc(stats.movedToSprint.name)}` : 'Returned to Backlog'}</span>
             </div>
-            <div class="sc-project-groups">
-              ${incompleteGroups.map(group => `
-                <div class="sc-project-group">
-                  <div class="sc-project-group-header">
-                    <div class="sc-project-group-left">
-                      <span class="sc-dot" style="background: ${group.project.color || '#6B6E76'};"></span>
-                      <strong>${esc(group.project.name)}</strong>
-                      ${group.project.key ? `<span class="sc-proj-key">${esc(group.project.key)}</span>` : ''}
-                    </div>
-                    <span class="sc-proj-meta">${group.tasks.length} item${group.tasks.length === 1 ? '' : 's'}</span>
-                  </div>
-                  <div class="sc-task-list">
-                    ${group.tasks.map(t => this._renderCompletedSprintTaskRow(t, true)).join('')}
-                  </div>
-                </div>
-              `).join('')}
-            </div>
+            ${renderGroupList(incompleteGroups, true)}
           </div>
-        ` : ''
-      }
+        ` : ''}
       </div>
-  `;
+    `;
 
     Modal.open({
-      title: `Cycle Retrospective Report: ${esc(sprint.name)} `,
+      title: `<i class="fa-solid fa-chart-pie"></i> Retrospective: ${esc(sprint.name)}`,
       body: bodyHTML,
       size: 'xl',
       footerButtons: [
