@@ -55,7 +55,7 @@ const ContextMenu = {
         <i class="fa-solid fa-inbox" style="color: #64748B;"></i> Move to Backlog
       </div>
       <div class="context-menu-item" id="ctx-status-todo">
-        <i class="fa-regular fa-circle" style="color: #2563EB;"></i> Move to To Do
+        <i class="fa-regular fa-circle" style="color: #0057d2;"></i> Move to To Do
       </div>
       <div class="context-menu-item" id="ctx-status-progress">
         <i class="fa-regular fa-circle-play" style="color: #EA580C;"></i> Move to In Progress

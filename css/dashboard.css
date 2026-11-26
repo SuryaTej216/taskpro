@@ -1,51 +1,64 @@
 /* =================================================================
-   TaskForge — Modern Executive Command Center (Dashboard)
+   TaskForge — SAP Analysis Executive Command Center (Dashboard)
+   Navy atmospheric hero band (#022879 -> #0040b0), white canvas interval,
+   flat neutral/blue/lavender bands, product-tab underline workbench,
+   zero drop shadows, 4px/8px/12px radius cap, weight 350 list items.
    ================================================================= */
 
 .dash-page {
-  --dash-brand: var(--accent-primary, #388bfd);
-  --dash-success: var(--accent-success, #3fb950);
-  --dash-warning: var(--accent-warning, #d29922);
-  --dash-danger: var(--accent-danger, #f85149);
-  --dash-violet: var(--accent-purple, #8957e5);
-  max-width: 1560px;
-  margin: 0 auto;
+  --dash-brand: var(--sap-primary, #0057d2);
+  --dash-success: var(--accent-success, #107e3e);
+  --dash-warning: var(--accent-warning, #b45309);
+  --dash-danger: var(--accent-danger, #bb0000);
+  --dash-violet: var(--accent-purple, #5d36d6);
+  max-width: 100%;
+  margin: 0;
+  padding: 0 0 48px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-bottom: 36px;
+  gap: 24px;
+  background: var(--sap-canvas);
 }
 
-.dash-page .tone-brand { color: var(--dash-brand); }
+.dash-page .tone-brand   { color: var(--dash-brand); }
 .dash-page .tone-success { color: var(--dash-success); }
 .dash-page .tone-warning { color: var(--dash-warning); }
-.dash-page .tone-danger { color: var(--dash-danger); }
-.dash-page .tone-violet { color: var(--dash-violet); }
-.dash-sep { opacity: 0.45; margin: 0 3px; }
+.dash-page .tone-danger  { color: var(--dash-danger); }
+.dash-page .tone-violet  { color: var(--dash-violet); }
+.dash-sep { opacity: 0.45; margin: 0 4px; }
+
+/* Constrain interior sections below full-bleed hero band */
+.dash-capture-wrap,
+.dash-pulse-strip,
+.dash-workspace {
+  width: 100%;
+  max-width: 1520px;
+  margin-inline: auto;
+  padding-inline: 32px;
+}
 
 /* -----------------------------------------------------------------
-   1. Top Command Bar (Project Scope + Inline Timer + Global Actions)
+   1. SAP Navy Hero Command Band (Full-bleed square zone)
    ----------------------------------------------------------------- */
 .dash-cmd-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
   flex-wrap: wrap;
-  padding: 14px 18px;
-  border-radius: var(--radius-xl, 12px);
-  border: 1px solid var(--border);
-  background:
-    radial-gradient(600px 180px at 0% 0%, rgba(56, 139, 253, 0.11), transparent 70%),
-    radial-gradient(500px 160px at 100% 0%, rgba(137, 87, 229, 0.09), transparent 70%),
-    var(--surface);
-  box-shadow: var(--shadow-raised);
+  padding: 24px 32px;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(100deg, #022879 0%, #0040b0 68%, #0057d2 100%);
+  color: #ffffff;
+  box-shadow: none;
 }
 
 .dash-cmd-left {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 20px;
   flex-wrap: wrap;
   min-width: 0;
   flex: 1 1 auto;
@@ -54,20 +67,20 @@
 .dash-cmd-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .dash-cmd-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--sap-radius-md, 8px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(56, 139, 253, 0.2), rgba(137, 87, 229, 0.2));
-  border: 1px solid rgba(56, 139, 253, 0.35);
-  color: var(--dash-brand);
-  font-size: 0.92rem;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #6bc0ff;
+  font-size: 16px;
   flex-shrink: 0;
 }
 
@@ -75,86 +88,87 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 0.01em;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0;
 }
 
 .dash-cmd-brand h1 {
-  margin: 1px 0 0;
-  font-size: 1.18rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  margin: 3px 0 0;
+  font-size: 28px;
+  font-weight: 500;
+  color: #ffffff;
+  letter-spacing: 0;
+  line-height: 1.1;
 }
 
-/* Global Project Scope Pills */
+/* Global Project Scope Controls (SAP 8px buttons, zero pills) */
 .dash-scope-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-  padding-left: 14px;
-  border-left: 1px solid var(--border);
+  padding-left: 18px;
+  border-left: 1px solid rgba(255, 255, 255, 0.24);
 }
 
 .dash-scope-pill {
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface-sunken);
-  color: var(--text-secondary);
-  font-size: 0.76rem;
-  font-weight: 600;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--sap-radius-md, 8px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-weight: 400;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
   white-space: nowrap;
 }
 
 .dash-scope-pill:hover {
-  border-color: var(--dash-brand);
-  color: var(--text-primary);
-  background: var(--surface-hovered);
+  border-color: #ffffff;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .dash-scope-pill.is-active {
-  background: rgba(56, 139, 253, 0.14);
-  border-color: rgba(56, 139, 253, 0.5);
-  color: var(--dash-brand);
-  box-shadow: 0 0 0 1px rgba(56, 139, 253, 0.15);
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #0040b0;
+  font-weight: 500;
+  box-shadow: none;
 }
 
 .dash-scope-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
 .dash-scope-count {
   padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
+  border-radius: var(--sap-radius-sm, 4px);
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .dash-scope-pill.is-active .dash-scope-count {
-  background: rgba(56, 139, 253, 0.2);
-  color: var(--dash-brand);
+  background: #ebf8ff;
+  color: #0057d2;
 }
 
 .dash-scope-add {
   border-style: dashed;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.88);
 }
 
 /* Command Right: Inline Timer + Global Buttons */
@@ -169,134 +183,158 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px 4px 5px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface-sunken);
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  padding: 5px 10px 5px 6px;
+  border-radius: var(--sap-radius-md, 8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(2, 40, 121, 0.48);
+  color: #ffffff;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
 .dash-inline-timer.is-running {
-  border-color: rgba(137, 87, 229, 0.55);
-  background: linear-gradient(90deg, rgba(137, 87, 229, 0.12), var(--surface-sunken));
-  box-shadow: 0 0 0 2px rgba(137, 87, 229, 0.12);
+  border-color: #6bc0ff;
+  background: rgba(0, 87, 210, 0.6);
 }
 
 .dash-inline-timer.mode-break.is-running {
-  border-color: rgba(63, 185, 80, 0.55);
-  background: linear-gradient(90deg, rgba(63, 185, 80, 0.12), var(--surface-sunken));
+  border-color: #5cd694;
+  background: rgba(16, 126, 62, 0.5);
 }
 
 .dash-timer-play {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   border: none;
-  background: var(--dash-violet);
-  color: #fff;
+  background: #6bc0ff;
+  color: #022879;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.74rem;
+  font-size: 12px;
   cursor: pointer;
-  transition: transform 0.12s ease, opacity 0.12s ease;
   flex-shrink: 0;
 }
 
 .dash-inline-timer.mode-break .dash-timer-play {
-  background: var(--dash-success);
+  background: #5cd694;
+  color: #062814;
 }
 
 .dash-timer-play:hover {
-  transform: scale(1.04);
-  opacity: 0.92;
+  background: #ffffff;
+  color: #0057d2;
 }
 
 .dash-timer-readout {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
 
 .dash-timer-readout strong {
-  font-family: var(--font-mono);
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 500;
+  color: #ffffff;
+  min-width: 46px;
 }
 
 .dash-timer-readout select {
   max-width: 170px;
-  height: 24px;
-  padding: 0 6px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  background: var(--surface);
-  color: var(--text-secondary);
-  font-size: 0.73rem;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--sap-radius-sm, 4px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 13px;
   outline: none;
   cursor: pointer;
 }
 
-.dash-timer-readout select:hover,
-.dash-timer-readout select:focus {
-  border-color: var(--border);
-  color: var(--text-primary);
+.dash-timer-readout select option {
+  background: var(--sap-canvas);
+  color: var(--sap-ink-body);
 }
 
 .dash-timer-mini-actions {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
 .dash-preset-chip {
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 5px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: var(--sap-radius-sm, 4px);
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 400;
   cursor: pointer;
 }
 
 .dash-preset-chip:hover {
-  color: var(--text-primary);
-  background: var(--surface);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .dash-preset-chip.is-active {
-  background: rgba(137, 87, 229, 0.16);
-  border-color: rgba(137, 87, 229, 0.38);
-  color: var(--dash-violet);
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #0040b0;
+  font-weight: 500;
 }
 
 .dash-timer-stop-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  border: 1px solid rgba(248, 81, 73, 0.35);
-  background: rgba(248, 81, 73, 0.12);
-  color: var(--dash-danger);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--sap-radius-sm, 4px);
+  border: 1px solid rgba(255, 143, 143, 0.55);
+  background: rgba(187, 0, 0, 0.45);
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.66rem;
+  font-size: 11px;
   cursor: pointer;
 }
 
 .dash-cmd-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+.dash-cmd-bar .btn-secondary {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #0040b0;
+}
+
+.dash-cmd-bar .btn-secondary:hover:not(:disabled) {
+  background: #ebf8ff;
+  border-color: #ebf8ff;
+  color: #0040b0;
+}
+
+.dash-cmd-bar .btn-primary {
+  background: #0057d2;
+  border-color: #6bc0ff;
+  color: #ffffff;
+}
+
+.dash-cmd-bar .btn-primary:hover:not(:disabled) {
+  background: #6bc0ff;
+  border-color: #6bc0ff;
+  color: #022879;
 }
 
 /* -----------------------------------------------------------------
-   2. Unified Smart Quick-Capture Bar
+   2. Unified Smart Quick-Capture Bar (White Canvas + Hairline)
    ----------------------------------------------------------------- */
 .dash-capture-wrap {
   display: flex;
@@ -306,23 +344,23 @@
 .dash-capture {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px 8px 14px;
-  border-radius: var(--radius-lg, 10px);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow-raised);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--sap-radius-md, 8px);
+  border: 1px solid var(--sap-hairline);
+  background: var(--sap-canvas);
+  box-shadow: none;
+  transition: border-color var(--transition-fast);
 }
 
 .dash-capture:focus-within {
-  border-color: var(--dash-brand);
-  box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.14);
+  border-color: var(--sap-primary);
+  box-shadow: 0 0 0 2px rgba(0, 87, 210, 0.14);
 }
 
 .dash-capture-icon {
-  color: var(--dash-brand);
-  font-size: 0.9rem;
+  color: var(--sap-primary);
+  font-size: 15px;
   display: inline-flex;
   align-items: center;
 }
@@ -332,19 +370,20 @@
   min-width: 180px;
   border: 0;
   background: transparent;
-  color: var(--text-primary);
-  font-size: 0.88rem;
+  color: var(--sap-ink-body);
+  font-size: 15px;
+  line-height: 22px;
   outline: none;
 }
 
 #dash-capture-input::placeholder {
-  color: var(--text-muted);
+  color: var(--sap-ink-meta);
 }
 
 .dash-capture-preview {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -353,157 +392,155 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--surface-sunken);
+  border-radius: var(--sap-radius-sm, 4px);
+  background: var(--sap-chrome);
   border: 1px solid var(--border);
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-  font-weight: 600;
+  color: var(--sap-ink-meta);
+  font-size: 12px;
+  font-weight: 500;
   text-transform: capitalize;
 }
 
 .dash-chip.tone-brand {
-  color: var(--dash-brand);
-  border-color: rgba(56, 139, 253, 0.35);
-  background: rgba(56, 139, 253, 0.1);
+  color: var(--sap-primary);
+  border-color: rgba(0, 87, 210, 0.28);
+  background: var(--sap-band-blue);
 }
 
 .dash-chip.prio-critical,
 .dash-chip.prio-highest,
 .dash-chip.prio-high {
-  color: var(--dash-danger);
-  border-color: rgba(248, 81, 73, 0.35);
-  background: rgba(248, 81, 73, 0.1);
+  color: var(--text-danger);
+  border-color: rgba(187, 0, 0, 0.28);
+  background: var(--accent-danger-subtle);
 }
 
 .dash-capture-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-left: 8px;
+  gap: 8px;
+  padding-left: 10px;
   border-left: 1px solid var(--border);
 }
 
 .dash-capture-select {
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 7px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--sap-radius-md, 8px);
   border: 1px solid var(--border);
-  background: var(--surface-sunken);
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  font-weight: 600;
+  background: var(--sap-chrome);
+  color: var(--sap-ink-body);
+  font-size: 13px;
+  font-weight: 400;
   outline: none;
   cursor: pointer;
-  max-width: 150px;
+  max-width: 160px;
 }
 
 .dash-capture-select:hover,
 .dash-capture-select:focus {
-  border-color: var(--dash-brand);
-  color: var(--text-primary);
+  border-color: var(--sap-primary);
+  background: var(--sap-canvas);
 }
 
 .dash-capture-submit kbd {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.18);
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: var(--sap-radius-sm, 4px);
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
 }
 
 /* -----------------------------------------------------------------
-   3. 4-Card Interactive Operational Pulse Strip
+   3. 4-Card Interactive Operational Pulse Strip (Flat Hairline Band)
    ----------------------------------------------------------------- */
 .dash-pulse-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
 }
 
 .dash-pulse-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 11px 14px;
-  border-radius: var(--radius-lg, 10px);
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--sap-radius-md, 8px);
   border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-primary);
+  background: var(--sap-chrome);
+  color: var(--sap-ink-body);
   text-align: left;
   cursor: pointer;
-  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  box-shadow: none;
 }
 
 .dash-pulse-card:hover {
-  transform: translateY(-1px);
-  border-color: rgba(56, 139, 253, 0.45);
-  background: var(--surface-hovered);
+  border-color: var(--sap-primary);
+  background: var(--sap-canvas);
 }
 
 .dash-pulse-card.is-selected {
-  border-color: var(--dash-brand);
-  background: linear-gradient(135deg, rgba(56, 139, 253, 0.12), var(--surface));
-  box-shadow: 0 0 0 1px rgba(56, 139, 253, 0.25);
+  border-color: var(--sap-primary);
+  background: var(--sap-band-blue);
+  box-shadow: none;
 }
 
 .dash-pulse-card.is-alert {
-  border-color: rgba(248, 81, 73, 0.42);
+  border-color: rgba(187, 0, 0, 0.35);
 }
 
 .dash-pulse-card.is-alert.is-selected {
-  border-color: var(--dash-danger);
-  background: linear-gradient(135deg, rgba(248, 81, 73, 0.12), var(--surface));
-  box-shadow: 0 0 0 1px rgba(248, 81, 73, 0.25);
+  border-color: var(--accent-danger);
+  background: var(--accent-danger-subtle);
 }
 
 .dash-kpi-ring {
   position: relative;
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   flex-shrink: 0;
   display: grid;
   place-items: center;
 }
 
 .dash-kpi-ring svg {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   transform: rotate(-90deg);
 }
 
 .dash-kpi-ring-track {
   fill: none;
-  stroke: var(--surface-sunken);
+  stroke: var(--sap-band);
   stroke-width: 4;
 }
 
 .dash-kpi-ring-fill {
   fill: none;
-  stroke: var(--dash-success);
+  stroke: var(--sap-primary);
   stroke-width: 4;
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.35s ease;
+  stroke-linecap: butt;
+  transition: stroke-dashoffset 0.3s ease;
 }
 
 .dash-kpi-ring span {
   position: absolute;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sap-ink);
 }
 
 .dash-kpi-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--sap-radius-md, 8px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-sunken);
+  background: var(--sap-canvas);
   border: 1px solid var(--border);
-  font-size: 0.92rem;
+  font-size: 15px;
   flex-shrink: 0;
 }
 
@@ -515,30 +552,31 @@
 }
 
 .dash-pulse-label {
-  font-size: 0.71rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--sap-ink-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dash-pulse-copy strong {
-  font-size: 0.98rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--sap-ink);
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dash-pulse-copy small {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--sap-ink-meta);
 }
 
 /* -----------------------------------------------------------------
@@ -546,8 +584,8 @@
    ----------------------------------------------------------------- */
 .dash-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.85fr) minmax(320px, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1.85fr) minmax(340px, 1fr);
+  gap: 24px;
   align-items: start;
 }
 
@@ -555,37 +593,37 @@
 .dash-control-col {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
   min-width: 0;
 }
 
 .dash-card {
-  padding: 14px 16px;
-  border-radius: var(--radius-xl, 12px);
+  padding: 20px 24px;
+  border-radius: var(--sap-radius-md, 8px);
   border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow-raised);
+  background: var(--sap-canvas);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .dash-card-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .dash-card-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--sap-radius-md, 8px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-sunken);
+  background: var(--sap-chrome);
   border: 1px solid var(--border);
-  font-size: 0.82rem;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
@@ -596,39 +634,40 @@
 
 .dash-card-titles h2 {
   margin: 0;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 22px;
+  color: var(--sap-ink);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .dash-card-titles p {
-  margin: 1px 0 0;
-  font-size: 0.73rem;
-  color: var(--text-secondary);
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--sap-ink-meta);
 }
 
 .dash-card-tools {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .dash-count {
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--surface-sunken);
+  padding: 2px 7px;
+  border-radius: var(--sap-radius-sm, 4px);
+  background: var(--sap-chrome);
   border: 1px solid var(--border);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
+  color: var(--sap-ink-meta);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* -----------------------------------------------------------------
-   5. Unified Execution Workbench
+   5. Unified Execution Workbench — SAP Product Tab Rail Header
    ----------------------------------------------------------------- */
 .dash-workbench {
   padding: 0;
@@ -637,15 +676,15 @@
 }
 
 .dash-wb-header {
-  padding: 10px 14px 0;
+  padding: 0 18px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface-sunken);
-  border-radius: var(--radius-xl, 12px) var(--radius-xl, 12px) 0 0;
+  background: var(--sap-canvas);
+  border-radius: var(--sap-radius-md, 8px) var(--sap-radius-md, 8px) 0 0;
 }
 
 .dash-wb-tabs {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 4px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -659,63 +698,64 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 12px;
+  height: 44px;
+  padding: 0 14px;
   border: none;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.79rem;
-  font-weight: 600;
+  color: var(--sap-ink-nav);
+  font-size: 14px;
+  font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.14s ease, border-color 0.14s ease, background 0.14s ease;
-  border-radius: 8px 8px 0 0;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  border-radius: 0;
 }
 
 .dash-wb-tab:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
+  color: var(--sap-primary);
 }
 
 .dash-wb-tab.is-active {
-  color: var(--dash-brand);
-  border-bottom-color: var(--dash-brand);
-  background: var(--surface);
+  color: var(--sap-primary);
+  border-bottom: 2px solid var(--sap-primary);
+  background: transparent;
+  font-weight: 500;
 }
 
 .dash-wb-tab.has-alert .dash-wb-tab-count {
-  background: rgba(248, 81, 73, 0.16);
-  color: var(--dash-danger);
-  border-color: rgba(248, 81, 73, 0.35);
+  background: var(--accent-danger-subtle);
+  color: var(--text-danger);
+  border-color: rgba(187, 0, 0, 0.25);
 }
 
 .dash-wb-tab-count {
   padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--surface);
+  border-radius: var(--sap-radius-sm, 4px);
+  background: var(--sap-chrome);
   border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
+  color: var(--sap-ink-meta);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .dash-wb-tab.is-active .dash-wb-tab-count {
-  background: rgba(56, 139, 253, 0.14);
-  border-color: rgba(56, 139, 253, 0.35);
-  color: var(--dash-brand);
+  background: var(--sap-band-blue);
+  border-color: rgba(0, 87, 210, 0.28);
+  color: var(--sap-primary);
 }
 
-/* Workbench Toolbar */
+/* Workbench Toolbar (SAP Chrome Strip) */
 .dash-wb-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
-  padding: 10px 14px;
+  padding: 10px 18px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--sap-chrome);
 }
 
 .dash-wb-search {
@@ -724,40 +764,40 @@
   gap: 8px;
   flex: 1 1 220px;
   max-width: 360px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--sap-radius-md, 8px);
   border: 1px solid var(--border);
-  background: var(--surface-sunken);
-  color: var(--text-muted);
-  font-size: 0.78rem;
+  background: var(--sap-canvas);
+  color: var(--sap-ink-meta);
+  font-size: 14px;
 }
 
 .dash-wb-search:focus-within {
-  border-color: var(--dash-brand);
-  color: var(--dash-brand);
+  border-color: var(--sap-primary);
+  color: var(--sap-primary);
 }
 
 #dash-wb-search-input {
   flex: 1;
   border: 0;
   background: transparent;
-  color: var(--text-primary);
-  font-size: 0.8rem;
+  color: var(--sap-ink-body);
+  font-size: 14px;
   outline: none;
 }
 
 .dash-wb-tools {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .dash-wb-tools .is-active-toggle {
-  background: rgba(56, 139, 253, 0.14);
-  color: var(--dash-brand);
-  border-color: rgba(56, 139, 253, 0.38);
+  background: var(--sap-band-blue);
+  color: var(--sap-primary);
+  border-color: var(--sap-primary);
 }
 
 .dash-add-existing-menu {
@@ -776,33 +816,38 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  padding: 2px 4px 6px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  margin: -16px -16px 12px -16px;
+  padding: 12px 16px;
+  background: var(--sap-dark-chrome-h);
+  border-bottom: 1px solid var(--sap-dark-chrome-border);
+  border-radius: 7px 7px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
 }
 
 .dash-popover-head small {
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sap-dark-chrome-subtle);
 }
 
 .dash-wb-body {
-  padding: 12px 14px 14px;
+  padding: 16px 18px 20px;
+  background: var(--sap-canvas);
 }
 
-/* Segregated Project Groups inside Workbench */
+/* Segregated Project Groups */
 .dash-project-groups {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .dash-proj-group {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-sunken);
+  border-radius: var(--sap-radius-md, 8px);
+  background: var(--sap-canvas);
   overflow: hidden;
 }
 
@@ -810,99 +855,108 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 12px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--project-color, #388bfd) 10%, var(--surface)), var(--surface));
+  padding: 9px 14px;
+  background: var(--sap-chrome);
   border-bottom: 1px solid var(--border);
-  border-left: 3px solid var(--project-color, #388bfd);
+  border-left: 3px solid var(--project-color, #0057d2);
 }
 
 .dash-proj-group-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
 .dash-proj-group-name {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sap-ink);
 }
 
 .dash-proj-group-key {
   padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--surface-sunken);
+  border-radius: var(--sap-radius-sm, 4px);
+  background: var(--sap-canvas);
   border: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 700;
-  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sap-ink-meta);
 }
 
 .dash-proj-group-count {
   margin-left: auto;
   padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--surface-sunken);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
+  border-radius: var(--sap-radius-sm, 4px);
+  background: var(--sap-band);
+  color: var(--sap-ink-meta);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .dash-proj-group-add {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--sap-radius-sm, 4px);
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--sap-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem;
+  font-size: 12px;
   cursor: pointer;
 }
 
 .dash-proj-group-add:hover {
-  border-color: var(--dash-brand);
-  color: var(--dash-brand);
-  background: rgba(56, 139, 253, 0.1);
+  border-color: var(--sap-primary);
+  background: var(--sap-band-blue);
 }
 
 .dash-proj-group .dash-list {
-  padding: 6px;
+  padding: 0;
+  gap: 0;
 }
 
-/* Task Rows */
+/* Task Rows — SAP Hairline-Ruled List Items (weight 350/400) */
 .dash-list {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .dash-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--row-project, #0057d2);
+  background: var(--sap-canvas);
+  transition: background var(--transition-fast);
+}
+
+.dash-proj-group .dash-row:last-child {
+  border-bottom: none;
+}
+
+.dash-wb-body > .dash-list > .dash-row {
   border: 1px solid var(--border);
-  border-left: 3px solid var(--row-project, var(--dash-brand));
-  background: var(--surface);
-  transition: border-color 0.13s ease, background 0.13s ease, transform 0.13s ease;
+  border-left: 3px solid var(--row-project, #0057d2);
+  border-radius: var(--sap-radius-md, 8px);
 }
 
 .dash-row:hover {
-  background: var(--surface-hovered);
-  border-color: rgba(56, 139, 253, 0.4);
-  border-left-color: var(--row-project, var(--dash-brand));
+  background: var(--sap-band-blue);
 }
 
 .dash-row.is-focusing {
-  border-color: rgba(137, 87, 229, 0.55);
-  background: linear-gradient(90deg, rgba(137, 87, 229, 0.09), var(--surface));
+  background: var(--sap-band-lavender);
+  border-left-color: var(--accent-purple);
 }
 
 .dash-row.is-done {
@@ -911,35 +965,35 @@
 
 .dash-row.is-done .dash-row-title {
   text-decoration: line-through;
-  color: var(--text-muted);
+  color: var(--sap-ink-meta);
 }
 
 .dash-check {
-  width: 19px;
-  height: 19px;
-  border-radius: 5px;
-  border: 1.5px solid var(--border);
-  background: var(--surface-sunken);
+  width: 20px;
+  height: 20px;
+  border-radius: var(--sap-radius-sm, 4px);
+  border: 1.5px solid var(--sap-hairline);
+  background: var(--sap-canvas);
   color: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.64rem;
+  font-size: 11px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.13s ease;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .dash-check:hover {
-  border-color: var(--dash-success);
-  color: rgba(63, 185, 80, 0.5);
+  border-color: var(--accent-success);
+  color: var(--accent-success);
 }
 
 .dash-row.is-done .dash-check,
 .dash-check[aria-pressed="true"] {
-  background: var(--dash-success);
-  border-color: var(--dash-success);
-  color: #fff;
+  background: var(--accent-success);
+  border-color: var(--accent-success);
+  color: #ffffff;
 }
 
 .dash-row-main {
@@ -954,20 +1008,20 @@
 .dash-row-topline {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
 .dash-key {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sap-primary);
   flex-shrink: 0;
 }
 
 .dash-prio {
-  font-size: 0.72rem;
+  font-size: 12px;
   flex-shrink: 0;
 }
 
@@ -979,9 +1033,10 @@
 .dash-prio.prio-lowest { color: var(--dash-brand); }
 
 .dash-row-title {
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 21px;
+  color: var(--sap-ink-body);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -990,10 +1045,11 @@
 .dash-row-meta {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   flex-wrap: wrap;
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 350;
+  color: var(--sap-ink-list);
 }
 
 .dash-row-meta:empty {
@@ -1008,39 +1064,42 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  background: var(--surface-sunken);
-  color: var(--text-secondary);
+  padding: 1px 7px;
+  border-radius: var(--sap-radius-sm, 4px);
+  font-size: 12px;
+  font-weight: 400;
+  background: var(--sap-chrome);
+  color: var(--sap-ink-list);
 }
 
 .dash-due.is-overdue,
 .dash-reason-badge.tone-danger {
-  background: rgba(248, 81, 73, 0.14);
-  color: var(--dash-danger);
+  background: var(--accent-danger-subtle);
+  color: var(--text-danger);
+  font-weight: 500;
 }
 
 .dash-due.is-today,
 .dash-reason-badge.tone-warning {
-  background: rgba(210, 153, 34, 0.15);
-  color: var(--dash-warning);
+  background: var(--accent-warning-subtle);
+  color: var(--text-warning);
+  font-weight: 500;
 }
 
 .dash-plan-tag.is-today {
-  background: rgba(56, 139, 253, 0.13);
-  color: var(--dash-brand);
+  background: var(--sap-band-blue);
+  color: var(--sap-primary);
+  font-weight: 500;
 }
 
 .dash-pts {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .dash-row-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -1051,89 +1110,88 @@
 }
 
 .dash-row-btn {
-  height: 26px;
-  min-width: 26px;
-  padding: 0 7px;
-  border-radius: 6px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 8px;
+  border-radius: var(--sap-radius-md, 8px);
   border: 1px solid var(--border);
-  background: var(--surface-sunken);
-  color: var(--text-secondary);
+  background: var(--sap-canvas);
+  color: var(--sap-ink-nav);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  font-size: 0.71rem;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
 
 .dash-row-btn:hover {
-  border-color: var(--dash-brand);
-  color: var(--dash-brand);
-  background: rgba(56, 139, 253, 0.1);
+  border-color: var(--sap-primary);
+  color: var(--sap-primary);
+  background: var(--sap-band-blue);
 }
 
 .dash-row-btn.is-active {
-  background: rgba(137, 87, 229, 0.16);
-  border-color: rgba(137, 87, 229, 0.45);
-  color: var(--dash-violet);
+  background: var(--sap-band-lavender);
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
 }
 
-/* Empty States */
+/* Empty States — SAP ex-empty-state-card (12px corner) */
 .dash-empty {
-  padding: 28px 16px;
-  border-radius: 10px;
-  border: 1px dashed var(--border);
-  background: var(--surface-sunken);
+  padding: 36px 24px;
+  border-radius: var(--sap-radius-lg, 12px);
+  border: 1px dashed var(--sap-hairline);
+  background: var(--sap-chrome);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
+  color: var(--sap-ink-body);
+  font-size: 15px;
 }
 
 .dash-empty > i {
-  font-size: 1.25rem;
-  color: var(--text-muted);
+  font-size: 22px;
+  color: var(--sap-ink-meta);
 }
 
 .dash-empty.is-compact {
-  padding: 16px 12px;
+  padding: 20px 16px;
 }
 
 /* -----------------------------------------------------------------
    6. Right Column: App Control Center
    ----------------------------------------------------------------- */
-
-/* Projects Control Matrix */
 .dash-proj-matrix {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .dash-proj-row {
-  padding: 10px 11px;
-  border-radius: 9px;
+  padding: 12px 14px;
+  border-radius: var(--sap-radius-md, 8px);
   border: 1px solid var(--border);
-  background: var(--surface-sunken);
+  background: var(--sap-chrome);
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  transition: border-color 0.14s ease;
+  gap: 8px;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
 .dash-proj-row:hover {
-  border-color: color-mix(in srgb, var(--proj-color, #388bfd) 55%, var(--border));
+  border-color: var(--sap-primary);
+  background: var(--sap-canvas);
 }
 
 .dash-proj-row.is-scoped {
-  border-color: var(--proj-color, var(--dash-brand));
-  background: linear-gradient(135deg, color-mix(in srgb, var(--proj-color, #388bfd) 10%, var(--surface-sunken)), var(--surface-sunken));
+  border-color: var(--sap-primary);
+  background: var(--sap-band-blue);
 }
 
 .dash-proj-row-top {
@@ -1146,13 +1204,13 @@
 .dash-proj-select {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   border: 0;
   padding: 0;
   background: transparent;
-  color: var(--text-primary);
-  font-size: 0.82rem;
-  font-weight: 700;
+  color: var(--sap-ink);
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
   min-width: 0;
 }
@@ -1160,7 +1218,7 @@
 .dash-proj-dot {
   width: 9px;
   height: 9px;
-  border-radius: 50%;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
@@ -1171,28 +1229,28 @@
 }
 
 .dash-proj-key {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--surface);
+  padding: 1px 6px;
+  border-radius: var(--sap-radius-sm, 4px);
+  background: var(--sap-canvas);
   border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
+  color: var(--sap-ink-meta);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
 }
 
 .dash-proj-stats {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--sap-ink-meta);
   flex-shrink: 0;
 }
 
 .dash-proj-overdue {
-  color: var(--dash-danger);
-  font-weight: 700;
+  color: var(--text-danger);
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -1200,8 +1258,8 @@
 
 .dash-proj-bar {
   height: 5px;
-  border-radius: 999px;
-  background: var(--surface);
+  border-radius: 2px;
+  background: var(--sap-band);
   overflow: hidden;
 }
 
@@ -1209,37 +1267,37 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  transition: width 0.3s ease;
+  transition: width 0.25s ease;
 }
 
 .dash-proj-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .dash-mini-link {
-  height: 23px;
-  padding: 0 7px;
-  border-radius: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--sap-radius-sm, 4px);
   border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-secondary);
-  font-size: 0.69rem;
-  font-weight: 600;
+  background: var(--sap-canvas);
+  color: var(--sap-primary);
+  font-size: 12px;
+  font-weight: 500;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  transition: all 0.12s ease;
 }
 
 .dash-mini-link:hover {
-  border-color: var(--dash-brand);
-  color: var(--dash-brand);
-  background: rgba(56, 139, 253, 0.08);
+  border-color: var(--sap-primary);
+  color: var(--sap-primary-deep);
+  background: var(--sap-band-blue);
+  text-decoration: none;
 }
 
 /* Sprint Lifecycle Control */
@@ -1253,17 +1311,16 @@
 .dash-sprint-bar {
   position: relative;
   height: 7px;
-  border-radius: 999px;
-  background: var(--surface-sunken);
+  border-radius: 2px;
+  background: var(--sap-band);
   overflow: hidden;
 }
 
 .dash-sprint-bar i {
   display: block;
   height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--dash-violet), var(--dash-brand));
-  transition: width 0.3s ease;
+  background: var(--sap-primary);
+  transition: width 0.25s ease;
 }
 
 .dash-sprint-bar b {
@@ -1271,37 +1328,38 @@
   top: -2px;
   bottom: -2px;
   width: 2px;
-  background: var(--text-primary);
+  background: var(--sap-ink);
   opacity: 0.7;
 }
 
 .dash-sprint-breakdown {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 8px;
 }
 
 .dash-sprint-breakdown span {
-  padding: 6px 8px;
-  border-radius: 7px;
-  background: var(--surface-sunken);
+  padding: 8px 10px;
+  border-radius: var(--sap-radius-md, 8px);
+  background: var(--sap-chrome);
   border: 1px solid var(--border);
-  font-size: 0.71rem;
-  color: var(--text-secondary);
+  font-size: 12px;
+  color: var(--sap-ink-meta);
   text-align: center;
 }
 
 .dash-sprint-breakdown b {
   display: block;
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--sap-ink);
 }
 
 .dash-sprint-ctrl-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -1309,53 +1367,55 @@
 .dash-deadlines {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .dash-deadline {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 7px 9px;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--sap-radius-md, 8px);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--row-project, var(--dash-brand));
-  background: var(--surface-sunken);
+  border-left: 3px solid var(--row-project, #0057d2);
+  background: var(--sap-chrome);
 }
 
 .dash-deadline.is-today {
-  border-color: rgba(248, 81, 73, 0.4);
-  background: rgba(248, 81, 73, 0.06);
+  border-color: rgba(187, 0, 0, 0.35);
+  background: var(--accent-danger-subtle);
 }
 
 .dash-deadline.is-soon {
-  border-color: rgba(210, 153, 34, 0.4);
+  border-color: rgba(180, 83, 9, 0.35);
+  background: var(--accent-warning-subtle);
 }
 
 .dash-deadline-date {
-  min-width: 54px;
-  padding: 3px 6px;
-  border-radius: 6px;
-  background: var(--surface);
+  min-width: 58px;
+  padding: 4px 6px;
+  border-radius: var(--sap-radius-sm, 4px);
+  background: var(--sap-canvas);
   border: 1px solid var(--border);
   text-align: center;
   display: flex;
   flex-direction: column;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .dash-deadline-date b {
-  font-size: 0.69rem;
-  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sap-ink);
 }
 
 .dash-deadline.is-today .dash-deadline-date b {
-  color: var(--dash-danger);
+  color: var(--text-danger);
 }
 
 .dash-deadline-date small {
-  font-size: 0.63rem;
-  color: var(--text-muted);
+  font-size: 11px;
+  color: var(--sap-ink-meta);
 }
 
 .dash-deadline-copy {
@@ -1367,17 +1427,18 @@
 }
 
 .dash-deadline-copy > span {
-  font-size: 0.79rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--sap-ink-body);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dash-deadline-copy > small {
-  font-size: 0.68rem;
-  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 350;
+  color: var(--sap-ink-meta);
 }
 
 /* -----------------------------------------------------------------
@@ -1392,9 +1453,14 @@
   }
 }
 
-@media (max-width: 780px) {
+@media (max-width: 767px) {
   .dash-cmd-bar {
-    padding: 12px;
+    padding: 20px 16px;
+  }
+  .dash-capture-wrap,
+  .dash-pulse-strip,
+  .dash-workspace {
+    padding-inline: 16px;
   }
   .dash-scope-bar {
     padding-left: 0;

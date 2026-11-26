@@ -119,13 +119,13 @@ const DropdownUI = {
     if (isStatus || ['backlog', 'todo', 'inprogress', 'inreview', 'done', 'blocked', 'cancelled'].includes(val)) {
       const statusMap = {
         backlog: { icon: 'fa-solid fa-inbox', color: '#64748B', label: 'Backlog' },
-        todo: { icon: 'fa-regular fa-circle', color: '#2563EB', label: 'To Do' },
+        todo: { icon: 'fa-regular fa-circle', color: '#0057d2', label: 'To Do' },
         inprogress: { icon: 'fa-solid fa-spinner', color: '#EA580C', label: 'In Progress' },
         inreview: { icon: 'fa-solid fa-eye', color: '#9333EA', label: 'In Review' },
         done: { icon: 'fa-solid fa-circle-check', color: '#059669', label: 'Done' },
         blocked: { icon: 'fa-solid fa-ban', color: '#DC2626', label: 'Blocked' },
         cancelled: { icon: 'fa-solid fa-xmark', color: '#94A3B8', label: 'Cancelled' },
-        active: { icon: 'fa-solid fa-bolt', color: '#2563EB', label: 'Active (Incomplete)' },
+        active: { icon: 'fa-solid fa-bolt', color: '#0057d2', label: 'Active (Incomplete)' },
         all: { icon: 'fa-solid fa-list-check', color: 'var(--text-muted)', label: 'All Statuses' }
       };
       if (statusMap[val]) {
@@ -144,7 +144,7 @@ const DropdownUI = {
         highest: { icon: 'fa-solid fa-angle-up', color: '#EA580C', label: 'Highest' },
         high: { icon: 'fa-solid fa-angle-up', color: '#D97706', label: 'High' },
         medium: { icon: 'fa-solid fa-minus', color: '#EAB308', label: 'Medium' },
-        low: { icon: 'fa-solid fa-angle-down', color: '#3B82F6', label: 'Low' },
+        low: { icon: 'fa-solid fa-angle-down', color: '#0057d2', label: 'Low' },
         lowest: { icon: 'fa-solid fa-angles-down', color: '#94A3B8', label: 'Lowest' },
         all: { icon: 'fa-solid fa-layer-group', color: 'var(--text-muted)', label: 'All Priorities' }
       };
@@ -161,7 +161,7 @@ const DropdownUI = {
     // 3. Issue Types
     if (isType || ['task', 'subtask', 'story', 'bug', 'epic', 'improvement'].includes(val)) {
       const typeMap = {
-        task: { icon: 'fa-solid fa-square-check', color: '#3B82F6', label: 'Task' },
+        task: { icon: 'fa-solid fa-square-check', color: '#0057d2', label: 'Task' },
         subtask: { icon: 'fa-solid fa-diagram-next', color: '#8B5CF6', label: 'Subtask' },
         story: { icon: 'fa-solid fa-bookmark', color: '#10B981', label: 'Story' },
         bug: { icon: 'fa-solid fa-circle-dot', color: '#EF4444', label: 'Bug' },
@@ -189,7 +189,7 @@ const DropdownUI = {
       const project = typeof AppState !== 'undefined' ? AppState.projects.find(p => p.id === value) : null;
       if (project) {
         return {
-          colorDot: project.color || '#388bfd',
+          colorDot: project.color || '#0057d2',
           label: cleanLabel || `${project.name} (${project.key})`,
           subLabel: project.key
         };
@@ -247,7 +247,7 @@ const DropdownUI = {
     // 7. Recurring Frequencies
     if (isRecurring || ['daily', 'weekly', 'monthly'].includes(val)) {
       const recMap = {
-        daily: { icon: 'fa-solid fa-rotate-right', color: '#3B82F6', label: 'Daily' },
+        daily: { icon: 'fa-solid fa-rotate-right', color: '#0057d2', label: 'Daily' },
         weekly: { icon: 'fa-solid fa-calendar-week', color: '#10B981', label: 'Weekly' },
         monthly: { icon: 'fa-solid fa-calendar', color: '#8B5CF6', label: 'Monthly' },
         '': { icon: 'fa-solid fa-ban', color: 'var(--text-muted)', label: 'None' }
@@ -280,7 +280,7 @@ const DropdownUI = {
     if (isDueDate || ['today', 'tomorrow', 'this_week', 'next_week', 'in_2_weeks', 'custom', 'clear'].includes(val)) {
       const dateMap = {
         '': { icon: 'fa-regular fa-calendar', color: 'var(--text-muted)', label: cleanLabel || 'Due Date...' },
-        today: { icon: 'fa-solid fa-calendar-day', color: '#3B82F6', label: 'Today' },
+        today: { icon: 'fa-solid fa-calendar-day', color: '#0057d2', label: 'Today' },
         tomorrow: { icon: 'fa-solid fa-sun', color: '#F59E0B', label: 'Tomorrow' },
         this_week: { icon: 'fa-solid fa-calendar-week', color: '#10B981', label: 'This Friday' },
         next_week: { icon: 'fa-solid fa-calendar-plus', color: '#8B5CF6', label: 'Next Monday' },
@@ -555,7 +555,7 @@ const DropdownUI = {
         }
         this.close();
         if (this.activeTrigger) {
-          this.activeTrigger.focus();
+          this.activeTrigger.focus({ preventScroll: true });
         }
       });
     });
@@ -600,7 +600,7 @@ const DropdownUI = {
 
     // Auto focus search input or active item
     if (searchInput) {
-      setTimeout(() => searchInput.focus(), 30);
+      setTimeout(() => searchInput.focus({ preventScroll: true }), 30);
     } else {
       const activeBtn = this.menuEl.querySelector('.tf-dropdown-item.is-selected');
       if (activeBtn) activeBtn.classList.add('is-focused');
@@ -674,7 +674,7 @@ const DropdownUI = {
       e.preventDefault();
       const trigger = this.activeTrigger;
       this.close();
-      if (trigger) trigger.focus();
+      if (trigger) trigger.focus({ preventScroll: true });
       return;
     }
 

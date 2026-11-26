@@ -101,7 +101,7 @@ const StorageService = {
         name: 'Website Redesign',
         description: 'Modernizing corporate web application with responsive UI, design tokens, and agile workflows.',
         status: 'active',
-        color: '#388bfd',
+        color: '#0057d2',
         icon: 'fa-globe',
         startDate: sprint1Start.toISOString(),
         targetDate: sprint2End.toISOString(),
@@ -137,7 +137,7 @@ const StorageService = {
     ];
 
     const epics = [
-      { id: 'epic_ui', projectId: 'proj_web', title: 'Design System & UI Components', color: '#388bfd' },
+      { id: 'epic_ui', projectId: 'proj_web', title: 'Design System & UI Components', color: '#0057d2' },
       { id: 'epic_api', projectId: 'proj_web', title: 'State Management & Offline Storage', color: '#a371f7' },
       { id: 'epic_ml', projectId: 'proj_ai', title: 'NLP Extraction Pipeline', color: '#f59e0b' }
     ];
@@ -592,20 +592,20 @@ const StorageService = {
     const items = [];
 
     const keyMeta = {
-      [this.KEYS.TASKS]: { label: 'Tasks, Subtasks & Checklists', icon: 'fa-solid fa-list-check', color: '#579DFF' },
-      [this.KEYS.PROJECTS]: { label: 'Projects', icon: 'fa-solid fa-diagram-project', color: '#6554C0' },
-      [this.KEYS.ACTIVITY]: { label: 'Activity & Audit Log', icon: 'fa-solid fa-clock-rotate-left', color: '#FFAB00' },
-      [this.KEYS.SPRINTS]: { label: 'Sprints & Cycles', icon: 'fa-solid fa-repeat', color: '#36B37E' },
-      [this.KEYS.EPICS]: { label: 'Feature Epics', icon: 'fa-solid fa-bolt', color: '#FF5630' },
-      [this.KEYS.GOALS]: { label: 'Strategic Goals & OKRs', icon: 'fa-solid fa-bullseye', color: '#8777D9' },
-      [this.KEYS.COMMENTS]: { label: 'Task Discussions & Comments', icon: 'fa-solid fa-comments', color: '#00B8D9' },
-      [this.KEYS.LABELS]: { label: 'Labels & Tags', icon: 'fa-solid fa-tags', color: '#00C7E5' },
-      [this.KEYS.NOTIFICATIONS]: { label: 'System Notifications', icon: 'fa-solid fa-bell', color: '#E34935' },
-      [this.KEYS.SETTINGS]: { label: 'App Settings & Preferences', icon: 'fa-solid fa-gear', color: '#9FB2C8' },
-      [this.KEYS.TIME_ENTRIES]: { label: 'Time Tracking Sessions', icon: 'fa-solid fa-stopwatch', color: '#4BCE97' },
-      [this.KEYS.TEMPLATES]: { label: 'Task Templates', icon: 'fa-solid fa-copy', color: '#F772B5' },
-      [this.KEYS.PREFERENCES]: { label: 'Saved UI Preferences', icon: 'fa-solid fa-sliders', color: '#A371F7' },
-      [this.KEYS.INITIALIZED]: { label: 'Database Init State', icon: 'fa-solid fa-shield-halved', color: '#7EE787' }
+      [this.KEYS.TASKS]: { label: 'Tasks, Subtasks & Checklists', icon: 'fa-solid fa-list-check', color: '#0057d2' },
+      [this.KEYS.PROJECTS]: { label: 'Projects', icon: 'fa-solid fa-diagram-project', color: '#0040b0' },
+      [this.KEYS.ACTIVITY]: { label: 'Activity & Audit Log', icon: 'fa-solid fa-clock-rotate-left', color: '#b45309' },
+      [this.KEYS.SPRINTS]: { label: 'Sprints & Cycles', icon: 'fa-solid fa-repeat', color: '#107e3e' },
+      [this.KEYS.EPICS]: { label: 'Feature Epics', icon: 'fa-solid fa-bolt', color: '#5d36d6' },
+      [this.KEYS.GOALS]: { label: 'Strategic Goals & OKRs', icon: 'fa-solid fa-bullseye', color: '#022879' },
+      [this.KEYS.COMMENTS]: { label: 'Task Discussions & Comments', icon: 'fa-solid fa-comments', color: '#0057d2' },
+      [this.KEYS.LABELS]: { label: 'Labels & Tags', icon: 'fa-solid fa-tags', color: '#475e75' },
+      [this.KEYS.NOTIFICATIONS]: { label: 'System Notifications', icon: 'fa-solid fa-bell', color: '#bb0000' },
+      [this.KEYS.SETTINGS]: { label: 'App Settings & Preferences', icon: 'fa-solid fa-gear', color: '#475e75' },
+      [this.KEYS.TIME_ENTRIES]: { label: 'Time Tracking Sessions', icon: 'fa-solid fa-stopwatch', color: '#107e3e' },
+      [this.KEYS.TEMPLATES]: { label: 'Task Templates', icon: 'fa-solid fa-copy', color: '#5d36d6' },
+      [this.KEYS.PREFERENCES]: { label: 'Saved UI Preferences', icon: 'fa-solid fa-sliders', color: '#354a5f' },
+      [this.KEYS.INITIALIZED]: { label: 'Database Init State', icon: 'fa-solid fa-shield-halved', color: '#107e3e' }
     };
 
     try {
@@ -655,15 +655,15 @@ const StorageService = {
 
     let status = 'healthy';
     let statusText = 'Healthy';
-    let statusColor = '#36B37E';
+    let statusColor = '#107e3e';
     if (percentUsed >= 90) {
       status = 'critical';
       statusText = 'Critical (Near Limit)';
-      statusColor = '#F85149';
+      statusColor = '#bb0000';
     } else if (percentUsed >= 70) {
       status = 'warning';
       statusText = 'Warning (High Usage)';
-      statusColor = '#D29922';
+      statusColor = '#b45309';
     }
 
     return {

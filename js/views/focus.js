@@ -30,7 +30,7 @@ const FocusView = {
     container.innerHTML = `
       <div class="view-page" style="align-items: center; justify-content: center; min-height: 80vh;">
         
-        <div style="width: 100%; max-width: 600px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-xl); padding: 40px; box-shadow: var(--shadow-lg); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 24px;">
+        <div style="width: 100%; max-width: 600px; background: var(--sap-canvas); border: 1px solid var(--sap-hairline); border-radius: var(--sap-radius-lg); padding: 40px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 24px;">
           
           <!-- Mode Header -->
           <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -69,7 +69,7 @@ const FocusView = {
           `}
 
           <!-- Big Countdown Display -->
-          <div style="font-family: var(--font-mono); font-size: 72px; font-weight: 700; color: ${this.timerState === 'break' ? 'var(--accent-success)' : 'var(--text-primary)'}; letter-spacing: -2px; line-height: 1;">
+          <div style="font-variant-numeric: tabular-nums; font-size: 57px; font-weight: 700; color: ${this.timerState === 'break' ? 'var(--accent-success)' : 'var(--sap-ink)'}; letter-spacing: 0; line-height: 62.7px;">
             ${timeDisplay}
           </div>
 

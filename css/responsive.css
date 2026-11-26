@@ -1,20 +1,36 @@
-/* TaskForge — Atlassian Design System Responsive Styles */
+/* ============================================================
+   TaskForge — SAP Analysis Responsive Strategy
+   Breakpoints per design.md:
+   - Wide: >= 1440px (Gutters absorb extra width; bands stay full-bleed)
+   - Desktop: 1280–1439px
+   - Laptop: 1024–1279px
+   - Tablet: 768–1023px (Breadcrumb truncates; two-col features hold)
+   - Mobile: 480–767px (Single column; nav collapses to menu; tab rail scrolls)
+   - Small mobile: < 480px (Single column; hero type drops; WCAG-AAA 44px targets)
+   ============================================================ */
 
-/* Large screens (1440px+) */
+/* Wide (>= 1440px) */
 @media (min-width: 1440px) {
   .view-page {
-    padding: 2rem 3rem;
+    padding: var(--space-giant) var(--space-huge);
   }
 }
 
-/* Tablets (max-width: 1024px) */
-@media (max-width: 1024px) {
+/* Laptop & Tablet (max-width: 1279px) */
+@media (max-width: 1279px) {
+  #topbar {
+    padding: 0 var(--space-wide);
+  }
+}
+
+/* Tablet (max-width: 1023px) */
+@media (max-width: 1023px) {
   :root {
-    --sidebar-width: 200px;
+    --sidebar-width: 216px;
   }
 
   .view-page {
-    padding: 1.25rem 1.5rem;
+    padding: var(--space-section) var(--space-giant);
   }
 
   .board-column {
@@ -36,8 +52,8 @@
   }
 }
 
-/* Mobile & small tablets (max-width: 768px) */
-@media (max-width: 768px) {
+/* Mobile (max-width: 767px) */
+@media (max-width: 767px) {
   #app-shell {
     flex-direction: column;
   }
@@ -49,6 +65,7 @@
     width: 280px;
     height: 100vh;
     z-index: 1200;
+    border-right: 1px solid var(--sap-hairline);
     box-shadow: var(--shadow-overlay);
     transition: left var(--transition-smooth);
   }
@@ -70,12 +87,14 @@
   }
 
   #topbar {
-    padding: 0 0.75rem;
-    gap: 0.5rem;
+    padding: 0 var(--space-xl);
+    gap: var(--space-sm);
   }
 
   .mobile-menu-trigger {
     display: inline-flex !important;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   #topbar-bulk-create-btn {
@@ -88,11 +107,14 @@
   }
 
   #topbar-create-task-btn {
-    padding: 0.375rem 0.625rem;
+    padding: 0 12px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .global-search-trigger {
-    max-width: 180px;
+    max-width: 190px;
+    height: 40px;
   }
 
   .search-kbd-shortcut {
@@ -100,23 +122,23 @@
   }
 
   .view-page {
-    padding: 1rem;
+    padding: var(--space-wide);
   }
 
   .view-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: var(--space-xl);
   }
 
   .view-actions {
     width: 100%;
     overflow-x: auto;
-    padding-bottom: 0.25rem;
+    padding-bottom: 4px;
   }
 
   .datagrid-view-container > .view-header {
-    gap: 0.75rem;
+    gap: 12px;
   }
 
   .datagrid-view-container .view-actions {
@@ -125,11 +147,11 @@
   }
 
   .datagrid-view-container .view-title-group h1 {
-    font-size: 1.25rem;
+    font-size: 22px;
   }
 
   .datagrid-filter-console {
-    padding: 9px;
+    padding: 10px;
   }
 
   .datagrid-toolbar-row {
@@ -185,11 +207,11 @@
 
   .modal-container {
     max-width: 100%;
-    margin: 0.75rem;
+    margin: 12px;
   }
 
   .board-container {
-    gap: 0.75rem;
+    gap: 12px;
   }
 
   .board-column {
@@ -208,37 +230,45 @@
   }
 
   #toast-container {
-    left: 1rem;
-    right: 1rem;
-    bottom: 1rem;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
   }
 
   .toast {
     min-width: unset;
     width: 100%;
   }
+
+  .sap-shortcuts-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-/* Extra small mobile (<480px) */
-@media (max-width: 480px) {
+/* Small mobile (< 480px) */
+@media (max-width: 479px) {
   .global-search-trigger span {
     display: none;
   }
 
   .topbar-left {
-    gap: 0.5rem;
+    gap: 8px;
+  }
+
+  .project-selector-dropdown span {
+    display: none;
+  }
+
+  .view-title-group h1 {
+    font-size: 22px;
   }
 
   .datagrid-view-container {
-    padding: 0.875rem 0.75rem 5rem;
-  }
-
-  .datagrid-view-container .view-title-group p {
-    font-size: 11.5px;
+    padding: 14px 12px 72px;
   }
 
   .datagrid-view-container .view-actions .btn {
-    min-height: 32px;
+    min-height: 38px;
   }
 
   .datagrid-footer {
@@ -254,14 +284,6 @@
     width: calc(100% - 20px);
     max-width: none;
     justify-content: flex-start;
-    border-radius: 11px;
-  }
-
-  .project-selector-dropdown span {
-    display: none;
-  }
-
-  .view-title-group h1 {
-    font-size: 1.25rem;
+    border-radius: var(--sap-radius-md);
   }
 }

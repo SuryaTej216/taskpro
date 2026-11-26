@@ -141,7 +141,7 @@ const Sidebar = {
       const activeTasksCount = AppState.tasks.filter(t => t.projectId === p.id && t.status !== 'done' && t.status !== 'cancelled').length;
       return `
         <a href="#/tasks?project=${p.id}" class="nav-item project-nav-item" data-tooltip="${Utils.escapeHTML(p.name)}" title="${Utils.escapeHTML(p.name)}">
-          <span class="nav-project-dot" style="background-color: ${p.color || '#579DFF'};"></span>
+          <span class="nav-project-dot" style="background-color: ${p.color || '#0057d2'};"></span>
           <span class="nav-item-label">${Utils.escapeHTML(p.name)}</span>
           ${activeTasksCount > 0 ? `<span class="badge-count project-active-badge">${activeTasksCount}</span>` : ''}
         </a>

@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 6. Initialize Router
   Router.init();
 
-  console.log('%cTaskForge Initialized 🚀', 'color: #388bfd; font-size: 14px; font-weight: bold;');
+  console.log('%cTaskForge Initialized — SAP Analysis Design System', 'color: #0057d2; font-size: 14px; font-weight: bold;');
 });
 
 function bindTopbarControls() {
@@ -180,7 +180,7 @@ function renderProjectPickerPopover(popover) {
     return `
           <button type="button" class="tf-dropdown-item ${isSelected ? 'is-selected' : ''}" data-id="${p.id}">
             <span class="tf-dropdown-item-left">
-              <span class="tf-dropdown-color-dot" style="background: ${p.color || '#388bfd'};"></span>
+              <span class="tf-dropdown-color-dot" style="background: ${p.color || '#0057d2'};"></span>
               <span class="tf-dropdown-item-label">${Utils.escapeHTML(p.name)}</span>
             </span>
             ${isSelected ? '<i class="fa-solid fa-check tf-dropdown-item-check"></i>' : ''}

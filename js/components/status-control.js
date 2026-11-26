@@ -10,7 +10,7 @@ const StatusControl = {
 
   META: {
     backlog:    { label: 'Backlog',     icon: 'fa-solid fa-inbox',         color: '#64748B' },
-    todo:       { label: 'To Do',       icon: 'fa-regular fa-circle',      color: '#2563EB' },
+    todo:       { label: 'To Do',       icon: 'fa-regular fa-circle',      color: '#0057d2' },
     inprogress: { label: 'In Progress', icon: 'fa-solid fa-spinner',       color: '#EA580C' },
     inreview:   { label: 'In Review',   icon: 'fa-solid fa-eye',           color: '#9333EA' },
     blocked:    { label: 'Blocked',     icon: 'fa-solid fa-ban',           color: '#EF4444' },

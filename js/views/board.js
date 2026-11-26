@@ -17,11 +17,11 @@
 const BoardView = {
   columns: [
     { id: 'backlog', title: 'Backlog', icon: 'fa-solid fa-box-archive', color: '#64748B', statusVar: 'var(--status-backlog, #64748B)' },
-    { id: 'todo', title: 'To Do', icon: 'fa-regular fa-circle-dot', color: '#1868DB', statusVar: 'var(--status-todo, #1868DB)' },
+    { id: 'todo', title: 'To Do', icon: 'fa-regular fa-circle-dot', color: '#0057d2', statusVar: 'var(--status-todo, #0057d2)' },
     { id: 'inprogress', title: 'In Progress', icon: 'fa-solid fa-bolt-lightning', color: '#E06C00', statusVar: 'var(--status-inprogress, #E06C00)' },
     { id: 'inreview', title: 'In Review', icon: 'fa-solid fa-eye', color: '#AF59E1', statusVar: 'var(--status-inreview, #AF59E1)' },
     { id: 'blocked', title: 'Blocked', icon: 'fa-solid fa-ban', color: '#EF4444', statusVar: 'var(--status-blocked, #EF4444)' },
-    { id: 'done', title: 'Done', icon: 'fa-solid fa-circle-check', color: '#0BDA51', statusVar: 'var(--status-done, #0BDA51)' },
+    { id: 'done', title: 'Done', icon: 'fa-solid fa-circle-check', color: '#107e3e', statusVar: 'var(--status-done, #107e3e)' },
     { id: 'cancelled', title: 'Cancelled', icon: 'fa-solid fa-circle-xmark', color: '#6B6E76', statusVar: 'var(--status-cancelled, #6B6E76)' }
   ],
 
@@ -152,27 +152,6 @@ const BoardView = {
     const selectedProject = AppState.projects.find(p => p.id === AppState.selectedProjectId);
     const activeSprint = AppState.sprints.find(s => s.id === AppState.activeFilters.sprintId);
 
-    // 8. Board Metrics Calculations
-    const totalCount = activeTasks.length;
-    const totalPoints = activeTasks.reduce((acc, t) => acc + (Number(t.storyPoints) || 0), 0);
-    const doneTasks = activeTasks.filter(t => t.status === 'done');
-    const inProgressCount = activeTasks.filter(t => t.status === 'inprogress' || t.status === 'inreview').length;
-    const overdueCount = activeTasks.filter(t => Utils.isOverdue(t.dueDate, t.status)).length;
-    const completionPct = totalCount > 0 ? Math.round((doneTasks.length / totalCount) * 100) : 0;
-    const openTaskCount = activeTasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
-    const attentionCount = activeTasks.filter(t => t.status === 'blocked' || Utils.isOverdue(t.dueDate, t.status)).length;
-
-    // Progression bar segment counts
-    const statusCounts = {
-      backlog: activeTasks.filter(t => t.status === 'backlog').length,
-      todo: activeTasks.filter(t => t.status === 'todo').length,
-      inprogress: activeTasks.filter(t => t.status === 'inprogress').length,
-      inreview: activeTasks.filter(t => t.status === 'inreview').length,
-      blocked: activeTasks.filter(t => t.status === 'blocked').length,
-      done: doneTasks.length,
-      cancelled: activeTasks.filter(t => t.status === 'cancelled').length
-    };
-
     const hasFilters = this.hasAnyActiveFilters();
     const activeFilterCount = this.getActiveFilterCount();
 
@@ -234,60 +213,6 @@ const BoardView = {
           </div>
         </div>
 
-        ${TasksView.renderPlannerSummaryHTML({
-          totalCount,
-          doneCount: doneTasks.length,
-          openCount: openTaskCount,
-          inProgressCount,
-          attentionCount,
-          blockedCount: statusCounts.blocked,
-          overdueCount
-        })}
-
-        <!-- ROW 2: Executive Overall Status Progression & Health Center -->
-        <div class="board-executive-statusbar">
-          <div class="statusbar-center-group">
-            <div class="board-stage-distribution-bar" title="Interactive Workflow Distribution">
-              ${totalCount > 0 ? `
-                <div class="stage-seg seg-backlog ${this.activeQuickFilter === 'backlog' ? 'is-selected' : ''}" data-status="backlog" style="width: ${(statusCounts.backlog / totalCount) * 100}%;" title="Backlog: ${statusCounts.backlog} (${Math.round((statusCounts.backlog / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-todo ${this.activeQuickFilter === 'todo' ? 'is-selected' : ''}" data-status="todo" style="width: ${(statusCounts.todo / totalCount) * 100}%;" title="To Do: ${statusCounts.todo} (${Math.round((statusCounts.todo / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-inprogress ${this.activeQuickFilter === 'inprogress' ? 'is-selected' : ''}" data-status="inprogress" style="width: ${(statusCounts.inprogress / totalCount) * 100}%;" title="In Progress: ${statusCounts.inprogress} (${Math.round((statusCounts.inprogress / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-inreview ${this.activeQuickFilter === 'inreview' ? 'is-selected' : ''}" data-status="inreview" style="width: ${(statusCounts.inreview / totalCount) * 100}%;" title="In Review: ${statusCounts.inreview} (${Math.round((statusCounts.inreview / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-blocked ${this.activeQuickFilter === 'blocked' ? 'is-selected' : ''}" data-status="blocked" style="width: ${(statusCounts.blocked / totalCount) * 100}%;" title="Blocked: ${statusCounts.blocked} (${Math.round((statusCounts.blocked / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-done ${this.activeQuickFilter === 'done' ? 'is-selected' : ''}" data-status="done" style="width: ${(statusCounts.done / totalCount) * 100}%;" title="Done: ${statusCounts.done} (${Math.round((statusCounts.done / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-cancelled ${this.activeQuickFilter === 'cancelled' ? 'is-selected' : ''}" data-status="cancelled" style="width: ${(statusCounts.cancelled / totalCount) * 100}%;" title="Cancelled: ${statusCounts.cancelled} (${Math.round((statusCounts.cancelled / totalCount) * 100)}%) - Click to filter"></div>
-              ` : `
-                <div class="stage-seg is-empty" style="width: 100%;"></div>
-              `}
-            </div>
-
-            <div class="board-status-metrics-strip">
-              <span class="status-metric-pill stat-total" title="Total Filtered Tasks">
-                <i class="fa-solid fa-layer-group"></i> <span><strong>${totalCount}</strong> Tasks</span>
-              </span>
-              <span class="status-metric-pill stat-points" title="Total Story Points">
-                <i class="fa-solid fa-diamond"></i> <span><strong>${totalPoints}</strong> pts</span>
-              </span>
-              <span class="status-metric-pill stat-active" title="Tasks In Progress or In Review">
-                <i class="fa-solid fa-bolt-lightning"></i> <span><strong>${inProgressCount}</strong> active</span>
-              </span>
-              ${statusCounts.blocked > 0 ? `
-                <button type="button" class="status-metric-pill ${this.activeQuickFilter === 'blocked' ? 'active' : ''}" id="board-metric-blocked" style="color: #EF4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.12);" title="Click to filter ${statusCounts.blocked} blocked tasks">
-                  <i class="fa-solid fa-ban"></i> <span><strong>${statusCounts.blocked}</strong> blocked</span>
-                </button>
-              ` : ''}
-              <span class="status-metric-pill stat-completion ${completionPct === 100 ? 'is-complete' : ''}" title="${doneTasks.length} of ${totalCount} tasks completed (${completionPct}%)">
-                <i class="fa-solid fa-circle-check"></i> <span><strong>${completionPct}%</strong> done</span>
-              </span>
-              ${overdueCount > 0 ? `
-                <button type="button" class="status-metric-pill stat-overdue ${this.activeQuickFilter === 'overdue' ? 'active' : ''}" id="board-metric-overdue" title="Click to filter overdue tasks">
-                  <i class="fa-solid fa-triangle-exclamation"></i> <span><strong>${overdueCount}</strong> overdue</span>
-                </button>
-              ` : ''}
-            </div>
-          </div>
-        </div>
-
         <!-- COLLAPSIBLE FILTER CONSOLE (Shown when !this.filtersMinimized) -->
         ${!this.filtersMinimized ? `
           <div class="board-collapsible-filter-panel">
@@ -297,7 +222,7 @@ const BoardView = {
               <div class="filter-panel-selectors">
                 <!-- Project Filter -->
                 <div class="board-filter-select-wrapper">
-                  <i class="fa-solid fa-folder-tree select-leading-icon" style="color: #388BFD;"></i>
+                  <i class="fa-solid fa-folder-tree select-leading-icon" style="color: #0057d2;"></i>
                   <select id="board-project-filter" class="board-select-control" title="Filter by Project">
                     <option value="">All Projects</option>
                     ${AppState.projects.map(p => `
@@ -380,7 +305,7 @@ const BoardView = {
                   <span>Overdue</span>
                 </button>
                 <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'today' ? 'active' : ''}" data-filter="today">
-                  <i class="fa-solid fa-calendar-day" style="color: #3B82F6;"></i>
+                  <i class="fa-solid fa-calendar-day" style="color: #0057d2;"></i>
                   <span>Due Today</span>
                 </button>
               </div>
@@ -415,7 +340,7 @@ const BoardView = {
               ` : ''}
               ${selectedProject ? `
                 <button type="button" class="min-filter-chip" data-clear="project" title="Remove project filter">
-                  <i class="fa-solid fa-folder-tree" style="color: #388BFD;"></i> <span>${Utils.escapeHTML(selectedProject.name)}</span> <i class="fa-solid fa-xmark"></i>
+                  <i class="fa-solid fa-folder-tree" style="color: #0057d2;"></i> <span>${Utils.escapeHTML(selectedProject.name)}</span> <i class="fa-solid fa-xmark"></i>
                 </button>
               ` : ''}
               ${activeSprint ? `
@@ -693,7 +618,7 @@ const BoardView = {
         this.render(container);
         const newSearchInput = container.querySelector('#board-search-input');
         if (newSearchInput) {
-          newSearchInput.focus();
+          newSearchInput.focus({ preventScroll: true });
           newSearchInput.selectionStart = newSearchInput.selectionEnd = newSearchInput.value.length;
         }
       });
@@ -733,15 +658,6 @@ const BoardView = {
         this.render(container);
       });
     }
-
-    // 8c. Interactive Stage Progress Segments Click (quick stage filter)
-    container.querySelectorAll('.board-stage-distribution-bar .stage-seg[data-status]').forEach(seg => {
-      seg.addEventListener('click', () => {
-        const status = seg.dataset.status;
-        this.activeQuickFilter = this.activeQuickFilter === status ? 'all' : status;
-        this.render(container);
-      });
-    });
 
     // 8d. Minimized Active Filter Strip Removals
     const resetMinBtn = container.querySelector('#board-btn-reset-filters-min');
@@ -785,15 +701,6 @@ const BoardView = {
         this.render(container);
       });
     });
-
-    // 10. Clickable Overdue Inline Metric Pill
-    const overduePill = container.querySelector('#board-metric-overdue');
-    if (overduePill) {
-      overduePill.addEventListener('click', () => {
-        this.activeQuickFilter = this.activeQuickFilter === 'overdue' ? 'all' : 'overdue';
-        this.render(container);
-      });
-    }
 
     // 11. Select Filters (Project, Sprint, Type, Priority)
     const projSelect = container.querySelector('#board-project-filter');

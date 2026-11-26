@@ -187,7 +187,7 @@ const BacklogView = {
         this.searchQuery = '';
         if (searchInput) {
           searchInput.value = '';
-          searchInput.focus();
+          searchInput.focus({ preventScroll: true });
         }
         clearSearchBtn.classList.add('is-hidden');
         this._refreshFilteredRegions(container);
@@ -452,6 +452,11 @@ const BacklogView = {
   },
 
   _refreshFilteredRegions(container) {
+    const viewContainer = document.getElementById('view-container');
+    const scrollSnapshot = (viewContainer && window.Router && typeof Router.captureScrollState === 'function')
+      ? Router.captureScrollState(viewContainer)
+      : null;
+
     const data = this._getViewData();
 
     const canvasSlot = container.querySelector('[data-sp-refresh="active-canvas"]');
@@ -484,6 +489,10 @@ const BacklogView = {
     }
 
     this._bindDynamicInteractions(container);
+
+    if (scrollSnapshot && viewContainer && window.Router && typeof Router.restoreScrollState === 'function') {
+      Router.restoreScrollState(viewContainer, scrollSnapshot);
+    }
   },
 
   _bindDynamicInteractions(container) {
@@ -777,7 +786,7 @@ const BacklogView = {
 
     return groups.map(group => {
       const p = group.project;
-      const pColor = p.color || '#388bfd';
+      const pColor = p.color || '#0057d2';
       return `
         <div class="add-task-project-group">
           <div class="add-task-project-header">
@@ -3758,7 +3767,7 @@ const BacklogView = {
               <div class="sc-project-group">
                 <div class="sc-project-group-header">
                   <div class="sc-project-group-left">
-                    <span class="sc-dot" style="background: ${group.project.color || '#388bfd'};"></span>
+                    <span class="sc-dot" style="background: ${group.project.color || '#0057d2'};"></span>
                     <strong>${esc(group.project.name)}</strong>
                     ${group.project.key ? `<span class="sc-proj-key">${esc(group.project.key)}</span>` : ''}
                   </div>
@@ -3839,7 +3848,7 @@ const BacklogView = {
                   ${stats.projectBreakdown.map(pb => `
                     <tr>
                       <td>
-                        <span class="sc-dot" style="background:${pb.project.color || '#388bfd'};margin-right:6px;"></span>
+                        <span class="sc-dot" style="background:${pb.project.color || '#0057d2'};margin-right:6px;"></span>
                         <strong>${esc(pb.project.name)}</strong>
                         ${pb.project.key ? `<span class="sc-proj-key" style="margin-left:4px;">${esc(pb.project.key)}</span>` : ''}
                       </td>

@@ -36,7 +36,7 @@ const DataGridDropdown = {
       title = 'Change Status';
       items = [
         { value: 'backlog', label: 'Backlog', icon: 'fa-solid fa-inbox', iconColor: '#64748B' },
-        { value: 'todo', label: 'To Do', icon: 'fa-regular fa-circle', iconColor: '#2563EB' },
+        { value: 'todo', label: 'To Do', icon: 'fa-regular fa-circle', iconColor: '#0057d2' },
         { value: 'inprogress', label: 'In Progress', icon: 'fa-solid fa-spinner', iconColor: '#EA580C' },
         { value: 'inreview', label: 'In Review', icon: 'fa-solid fa-eye', iconColor: '#9333EA' },
         { value: 'blocked', label: 'Blocked', icon: 'fa-solid fa-ban', iconColor: '#EF4444' },
@@ -50,13 +50,13 @@ const DataGridDropdown = {
         { value: 'highest', label: 'Highest', icon: 'fa-solid fa-angle-up', iconColor: '#EA580C' },
         { value: 'high', label: 'High', icon: 'fa-solid fa-angle-up', iconColor: '#D97706' },
         { value: 'medium', label: 'Medium', icon: 'fa-solid fa-minus', iconColor: '#EAB308' },
-        { value: 'low', label: 'Low', icon: 'fa-solid fa-angle-down', iconColor: '#3B82F6' },
+        { value: 'low', label: 'Low', icon: 'fa-solid fa-angle-down', iconColor: '#0057d2' },
         { value: 'lowest', label: 'Lowest', icon: 'fa-solid fa-angles-down', iconColor: '#94A3B8' }
       ];
     } else if (type === 'dueDate') {
       title = 'Change Due Date';
       items = [
-        { value: 'today', label: 'Today', icon: 'fa-solid fa-calendar-day', iconColor: '#3B82F6' },
+        { value: 'today', label: 'Today', icon: 'fa-solid fa-calendar-day', iconColor: '#0057d2' },
         { value: 'tomorrow', label: 'Tomorrow', icon: 'fa-solid fa-sun', iconColor: '#F59E0B' },
         { value: 'this_week', label: 'This Friday', icon: 'fa-solid fa-calendar-week', iconColor: '#10B981' },
         { value: 'next_week', label: 'Next Monday', icon: 'fa-solid fa-calendar-plus', iconColor: '#8B5CF6' },
@@ -190,7 +190,7 @@ const ListView = {
   },
 
   /**
-   * Generates vibrant Atlassian Design System issue lozenges with icons & light text
+   * Generates vibrant SAP Analysis Design System issue lozenges with icons & light text
    */
   getTypeBadgeHTML(type) {
     const t = (type || 'task').toLowerCase();
@@ -484,25 +484,15 @@ const ListView = {
     const isAllSelected = tasks.length > 0 && tasks.every(t => this.selectedTaskIds.has(t.id));
     const isSomeSelected = tasks.some(t => this.selectedTaskIds.has(t.id)) && !isAllSelected;
 
-    // Metrics calculations
+    // Footer & filter badge metrics
     const totalCount = tasks.length;
     const totalPoints = tasks.reduce((sum, t) => sum + (Number(t.storyPoints) || 0), 0);
     const doneTasks = tasks.filter(t => t.status === 'done');
-    const inProgressCount = tasks.filter(t => t.status === 'inprogress' || t.status === 'inreview').length;
     const overdueCount = tasks.filter(t => Utils.isOverdue(t.dueDate, t.status)).length;
-    const completionPct = totalCount > 0 ? Math.round((doneTasks.length / totalCount) * 100) : 0;
-    const openTaskCount = tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled').length;
-    const attentionCount = tasks.filter(t => t.status === 'blocked' || Utils.isOverdue(t.dueDate, t.status)).length;
-    const donePct = completionPct;
+    const donePct = totalCount > 0 ? Math.round((doneTasks.length / totalCount) * 100) : 0;
 
     const statusCounts = {
-      backlog: tasks.filter(t => t.status === 'backlog').length,
-      todo: tasks.filter(t => t.status === 'todo').length,
-      inprogress: tasks.filter(t => t.status === 'inprogress').length,
-      inreview: tasks.filter(t => t.status === 'inreview').length,
-      blocked: tasks.filter(t => t.status === 'blocked').length,
-      done: doneTasks.length,
-      cancelled: tasks.filter(t => t.status === 'cancelled').length
+      blocked: tasks.filter(t => t.status === 'blocked').length
     };
 
     const hasFilters = this.hasAnyActiveFilters();
@@ -568,55 +558,6 @@ const ListView = {
           </div>
         </div>
 
-        ${TasksView.renderPlannerSummaryHTML({
-          totalCount,
-          doneCount: doneTasks.length,
-          openCount: openTaskCount,
-          inProgressCount,
-          attentionCount,
-          blockedCount: statusCounts.blocked,
-          overdueCount
-        })}
-
-        <!-- ROW 2: Executive Overall Status Progression & Health Center -->
-        <div class="board-executive-statusbar">
-          <div class="statusbar-center-group">
-            <div class="board-stage-distribution-bar" title="Interactive Workflow Distribution">
-              ${totalCount > 0 ? `
-                <div class="stage-seg seg-backlog ${this.activeQuickFilter === 'backlog' ? 'is-selected' : ''}" data-status="backlog" style="width: ${(statusCounts.backlog / totalCount) * 100}%;" title="Backlog: ${statusCounts.backlog} (${Math.round((statusCounts.backlog / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-todo ${this.activeQuickFilter === 'todo' ? 'is-selected' : ''}" data-status="todo" style="width: ${(statusCounts.todo / totalCount) * 100}%;" title="To Do: ${statusCounts.todo} (${Math.round((statusCounts.todo / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-inprogress ${this.activeQuickFilter === 'inprogress' ? 'is-selected' : ''}" data-status="inprogress" style="width: ${(statusCounts.inprogress / totalCount) * 100}%;" title="In Progress: ${statusCounts.inprogress} (${Math.round((statusCounts.inprogress / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-inreview ${this.activeQuickFilter === 'inreview' ? 'is-selected' : ''}" data-status="inreview" style="width: ${(statusCounts.inreview / totalCount) * 100}%;" title="In Review: ${statusCounts.inreview} (${Math.round((statusCounts.inreview / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-blocked ${this.activeQuickFilter === 'blocked' ? 'is-selected' : ''}" data-status="blocked" style="width: ${(statusCounts.blocked / totalCount) * 100}%;" title="Blocked: ${statusCounts.blocked} (${Math.round((statusCounts.blocked / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-done ${this.activeQuickFilter === 'done' ? 'is-selected' : ''}" data-status="done" style="width: ${(statusCounts.done / totalCount) * 100}%;" title="Done: ${statusCounts.done} (${Math.round((statusCounts.done / totalCount) * 100)}%) - Click to filter"></div>
-                <div class="stage-seg seg-cancelled ${this.activeQuickFilter === 'cancelled' ? 'is-selected' : ''}" data-status="cancelled" style="width: ${(statusCounts.cancelled / totalCount) * 100}%;" title="Cancelled: ${statusCounts.cancelled} (${Math.round((statusCounts.cancelled / totalCount) * 100)}%) - Click to filter"></div>
-              ` : `
-                <div class="stage-seg is-empty" style="width: 100%;"></div>
-              `}
-            </div>
-
-            <div class="board-status-metrics-strip">
-              <span class="status-metric-pill stat-total" title="Total Filtered Tasks">
-                <i class="fa-solid fa-layer-group"></i> <span><strong>${totalCount}</strong> Tasks</span>
-              </span>
-              <span class="status-metric-pill stat-points" title="Total Story Points">
-                <i class="fa-solid fa-diamond"></i> <span><strong>${totalPoints}</strong> pts</span>
-              </span>
-              <span class="status-metric-pill stat-active" title="Tasks In Progress or In Review">
-                <i class="fa-solid fa-bolt-lightning"></i> <span><strong>${inProgressCount}</strong> active</span>
-              </span>
-              <span class="status-metric-pill stat-completion ${completionPct === 100 ? 'is-complete' : ''}" title="${doneTasks.length} of ${totalCount} tasks completed (${completionPct}%)">
-                <i class="fa-solid fa-circle-check"></i> <span><strong>${completionPct}%</strong> done</span>
-              </span>
-              ${overdueCount > 0 ? `
-                <button type="button" class="status-metric-pill stat-overdue ${this.activeQuickFilter === 'overdue' ? 'active' : ''}" id="datagrid-metric-overdue" title="Click to filter overdue tasks">
-                  <i class="fa-solid fa-triangle-exclamation"></i> <span><strong>${overdueCount}</strong> overdue</span>
-                </button>
-              ` : ''}
-            </div>
-          </div>
-        </div>
-
         <!-- COLLAPSIBLE FILTER CONSOLE (Shown when !this.filtersMinimized) -->
         ${!this.filtersMinimized ? `
           <div class="board-collapsible-filter-panel">
@@ -626,7 +567,7 @@ const ListView = {
               <div class="filter-panel-selectors">
                 <!-- Project Filter -->
                 <div class="board-filter-select-wrapper">
-                  <i class="fa-solid fa-folder-tree select-leading-icon" style="color: #388BFD;"></i>
+                  <i class="fa-solid fa-folder-tree select-leading-icon" style="color: #0057d2;"></i>
                   <select id="datagrid-project-filter" class="board-select-control" title="Filter by Project">
                     <option value="">All Projects</option>
                     ${AppState.projects.map(p => `
@@ -654,7 +595,7 @@ const ListView = {
 
                 <!-- Status Filter -->
                 <div class="board-filter-select-wrapper">
-                  <i class="fa-solid fa-list-check select-leading-icon" style="color: #0BDA51;"></i>
+                  <i class="fa-solid fa-list-check select-leading-icon" style="color: #107e3e;"></i>
                   <select id="datagrid-status-filter" class="board-select-control" title="Filter by Status">
                     <option value="">All Statuses</option>
                     <option value="backlog" ${activeStatus === 'backlog' ? 'selected' : ''}>Backlog</option>
@@ -734,7 +675,7 @@ const ListView = {
                   <span>Overdue</span>
                 </button>
                 <button type="button" class="board-filter-chip ${this.activeQuickFilter === 'today' ? 'active' : ''}" data-filter="today">
-                  <i class="fa-solid fa-calendar-day" style="color: #3B82F6;"></i>
+                  <i class="fa-solid fa-calendar-day" style="color: #0057d2;"></i>
                   <span>Due Today</span>
                 </button>
               </div>
@@ -769,7 +710,7 @@ const ListView = {
               ` : ''}
               ${selectedProject ? `
                 <button type="button" class="min-filter-chip" data-clear="project" title="Remove project filter">
-                  <i class="fa-solid fa-folder-tree" style="color: #388BFD;"></i> <span>${Utils.escapeHTML(selectedProject.name)}</span> <i class="fa-solid fa-xmark"></i>
+                  <i class="fa-solid fa-folder-tree" style="color: #0057d2;"></i> <span>${Utils.escapeHTML(selectedProject.name)}</span> <i class="fa-solid fa-xmark"></i>
                 </button>
               ` : ''}
               ${activeSprint ? `
@@ -779,7 +720,7 @@ const ListView = {
               ` : ''}
               ${activeStatus ? `
                 <button type="button" class="min-filter-chip" data-clear="status" title="Remove status filter">
-                  <i class="fa-solid fa-list-check" style="color: #0BDA51;"></i> <span>${activeStatus}</span> <i class="fa-solid fa-xmark"></i>
+                  <i class="fa-solid fa-list-check" style="color: #107e3e;"></i> <span>${activeStatus}</span> <i class="fa-solid fa-xmark"></i>
                 </button>
               ` : ''}
               ${activeType ? `
@@ -913,7 +854,7 @@ const ListView = {
                             ` : ''}
                             ${!AppState.selectedProjectId && project ? `
                               <span class="datagrid-meta-badge datagrid-meta-project" title="Project: ${Utils.escapeHTML(project.name)}">
-                                <span class="meta-project-dot" style="background: ${project.color || '#1868DB'};"></span>
+                                <span class="meta-project-dot" style="background: ${project.color || '#0057d2'};"></span>
                                 ${Utils.escapeHTML(project.name.length > 16 ? project.name.substring(0, 14) + '...' : project.name)}
                               </span>
                             ` : ''}
@@ -976,7 +917,7 @@ const ListView = {
 
             <div class="datagrid-footer-right">
               ${this.selectedTaskIds.size > 0 ? `
-                <div class="datagrid-metric-item" style="color: #0BDA51;">
+                <div class="datagrid-metric-item" style="color: #107e3e;">
                   <i class="fa-solid fa-check-double"></i>
                   <strong>${this.selectedTaskIds.size}</strong> selected
                 </div>
@@ -988,7 +929,7 @@ const ListView = {
           </div>
         </div>
 
-        <!-- Floating Bulk Operations Toolbar (Atlassian Design System) -->
+        <!-- Floating Bulk Operations Toolbar (SAP Analysis Design System) -->
         ${this.selectedTaskIds.size > 0 ? `
           <div id="datagrid-bulk-toolbar" class="bulk-operations-bar">
             
@@ -1102,7 +1043,7 @@ const ListView = {
         this.render(container);
         const newSearchInput = container.querySelector('#datagrid-search-input');
         if (newSearchInput) {
-          newSearchInput.focus();
+          newSearchInput.focus({ preventScroll: true });
           newSearchInput.selectionStart = newSearchInput.selectionEnd = newSearchInput.value.length;
         }
       });
@@ -1136,30 +1077,6 @@ const ListView = {
     if (minimizeBtn) {
       minimizeBtn.addEventListener('click', () => {
         this.filtersMinimized = true;
-        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
-          TasksView.syncStateFromView(this);
-        }
-        this.render(container);
-      });
-    }
-
-    // 3. Stage Distribution Bar segment clicks (quick stage filter)
-    container.querySelectorAll('.board-stage-distribution-bar .stage-seg[data-status]').forEach(seg => {
-      seg.addEventListener('click', () => {
-        const status = seg.dataset.status;
-        this.activeQuickFilter = this.activeQuickFilter === status ? 'all' : status;
-        if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
-          TasksView.syncStateFromView(this);
-        }
-        this.render(container);
-      });
-    });
-
-    // 4. Overdue metric pill click
-    const overduePill = container.querySelector('#datagrid-metric-overdue');
-    if (overduePill) {
-      overduePill.addEventListener('click', () => {
-        this.activeQuickFilter = this.activeQuickFilter === 'overdue' ? 'all' : 'overdue';
         if (typeof TasksView !== 'undefined' && typeof TasksView.syncStateFromView === 'function') {
           TasksView.syncStateFromView(this);
         }
@@ -1647,7 +1564,7 @@ const ListView = {
           </label>
           <div class="bulk-presets-row">
             <button type="button" class="btn btn-secondary btn-sm bulk-preset-btn" data-date="${Utils.toDateInputValue(today)}">
-              <i class="fa-solid fa-calendar-day" style="color: #3B82F6;"></i> Today
+              <i class="fa-solid fa-calendar-day" style="color: #0057d2;"></i> Today
             </button>
             <button type="button" class="btn btn-secondary btn-sm bulk-preset-btn" data-date="${Utils.toDateInputValue(tomorrow)}">
               <i class="fa-solid fa-sun" style="color: #F59E0B;"></i> Tomorrow

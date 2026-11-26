@@ -434,7 +434,7 @@ const TaskModal = {
     const getTypeIcon = (type) => {
       const icons = {
         task: '<i class="fa-solid fa-check-square" style="color: #4da3ff;"></i>',
-        story: '<i class="fa-solid fa-book-open" style="color: #0BDA51;"></i>',
+        story: '<i class="fa-solid fa-book-open" style="color: #107e3e;"></i>',
         bug: '<i class="fa-solid fa-bug" style="color: #ff6b6b;"></i>',
         epic: '<i class="fa-solid fa-bolt" style="color: #e879f9;"></i>',
         improvement: '<i class="fa-solid fa-arrow-up-right-dots" style="color: #f0b429;"></i>'
@@ -1044,6 +1044,7 @@ const TaskModal = {
     document.body.classList.remove('has-modal-open');
     this.isOpen = false;
     this.currentTaskId = null;
+    this._lastRenderedTaskId = null;
     if (this.activeTimerInterval) {
       clearInterval(this.activeTimerInterval);
       this.activeTimerInterval = null;
@@ -1067,7 +1068,21 @@ const TaskModal = {
    * @param {Object} task 
    */
   renderDrawerContent(drawer, task) {
-    const project = AppState.projects.find(p => p.id === task.projectId) || { name: 'No Project', key: 'PRJ', color: '#579DFF' };
+    if (!drawer || !task) return;
+    const isSameTask = !!(this._lastRenderedTaskId === task.id && drawer.children && drawer.children.length > 0);
+    const overlay = document.getElementById('task-drawer-overlay');
+    const overlayScrollTop = isSameTask && overlay ? overlay.scrollTop : 0;
+    const drawerScrollSnapshot = isSameTask
+      ? (window.Router && typeof Router.captureScrollState === 'function'
+          ? Router.captureScrollState(drawer)
+          : {
+              bodyTop: (drawer.querySelector('.fullpage-task-body') || {}).scrollTop || 0,
+              bodyLeft: (drawer.querySelector('.fullpage-task-body') || {}).scrollLeft || 0,
+              drawerTop: drawer.scrollTop || 0
+            })
+      : null;
+
+    const project = AppState.projects.find(p => p.id === task.projectId) || { name: 'No Project', key: 'PRJ', color: '#0057d2' };
     const taskComments = AppState.comments.filter(c => c.taskId === task.id);
     const taskActivities = AppState.activity.filter(a => a.taskId === task.id);
     const subtasks = AppState.tasks.filter(t => t.parentId === task.id);
@@ -1121,15 +1136,15 @@ const TaskModal = {
       dueMidnight.setHours(0, 0, 0, 0);
       const diffDays = Math.round((dueMidnight - now) / (1000 * 60 * 60 * 24));
       if (task.status === 'done') {
-        dueStatusHTML = `<span class="badge" style="background: rgba(54, 179, 126, 0.15); color: #36B37E;"><i class="fa-regular fa-calendar-check"></i> Completed (${Utils.formatDate(task.dueDate)})</span>`;
+        dueStatusHTML = `<span class="badge" style="background: rgba(54, 179, 126, 0.15); color: #107e3e;"><i class="fa-regular fa-calendar-check"></i> Completed (${Utils.formatDate(task.dueDate)})</span>`;
       } else if (diffDays < 0) {
-        dueStatusHTML = `<span class="badge" style="background: rgba(248, 81, 73, 0.16); color: #F85149; border: 1px solid rgba(248, 81, 73, 0.35); font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> Overdue by ${Math.abs(diffDays)}d (${Utils.formatDate(task.dueDate)})</span>`;
+        dueStatusHTML = `<span class="badge" style="background: rgba(248, 81, 73, 0.16); color: #bb0000; border: 1px solid rgba(248, 81, 73, 0.35); font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> Overdue by ${Math.abs(diffDays)}d (${Utils.formatDate(task.dueDate)})</span>`;
       } else if (diffDays === 0) {
         dueStatusHTML = `<span class="badge" style="background: rgba(210, 153, 34, 0.2); color: #E3B341; border: 1px solid rgba(210, 153, 34, 0.4); font-weight: 600;"><i class="fa-regular fa-clock"></i> Due Today</span>`;
       } else if (diffDays === 1) {
         dueStatusHTML = `<span class="badge" style="background: rgba(210, 153, 34, 0.15); color: #E3B341;"><i class="fa-regular fa-calendar"></i> Due Tomorrow</span>`;
       } else if (diffDays <= 4) {
-        dueStatusHTML = `<span class="badge" style="background: rgba(87, 157, 255, 0.15); color: #579DFF;"><i class="fa-regular fa-calendar"></i> Due in ${diffDays} days</span>`;
+        dueStatusHTML = `<span class="badge" style="background: rgba(0, 87, 210, 0.15); color: #0057d2;"><i class="fa-regular fa-calendar"></i> Due in ${diffDays} days</span>`;
       } else {
         dueStatusHTML = `<span class="badge" style="background: var(--bg-surface-elevated); color: var(--text-secondary);"><i class="fa-regular fa-calendar"></i> ${Utils.formatDate(task.dueDate)}</span>`;
       }
@@ -1137,12 +1152,12 @@ const TaskModal = {
 
     // Type definition
     const typeIcons = {
-      task: { icon: 'fa-square-check', color: '#579DFF', label: 'Task' },
+      task: { icon: 'fa-square-check', color: '#0057d2', label: 'Task' },
       story: { icon: 'fa-bookmark', color: '#6554C0', label: 'Story' },
-      bug: { icon: 'fa-circle-dot', color: '#F85149', label: 'Bug' },
+      bug: { icon: 'fa-circle-dot', color: '#bb0000', label: 'Bug' },
       epic: { icon: 'fa-bolt', color: '#8777D9', label: 'Epic' },
-      improvement: { icon: 'fa-circle-arrow-up', color: '#36B37E', label: 'Improvement' },
-      subtask: { icon: 'fa-turn-up fa-rotate-90', color: '#579DFF', label: 'Subtask' }
+      improvement: { icon: 'fa-circle-arrow-up', color: '#107e3e', label: 'Improvement' },
+      subtask: { icon: 'fa-turn-up fa-rotate-90', color: '#0057d2', label: 'Subtask' }
     };
     const currentType = typeIcons[task.type] || typeIcons.task;
 
@@ -1161,8 +1176,8 @@ const TaskModal = {
           <div class="fullpage-header-divider"></div>
 
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span class="badge" style="background: ${project.color || '#579DFF'}18; color: ${project.color || '#579DFF'}; border: 1px solid ${project.color || '#579DFF'}44; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
-              <span style="width: 7px; height: 7px; border-radius: 50%; background: ${project.color || '#579DFF'};"></span>
+            <span class="badge" style="background: ${project.color || '#0057d2'}18; color: ${project.color || '#0057d2'}; border: 1px solid ${project.color || '#0057d2'}44; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: ${project.color || '#0057d2'};"></span>
               ${Utils.escapeHTML(project.name)}
             </span>
             <span style="color: var(--text-muted); font-size: 13px;">/</span>
@@ -1270,7 +1285,7 @@ const TaskModal = {
                 <i class="fa-solid fa-plus" style="color: var(--accent-primary);"></i> Subtask
               </button>
               <button type="button" class="fullpage-action-btn" id="btn-quick-add-checklist">
-                <i class="fa-regular fa-square-check" style="color: #36B37E;"></i> Checklist Item
+                <i class="fa-regular fa-square-check" style="color: #107e3e;"></i> Checklist Item
               </button>
               <button type="button" class="fullpage-action-btn" id="btn-quick-add-comment">
                 <i class="fa-regular fa-comment" style="color: #A371F7;"></i> Add Comment
@@ -1782,7 +1797,7 @@ const TaskModal = {
 
               <!-- Time Track Bar -->
               <div style="height: 6px; background: var(--bg-app); border-radius: 3px; overflow: hidden; margin-bottom: 12px;">
-                <div style="width: ${task.estimate ? Math.min(100, Math.round(((task.trackedTime || 0) / task.estimate) * 100)) : 0}%; height: 100%; background: linear-gradient(90deg, #579DFF, #36B37E); border-radius: 3px;"></div>
+                <div style="width: ${task.estimate ? Math.min(100, Math.round(((task.trackedTime || 0) / task.estimate) * 100)) : 0}%; height: 100%; background: linear-gradient(90deg, #0057d2, #107e3e); border-radius: 3px;"></div>
               </div>
 
               <button id="btn-timer-toggle" class="btn btn-secondary btn-sm" style="width: 100%; justify-content: center; height: 34px;">
@@ -1818,6 +1833,28 @@ const TaskModal = {
     `;
 
     this.attachDrawerListeners(task);
+    this._lastRenderedTaskId = task.id;
+
+    if (isSameTask && drawerScrollSnapshot) {
+      if (window.Router && typeof Router.restoreScrollState === 'function' && 'containerTop' in drawerScrollSnapshot) {
+        Router.restoreScrollState(drawer, drawerScrollSnapshot);
+      } else {
+        const nextBody = drawer.querySelector('.fullpage-task-body');
+        if (nextBody) {
+          nextBody.scrollTop = drawerScrollSnapshot.bodyTop || 0;
+          nextBody.scrollLeft = drawerScrollSnapshot.bodyLeft || 0;
+        }
+        drawer.scrollTop = drawerScrollSnapshot.drawerTop || 0;
+      }
+      if (overlay && overlayScrollTop > 0) {
+        overlay.scrollTop = overlayScrollTop;
+      }
+    } else if (!isSameTask) {
+      const nextBody = drawer.querySelector('.fullpage-task-body');
+      if (nextBody) nextBody.scrollTop = 0;
+      drawer.scrollTop = 0;
+      if (overlay) overlay.scrollTop = 0;
+    }
   },
 
   /**

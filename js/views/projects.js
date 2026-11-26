@@ -7,13 +7,6 @@ const ProjectsView = {
   render(container) {
     const projects = AppState.projects;
     const tasks = AppState.tasks;
-    const portfolioTasks = tasks.filter(t => !t.archived && t.status !== 'cancelled');
-    const doneTasks = portfolioTasks.filter(t => t.status === 'done').length;
-    const openTasks = portfolioTasks.filter(t => t.status !== 'done').length;
-    const completion = portfolioTasks.length ? Math.round((doneTasks / portfolioTasks.length) * 100) : 0;
-    const activeProjects = projects.filter(p => p.status === 'active').length;
-    const ringC = 2 * Math.PI * 22;
-    const ringOffset = ringC * (1 - completion / 100);
 
     container.innerHTML = `
       <div class="view-page projects-page">
@@ -28,42 +21,6 @@ const ProjectsView = {
             </button>
           </div>
         </header>
-
-        <section class="planner-summary projects-summary" aria-label="Portfolio summary">
-          <div class="planner-kpi planner-kpi-progress">
-            <svg class="planner-ring" viewBox="0 0 52 52" aria-hidden="true">
-              <circle class="planner-ring-track" cx="26" cy="26" r="22"></circle>
-              <circle class="planner-ring-fill" cx="26" cy="26" r="22"
-                style="stroke-dasharray: ${ringC.toFixed(2)}; stroke-dashoffset: ${ringOffset.toFixed(2)};"></circle>
-            </svg>
-            <div class="planner-kpi-ring-label">${completion}%</div>
-            <div class="planner-kpi-text">
-              <span class="planner-kpi-title">Portfolio progress</span>
-              <span class="planner-kpi-value">${doneTasks} <small>of ${portfolioTasks.length} done</small></span>
-            </div>
-          </div>
-          <div class="planner-kpi">
-            <div class="planner-kpi-icon kpi-blue"><i class="fa-solid fa-folder-tree"></i></div>
-            <div class="planner-kpi-text">
-              <span class="planner-kpi-title">Projects</span>
-              <span class="planner-kpi-value">${projects.length} <small>total</small></span>
-            </div>
-          </div>
-          <div class="planner-kpi">
-            <div class="planner-kpi-icon kpi-purple"><i class="fa-solid fa-bolt"></i></div>
-            <div class="planner-kpi-text">
-              <span class="planner-kpi-title">Active projects</span>
-              <span class="planner-kpi-value">${activeProjects} <small>in progress</small></span>
-            </div>
-          </div>
-          <div class="planner-kpi">
-            <div class="planner-kpi-icon ${openTasks ? 'kpi-red' : 'kpi-green'}"><i class="fa-solid ${openTasks ? 'fa-list-check' : 'fa-circle-check'}"></i></div>
-            <div class="planner-kpi-text">
-              <span class="planner-kpi-title">Open tasks</span>
-              <span class="planner-kpi-value">${openTasks} <small>${openTasks ? 'across projects' : 'all clear'}</small></span>
-            </div>
-          </div>
-        </section>
 
         <section class="projects-section" aria-label="Projects">
           <div class="projects-section-head">
@@ -84,7 +41,7 @@ const ProjectsView = {
                 const projectDone = projectTasks.filter(t => t.status === 'done').length;
                 const projectOpen = projectTasks.length - projectDone;
                 const progress = projectTasks.length ? Math.round((projectDone / projectTasks.length) * 100) : 0;
-                const accent = /^#[\da-f]{3,8}$/i.test(proj.color || '') ? proj.color : '#579DFF';
+                const accent = /^#[\da-f]{3,8}$/i.test(proj.color || '') ? proj.color : '#0057d2';
                 const status = String(proj.status || 'planning').toLowerCase();
                 const statusLabel = status.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
 
@@ -159,7 +116,7 @@ const ProjectsView = {
           </div>
           <div class="form-group">
             <label class="form-label">Color Theme</label>
-            <input type="color" id="proj-create-color" value="#388bfd" style="height: 38px; width: 60px; border: none; background: transparent; cursor: pointer;">
+            <input type="color" id="proj-create-color" value="#0057d2" style="height: 38px; width: 60px; border: none; background: transparent; cursor: pointer;">
           </div>
         </div>
 
@@ -241,7 +198,7 @@ const ProjectsView = {
           </div>
           <div class="form-group">
             <label class="form-label">Color</label>
-            <input type="color" id="proj-edit-color" value="${proj.color || '#388bfd'}" style="height: 38px; width: 60px; border: none; background: transparent; cursor: pointer;">
+            <input type="color" id="proj-edit-color" value="${proj.color || '#0057d2'}" style="height: 38px; width: 60px; border: none; background: transparent; cursor: pointer;">
           </div>
         </div>
       </form>

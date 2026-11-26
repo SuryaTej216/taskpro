@@ -95,20 +95,20 @@ const SettingsView = {
           <div id="settings-storage-section" style="background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: 22px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
               <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="width: 38px; height: 38px; border-radius: var(--radius-md); background: rgba(87, 157, 255, 0.12); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); font-size: 16px;">
+                <div style="width: 38px; height: 38px; border-radius: var(--sap-radius-md); background: var(--sap-band-blue); display: flex; align-items: center; justify-content: center; color: var(--sap-primary); font-size: 16px;">
                   <i class="fa-solid fa-hard-drive"></i>
                 </div>
                 <div>
-                  <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin: 0;">Local Storage Usage & Limit</h3>
-                  <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Browser origin storage quota and live capacity breakdown</p>
+                  <h3 style="font-size: 16px; font-weight: 500; color: var(--sap-ink); margin: 0;">Local Storage Usage & Limit</h3>
+                  <p style="font-size: 13px; color: var(--sap-ink-meta); margin: 2px 0 0 0;">Browser origin storage quota and live capacity breakdown</p>
                 </div>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="badge" style="background: ${stats.statusColor}18; color: ${stats.statusColor}; border: 1px solid ${stats.statusColor}44; font-weight: 600; padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
-                  <span style="width: 7px; height: 7px; border-radius: 50%; background: ${stats.statusColor}; animation: pulseGreen 2.5s infinite;"></span>
+                <span class="badge" style="background: ${stats.statusColor}18; color: ${stats.statusColor}; border: 1px solid ${stats.statusColor}44; font-weight: 500; padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: ${stats.statusColor};"></span>
                   ${stats.statusText} (${stats.percentFree}% Free)
                 </span>
-                <button class="btn btn-secondary btn-sm" onclick="SettingsView.refreshStorage()" title="Recalculate storage footprint" style="height: 30px; font-size: 12px;">
+                <button class="btn btn-secondary btn-sm" onclick="SettingsView.refreshStorage()" title="Recalculate storage footprint" style="height: 32px; font-size: 13px;">
                   <i class="fa-solid fa-rotate"></i> Refresh
                 </button>
               </div>
@@ -118,17 +118,17 @@ const SettingsView = {
             <div style="margin-bottom: 20px;">
               <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
                 <div>
-                  <span style="font-size: 20px; font-weight: 700; color: var(--text-primary);">${stats.formattedTotal}</span>
-                  <span style="font-size: 13px; color: var(--text-muted); margin-left: 6px;">used of <strong style="color: var(--text-primary);">${stats.formattedQuota}</strong> limit</span>
+                  <span style="font-size: 20px; font-weight: 500; color: var(--sap-ink);">${stats.formattedTotal}</span>
+                  <span style="font-size: 13px; color: var(--sap-ink-meta); margin-left: 6px;">used of <strong style="color: var(--sap-ink);">${stats.formattedQuota}</strong> limit</span>
                 </div>
-                <div style="font-size: 13px; font-weight: 700; color: ${stats.statusColor};">
+                <div style="font-size: 13px; font-weight: 500; color: ${stats.statusColor};">
                   ${stats.percentUsed}% Quota Used
                 </div>
               </div>
-              <div style="height: 12px; background: var(--bg-app); border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); position: relative;">
-                <div style="width: ${Math.max(1, stats.percentUsed)}%; height: 100%; background: linear-gradient(90deg, #579DFF 0%, #36B37E 100%); border-radius: 6px; transition: width 0.4s ease; box-shadow: 0 0 8px rgba(87, 157, 255, 0.4);"></div>
+              <div style="height: 10px; background: var(--sap-band); border-radius: 4px; overflow: hidden; border: 1px solid var(--border-subtle); position: relative;">
+                <div style="width: ${Math.max(1, stats.percentUsed)}%; height: 100%; background: var(--sap-primary); border-radius: 2px; transition: width 0.3s ease;"></div>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--sap-ink-meta); margin-top: 6px;">
                 <span>0 KB</span>
                 <span>Available: <strong style="color: var(--accent-success);">${stats.formattedRemaining}</strong></span>
                 <span>Max Quota: 5.00 MB</span>
@@ -137,28 +137,28 @@ const SettingsView = {
 
             <!-- 3 Stat Blocks Grid -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px;">
-              <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px;">
-                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px;">
-                  <i class="fa-solid fa-database" style="color: #579DFF;"></i> Used Storage
+              <div style="background: var(--sap-chrome); border: 1px solid var(--border); border-radius: var(--sap-radius-md); padding: 14px 16px;">
+                <div style="font-size: 12px; font-weight: 500; color: var(--sap-ink-meta); margin-bottom: 4px;">
+                  <i class="fa-solid fa-database" style="color: var(--sap-primary);"></i> Used Storage
                 </div>
-                <div style="font-size: 18px; font-weight: 700; color: var(--text-primary);">${stats.formattedTotal}</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${stats.percentUsed}% of total quota</div>
+                <div style="font-size: 20px; font-weight: 500; color: var(--sap-ink);">${stats.formattedTotal}</div>
+                <div style="font-size: 12px; color: var(--sap-ink-list); margin-top: 2px;">${stats.percentUsed}% of total quota</div>
               </div>
 
-              <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px;">
-                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px;">
-                  <i class="fa-solid fa-circle-check" style="color: #36B37E;"></i> Free Space
+              <div style="background: var(--sap-chrome); border: 1px solid var(--border); border-radius: var(--sap-radius-md); padding: 14px 16px;">
+                <div style="font-size: 12px; font-weight: 500; color: var(--sap-ink-meta); margin-bottom: 4px;">
+                  <i class="fa-solid fa-circle-check" style="color: var(--accent-success);"></i> Free Space
                 </div>
-                <div style="font-size: 18px; font-weight: 700; color: var(--accent-success);">${stats.formattedRemaining}</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${stats.percentFree}% remaining headroom</div>
+                <div style="font-size: 20px; font-weight: 500; color: var(--accent-success);">${stats.formattedRemaining}</div>
+                <div style="font-size: 12px; color: var(--sap-ink-list); margin-top: 2px;">${stats.percentFree}% remaining headroom</div>
               </div>
 
-              <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px;">
-                <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px;">
-                  <i class="fa-solid fa-shield-halved" style="color: #A371F7;"></i> Quota Limit
+              <div style="background: var(--sap-chrome); border: 1px solid var(--border); border-radius: var(--sap-radius-md); padding: 14px 16px;">
+                <div style="font-size: 12px; font-weight: 500; color: var(--sap-ink-meta); margin-bottom: 4px;">
+                  <i class="fa-solid fa-shield-halved" style="color: var(--accent-purple);"></i> Quota Limit
                 </div>
-                <div style="font-size: 18px; font-weight: 700; color: var(--text-primary);">${stats.formattedQuota}</div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Browser origin LocalStorage cap</div>
+                <div style="font-size: 20px; font-weight: 500; color: var(--sap-ink);">${stats.formattedQuota}</div>
+                <div style="font-size: 12px; color: var(--sap-ink-list); margin-top: 2px;">Browser origin LocalStorage cap</div>
               </div>
             </div>
 
@@ -431,7 +431,7 @@ const SettingsView = {
 
 const ThemeManager = {
   toggle() {
-    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
     const next = current === 'dark' ? 'light' : 'dark';
     this.setTheme(next);
   },

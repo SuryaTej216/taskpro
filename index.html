@@ -5,14 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description"
-    content="TaskForge - Premium Personal Jira-like Task & Project Management System. Zero-backend, browser-local productivity platform.">
-  <title>TaskForge — Personal Project & Task Management</title>
+    content="TaskForge - Enterprise Personal Project & Task Management System built with SAP Analysis Design Language. Zero-backend, browser-local productivity platform.">
+  <title>TaskForge — Enterprise Project & Task Management</title>
 
-  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <!-- Variable Typeface: Inter Variable (genuine 100..900 weight axis supporting 350 list-item weight per design.md) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap"
     rel="stylesheet">
 
   <!-- Font Awesome 6 -->
@@ -21,16 +21,16 @@
     crossorigin="anonymous" referrerpolicy="no-referrer" />
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="css/styles.css?v=tf_v21">
-  <link rel="stylesheet" href="css/components.css?v=tf_v24">
-  <link rel="stylesheet" href="css/responsive.css?v=tf_v21">
-  <link rel="stylesheet" href="css/planner.css?v=planner_v1">
-  <link rel="stylesheet" href="css/dashboard.css?v=dashboard_v13">
-  <link rel="stylesheet" href="css/projects.css?v=projects_v1">
-  <link rel="stylesheet" href="css/backlog.css?v=backlog_v15">
-  <link rel="stylesheet" href="css/tasks.css?v=tasks_v1">
-  <link rel="stylesheet" href="css/status-control.css?v=sc_v2">
-  <link rel="stylesheet" href="css/hierarchy.css?v=hier_v8">
+  <link rel="stylesheet" href="css/styles.css?v=sap_v3">
+  <link rel="stylesheet" href="css/components.css?v=sap_v2">
+  <link rel="stylesheet" href="css/responsive.css?v=sap_v3">
+  <link rel="stylesheet" href="css/planner.css?v=sap_v2">
+  <link rel="stylesheet" href="css/dashboard.css?v=sap_v2">
+  <link rel="stylesheet" href="css/projects.css?v=sap_v2">
+  <link rel="stylesheet" href="css/backlog.css?v=sap_v2">
+  <link rel="stylesheet" href="css/tasks.css?v=sap_v2">
+  <link rel="stylesheet" href="css/status-control.css?v=sap_v2">
+  <link rel="stylesheet" href="css/hierarchy.css?v=sap_v3">
 </head>
 
 <body>
@@ -41,7 +41,7 @@
   <!-- Main App Shell -->
   <div id="app-shell">
 
-    <!-- Left Sidebar Navigation -->
+    <!-- Left Sidebar Navigation (SAP App Shell) -->
     <aside id="sidebar" aria-label="Main Navigation">
       <div class="sidebar-header">
         <div class="brand-logo">
@@ -125,7 +125,7 @@
 
       <div class="sidebar-footer">
         <div class="sidebar-status-bar" id="sidebar-storage-status"
-          title="Local Storage Usage & Limit — Click to view details" style="cursor: pointer;">
+          title="Local Storage Usage & Limit — Click to view details">
           <span class="status-pulse-dot"></span>
           <span class="status-text" id="sidebar-storage-text">LocalDB Connected</span>
         </div>
@@ -152,7 +152,7 @@
     <!-- Main Viewport Area -->
     <main id="main-viewport">
 
-      <!-- Top Navigation Header -->
+      <!-- Storey 1: Quiet 60px Chrome Global Navigation Bar -->
       <header id="topbar">
         <div class="topbar-left">
           <button id="mobile-sidebar-toggle" class="btn-icon mobile-menu-trigger" style="display: none;"
@@ -162,30 +162,29 @@
 
           <!-- Project Context Switcher -->
           <div id="topbar-project-picker" class="project-selector-dropdown" title="Select Project Filter">
-            <i class="fa-solid fa-diagram-project" style="color: #579DFF;"></i>
+            <i class="fa-solid fa-diagram-project topbar-picker-icon"></i>
             <span id="current-project-label">All Projects</span>
-            <i class="fa-solid fa-chevron-down" style="font-size: 10px; color: #9FB2C8;"></i>
+            <i class="fa-solid fa-chevron-down topbar-picker-chevron"></i>
           </div>
 
           <!-- Global Search / Command Bar Trigger -->
           <div id="topbar-search-trigger" class="global-search-trigger" title="Search or execute commands (Ctrl+K)">
-            <i class="fa-solid fa-magnifying-glass" style="color: #9FB2C8;"></i>
+            <i class="fa-solid fa-magnifying-glass topbar-search-icon"></i>
             <span>Search tasks, projects, tags...</span>
             <span class="search-kbd-shortcut">Ctrl K</span>
           </div>
         </div>
 
         <div class="topbar-right">
-          <!-- Quick Create Task Button -->
+          <!-- Quick Create Task Button (SAP button-primary) -->
           <button id="topbar-create-task-btn" class="btn btn-primary" title="Create Task (C)">
             <i class="fa-solid fa-plus"></i>
             <span>Create</span>
             <kbd class="topbar-btn-kbd">C</kbd>
           </button>
 
-          <!-- Bulk Create Tasks Button -->
-          <button id="topbar-bulk-create-btn" class="btn btn-secondary" title="Bulk Create Tasks (Shift+C)"
-            style="gap: 0.375rem;">
+          <!-- Bulk Create Tasks Button (SAP button-outline) -->
+          <button id="topbar-bulk-create-btn" class="btn btn-secondary" title="Bulk Create Tasks (Shift+C)">
             <i class="fa-solid fa-layer-group"></i>
             <span>Bulk Create</span>
           </button>
@@ -202,9 +201,7 @@
           </button>
 
           <!-- User Avatar Menu -->
-          <div id="topbar-user-avatar-btn" class="user-avatar-btn"
-            style="width: 2rem; height: 2rem; border-radius: 50%; background: #579DFF; display: flex; align-items: center; justify-content: center; color: #1C2B42; font-weight: 700; font-size: 0.75rem; cursor: pointer; user-select: none;"
-            title="Profile & Quick Links">
+          <div id="topbar-user-avatar-btn" class="user-avatar-btn" title="Profile & Quick Links">
             ST
           </div>
         </div>
@@ -215,7 +212,7 @@
         <!-- Views are rendered dynamically here by router.js -->
       </section>
 
-      <!-- Floating Scroll to Top Action Button -->
+      <!-- Floating Scroll to Top Action Button (SAP button-floating) -->
       <button id="scroll-to-top-btn" class="scroll-to-top-btn" title="Scroll to Top" aria-label="Scroll to Top">
         <i class="fa-solid fa-arrow-up"></i>
       </button>
@@ -265,57 +262,56 @@
   </div>
 
   <!-- Notifications Dropdown Popover -->
-  <div id="notifications-popover" class="topbar-dropdown-popover"
-    style="display: none; position: fixed; width: 340px; max-height: 460px; background: var(--surface-overlay); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-overlay); z-index: 1000; flex-direction: column; overflow: hidden;">
-    <div
-      style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-      <span style="font-weight: 653; font-size: 0.875rem;">Notifications</span>
-      <div style="display: flex; gap: 0.5rem;">
-        <button id="btn-mark-all-read" class="btn btn-ghost btn-sm" style="font-size: 0.6875rem;">Mark all read</button>
-        <button id="btn-clear-notifications" class="btn btn-ghost btn-sm" style="font-size: 0.6875rem;">Clear</button>
+  <div id="notifications-popover" class="topbar-dropdown-popover sap-popover sap-notifications-popover"
+    style="display: none;">
+    <div class="sap-popover-header">
+      <span class="sap-popover-title">Notifications</span>
+      <div class="sap-popover-actions">
+        <button id="btn-mark-all-read" class="btn btn-ghost btn-sm">Mark all read</button>
+        <button id="btn-clear-notifications" class="btn btn-ghost btn-sm">Clear</button>
       </div>
     </div>
-    <div id="notifications-list" style="overflow-y: auto; max-height: 380px; padding: 0.375rem;">
+    <div id="notifications-list" class="sap-notifications-list">
       <!-- Populated dynamically -->
     </div>
   </div>
 
   <!-- Project Selector Dropdown Popover -->
-  <div id="project-picker-popover" class="topbar-dropdown-popover"
-    style="display: none; position: fixed; width: 240px; background: var(--surface-overlay); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay); z-index: 1000; padding: 0.375rem;">
+  <div id="project-picker-popover" class="topbar-dropdown-popover sap-popover sap-project-popover"
+    style="display: none;">
     <!-- Populated dynamically -->
   </div>
 
   <!-- User Profile Dropdown Popover -->
-  <div id="user-profile-popover" class="topbar-dropdown-popover tf-dropdown-menu"
-    style="display: none; position: fixed; width: 240px; z-index: 1000; padding: 6px;">
-    <div style="padding: 6px 10px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 4px;">
-      <div style="font-weight: 700; font-size: 0.875rem; color: var(--text-primary);">Surya Tej</div>
-      <div style="font-size: 0.75rem; color: var(--text-secondary);">Product Owner & Admin</div>
+  <div id="user-profile-popover" class="topbar-dropdown-popover tf-dropdown-menu sap-profile-popover"
+    style="display: none;">
+    <div class="sap-profile-header">
+      <div class="sap-profile-name">Surya Tej</div>
+      <div class="sap-profile-role">Product Owner &amp; Admin</div>
     </div>
     <div class="tf-dropdown-items">
       <button type="button" class="tf-dropdown-item" id="user-menu-settings">
         <span class="tf-dropdown-item-left">
-          <i class="fa-solid fa-gear tf-dropdown-item-icon" style="color: var(--icon-subtle);"></i>
+          <i class="fa-solid fa-gear tf-dropdown-item-icon"></i>
           <span class="tf-dropdown-item-label">Settings</span>
         </span>
       </button>
       <button type="button" class="tf-dropdown-item" id="user-menu-shortcuts">
         <span class="tf-dropdown-item-left">
-          <i class="fa-regular fa-keyboard tf-dropdown-item-icon" style="color: var(--icon-subtle);"></i>
+          <i class="fa-regular fa-keyboard tf-dropdown-item-icon"></i>
           <span class="tf-dropdown-item-label">Keyboard Shortcuts</span>
         </span>
       </button>
       <button type="button" class="tf-dropdown-item" id="user-menu-docs">
         <span class="tf-dropdown-item-left">
-          <i class="fa-solid fa-book-open tf-dropdown-item-icon" style="color: var(--icon-subtle);"></i>
+          <i class="fa-solid fa-book-open tf-dropdown-item-icon"></i>
           <span class="tf-dropdown-item-label">Documentation</span>
         </span>
       </button>
       <div class="tf-dropdown-divider"></div>
       <button type="button" class="tf-dropdown-item" id="user-menu-theme">
         <span class="tf-dropdown-item-left">
-          <i class="fa-solid fa-circle-half-stroke tf-dropdown-item-icon" style="color: var(--icon-subtle);"></i>
+          <i class="fa-solid fa-circle-half-stroke tf-dropdown-item-icon"></i>
           <span class="tf-dropdown-item-label">Toggle Theme</span>
         </span>
       </button>
@@ -329,39 +325,25 @@
 
   <!-- Keyboard Shortcuts Help Modal Content (Template) -->
   <div id="shortcuts-modal-template" style="display: none;">
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px;">
+    <div class="sap-shortcuts-grid">
       <div>
-        <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">General
-        </h4>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Create Task</span><kbd
-            class="command-item-kbd">C</kbd></div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Command Palette</span><kbd
-            class="command-item-kbd">Ctrl + K</kbd></div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Global Search</span><kbd
-            class="command-item-kbd">/</kbd></div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Keyboard
-            Shortcuts</span><kbd class="command-item-kbd">?</kbd></div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Close Modal /
-            Drawer</span><kbd class="command-item-kbd">Esc</kbd></div>
+        <h4 class="sap-shortcuts-heading">General</h4>
+        <div class="sap-shortcut-row"><span>Create Task</span><kbd class="command-item-kbd">C</kbd></div>
+        <div class="sap-shortcut-row"><span>Command Palette</span><kbd class="command-item-kbd">Ctrl + K</kbd></div>
+        <div class="sap-shortcut-row"><span>Global Search</span><kbd class="command-item-kbd">/</kbd></div>
+        <div class="sap-shortcut-row"><span>Keyboard Shortcuts</span><kbd class="command-item-kbd">?</kbd></div>
+        <div class="sap-shortcut-row"><span>Close Modal / Drawer</span><kbd class="command-item-kbd">Esc</kbd></div>
       </div>
       <div>
-        <h4 style="font-size: 12px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">Navigation
-          & Actions</h4>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Toggle Sidebar</span><kbd
-            class="command-item-kbd">Ctrl + B</kbd></div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Undo Action</span><kbd
-            class="command-item-kbd">Ctrl + Z</kbd></div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Redo Action</span><kbd
-            class="command-item-kbd">Ctrl + Y</kbd></div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Toggle Theme</span><kbd
-            class="command-item-kbd">T</kbd></div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>Submit Form</span><kbd
-            class="command-item-kbd">Enter</kbd></div>
+        <h4 class="sap-shortcuts-heading">Navigation &amp; Actions</h4>
+        <div class="sap-shortcut-row"><span>Toggle Sidebar</span><kbd class="command-item-kbd">Ctrl + B</kbd></div>
+        <div class="sap-shortcut-row"><span>Undo Action</span><kbd class="command-item-kbd">Ctrl + Z</kbd></div>
+        <div class="sap-shortcut-row"><span>Redo Action</span><kbd class="command-item-kbd">Ctrl + Y</kbd></div>
+        <div class="sap-shortcut-row"><span>Toggle Theme</span><kbd class="command-item-kbd">T</kbd></div>
+        <div class="sap-shortcut-row"><span>Submit Form</span><kbd class="command-item-kbd">Enter</kbd></div>
       </div>
-      <div
-        style="grid-column: 1 / -1; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
-        <span style="color: var(--text-muted); font-size: 12px;">Need comprehensive architecture & workflow
-          guides?</span>
+      <div class="sap-shortcuts-footer">
+        <span class="sap-shortcuts-hint">Need comprehensive architecture &amp; workflow guides?</span>
         <button class="btn btn-secondary btn-sm" onclick="Modal.close(); Router.navigate('docs');">
           <i class="fa-solid fa-book-open"></i> Open Documentation
         </button>
@@ -376,42 +358,42 @@
   <div id="sidebar-floating-tooltip" class="sidebar-floating-tooltip"></div>
 
   <!-- Core Scripts -->
-  <script src="js/utils.js?v=sprint_hms_v1"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/state.js?v=sprint_hms_v1"></script>
-  <script src="js/automation.js?v=sprint_hms_v1"></script>
-  <script src="js/notifications.js"></script>
-  <script src="js/search.js"></script>
-  <script src="js/filters.js"></script>
-  <script src="js/keyboard.js"></script>
+  <script src="js/utils.js?v=sap_v1"></script>
+  <script src="js/storage.js?v=sap_v1"></script>
+  <script src="js/state.js?v=sap_v1"></script>
+  <script src="js/automation.js?v=sap_v1"></script>
+  <script src="js/notifications.js?v=sap_v1"></script>
+  <script src="js/search.js?v=sap_v1"></script>
+  <script src="js/filters.js?v=sap_v1"></script>
+  <script src="js/keyboard.js?v=sap_v1"></script>
 
   <!-- Component Scripts -->
-  <script src="js/components/toast.js"></script>
-  <script src="js/components/modal.js"></script>
-  <script src="js/components/dropdown.js"></script>
-  <script src="js/components/status-control.js"></script>
-  <script src="js/components/task-card.js?v=tf_v21"></script>
-  <script src="js/components/task-modal.js?v=tf_v24"></script>
-  <script src="js/components/sidebar.js"></script>
-  <script src="js/components/context-menu.js?v=tf_v21"></script>
-  <script src="js/components/command-palette.js?v=sprint_stack_v2"></script>
+  <script src="js/components/toast.js?v=sap_v1"></script>
+  <script src="js/components/modal.js?v=sap_v1"></script>
+  <script src="js/components/dropdown.js?v=sap_v2"></script>
+  <script src="js/components/status-control.js?v=sap_v1"></script>
+  <script src="js/components/task-card.js?v=sap_v1"></script>
+  <script src="js/components/task-modal.js?v=sap_v3"></script>
+  <script src="js/components/sidebar.js?v=sap_v1"></script>
+  <script src="js/components/context-menu.js?v=sap_v1"></script>
+  <script src="js/components/command-palette.js?v=sap_v1"></script>
 
   <!-- View Scripts -->
-  <script src="js/views/dashboard.js?v=dashboard_v13"></script>
-  <script src="js/views/projects.js"></script>
-  <script src="js/views/tasks.js?v=switch_steady_v3"></script>
-  <script src="js/views/board.js?v=switch_steady_v3"></script>
-  <script src="js/views/backlog.js?v=bl_v15"></script>
-  <script src="js/views/hierarchy.js?v=hier_v7"></script>
-  <script src="js/views/list.js?v=switch_steady_v3"></script>
-  <script src="js/views/settings.js?v=sprint_stack_v2"></script>
-  <script src="js/views/focus.js"></script>
-  <script src="js/views/docs.js"></script>
-  <script src="js/views/planner.js?v=planner_v1"></script>
+  <script src="js/views/dashboard.js?v=sap_v3"></script>
+  <script src="js/views/projects.js?v=sap_v2"></script>
+  <script src="js/views/tasks.js?v=sap_v2"></script>
+  <script src="js/views/board.js?v=sap_v3"></script>
+  <script src="js/views/backlog.js?v=sap_v2"></script>
+  <script src="js/views/hierarchy.js?v=sap_v4"></script>
+  <script src="js/views/list.js?v=sap_v3"></script>
+  <script src="js/views/settings.js?v=sap_v1"></script>
+  <script src="js/views/focus.js?v=sap_v1"></script>
+  <script src="js/views/docs.js?v=sap_v1"></script>
+  <script src="js/views/planner.js?v=sap_v2"></script>
 
   <!-- Router & Application Bootstrap -->
-  <script src="js/router.js"></script>
-  <script src="js/app.js?v=sprint_stack_v1"></script>
+  <script src="js/router.js?v=sap_v3"></script>
+  <script src="js/app.js?v=sap_v1"></script>
 </body>
 
 </html>

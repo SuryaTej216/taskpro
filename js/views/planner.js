@@ -171,7 +171,7 @@ const PlannerView = {
 
   getProjectColor(task) {
     const p = AppState.projects.find(pr => pr.id === task.projectId);
-    return (p && p.color) || '#579DFF';
+    return (p && p.color) || '#0057d2';
   },
 
   // -------------------------------------------------------------
@@ -197,22 +197,6 @@ const PlannerView = {
       .filter(t => t.plannedDate && t.plannedDate < todayKey && this.isOpen(t))
       .sort((a, b) => this.sortPlanned(a, b));
 
-    const todayTasks = byDay[todayKey];
-    const todayDone = todayTasks.filter(t => t.status === 'done').length;
-    const todayPct = todayTasks.length ? Math.round((todayDone / todayTasks.length) * 100) : 0;
-    const todayRemaining = todayTasks
-      .filter(t => t.status !== 'done')
-      .reduce((s, t) => s + Math.max(0, (Number(t.estimate) || 0) - (Number(t.trackedTime) || 0)), 0);
-    const upcomingCount = byDay[days[1].key].filter(t => t.status !== 'done').length +
-      byDay[days[2].key].filter(t => t.status !== 'done').length;
-    const overdueUnplanned = tasks.filter(t => {
-      const k = this.dueKey(t);
-      return this.isOpen(t) && k && k < todayKey && (!t.plannedDate || t.plannedDate > days[2].key);
-    }).length;
-    const attention = carryover.length + overdueUnplanned;
-
-    const ringC = 2 * Math.PI * 22;
-    const ringOffset = ringC * (1 - todayPct / 100);
     const scopeProject = AppState.selectedProjectId
       ? AppState.projects.find(p => p.id === AppState.selectedProjectId)
       : null;
@@ -228,43 +212,6 @@ const PlannerView = {
             ${this.renderTaskMenus(availableTasks, days)}
           </div>
         </header>
-
-        <!-- Summary KPIs -->
-        <section class="planner-summary" aria-label="Planner summary">
-          <div class="planner-kpi planner-kpi-progress">
-            <svg class="planner-ring" viewBox="0 0 52 52" aria-hidden="true">
-              <circle class="planner-ring-track" cx="26" cy="26" r="22"></circle>
-              <circle class="planner-ring-fill" cx="26" cy="26" r="22"
-                style="stroke-dasharray: ${ringC.toFixed(2)}; stroke-dashoffset: ${ringOffset.toFixed(2)};"></circle>
-            </svg>
-            <div class="planner-kpi-ring-label">${todayPct}%</div>
-            <div class="planner-kpi-text">
-              <span class="planner-kpi-title">Today's progress</span>
-              <span class="planner-kpi-value">${todayDone} <small>of ${todayTasks.length} done</small></span>
-            </div>
-          </div>
-          <div class="planner-kpi">
-            <div class="planner-kpi-icon kpi-blue"><i class="fa-solid fa-hourglass-half"></i></div>
-            <div class="planner-kpi-text">
-              <span class="planner-kpi-title">Remaining today</span>
-              <span class="planner-kpi-value">${Utils.formatMinutes(todayRemaining)}</span>
-            </div>
-          </div>
-          <div class="planner-kpi">
-            <div class="planner-kpi-icon kpi-purple"><i class="fa-solid fa-forward"></i></div>
-            <div class="planner-kpi-text">
-              <span class="planner-kpi-title">Queued next 2 days</span>
-              <span class="planner-kpi-value">${upcomingCount} <small>task${upcomingCount === 1 ? '' : 's'}</small></span>
-            </div>
-          </div>
-          <div class="planner-kpi ${attention > 0 ? 'is-alert' : ''}">
-            <div class="planner-kpi-icon ${attention > 0 ? 'kpi-red' : 'kpi-green'}"><i class="fa-solid ${attention > 0 ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i></div>
-            <div class="planner-kpi-text">
-              <span class="planner-kpi-title">Needs attention</span>
-              <span class="planner-kpi-value">${attention} <small>${attention > 0 ? 'carry-over / overdue' : 'all clear'}</small></span>
-            </div>
-          </div>
-        </section>
 
         ${carryover.length > 0 ? this.renderCarryover(carryover) : ''}
 
@@ -400,7 +347,7 @@ const PlannerView = {
 
     return groups.map(group => {
       const p = group.project;
-      const pColor = p.color || '#579DFF';
+      const pColor = p.color || '#0057d2';
       return `
         <div class="planner-smart-group">
           <div class="planner-smart-group-header" style="--project-color: ${pColor};">

@@ -6,7 +6,7 @@
 
 const TaskCard = {
   /**
-   * Generates vibrant Atlassian Design System issue lozenge badge matching List View
+   * Generates vibrant SAP Analysis Design System issue lozenge badge matching List View
    * @param {string} type 
    * @returns {string}
    */
@@ -56,7 +56,7 @@ const TaskCard = {
     const workTypeColors = {
       bug: { color: '#EF4444', darkColor: '#F87462', label: 'Bug' },
       story: { color: '#10B981', darkColor: '#57F287', label: 'Story' },
-      task: { color: '#3B82F6', darkColor: '#579DFF', label: 'Task' },
+      task: { color: '#0057d2', darkColor: '#0057d2', label: 'Task' },
       improvement: { color: '#00A3BF', darkColor: '#6CC3E0', label: 'Improvement' },
       epic: { color: '#8B5CF6', darkColor: '#D8A0F7', label: 'Epic' },
       subtask: { color: '#64748B', darkColor: '#94A3B8', label: 'Subtask' }
@@ -73,7 +73,7 @@ const TaskCard = {
     card.dataset.priority = task.priority || 'medium';
     card.style.setProperty('--worktype-color', typeConfig.color);
     const project = AppState.projects.find(item => item.id === task.projectId);
-    const projectColor = project && /^#[\da-f]{3,8}$/i.test(project.color || '') ? project.color : '#579DFF';
+    const projectColor = project && /^#[\da-f]{3,8}$/i.test(project.color || '') ? project.color : '#0057d2';
     card.style.setProperty('--planner-project', projectColor);
 
     const isOverdue = Utils.isOverdue(task.dueDate, task.status);

@@ -83,7 +83,7 @@ const DashboardView = {
 
   projectColor(task) {
     const color = PlannerView.getProjectColor(task);
-    return /^#[0-9a-f]{3,8}$/i.test(color || '') ? color : '#388bfd';
+    return /^#[0-9a-f]{3,8}$/i.test(color || '') ? color : '#0057d2';
   },
 
   fmtClock(seconds) {
@@ -340,7 +340,6 @@ const DashboardView = {
       <div class="view-page dash-page" id="dashboard-page">
         ${this.renderCommandBar(ctx)}
         ${this.renderQuickCapture(ctx)}
-        ${this.renderPulseStrip(ctx)}
         <div class="dash-workspace">
           <div class="dash-workbench-col">
             ${this.renderWorkbench(ctx)}
@@ -360,7 +359,7 @@ const DashboardView = {
     if (this.refocusCapture) {
       this.refocusCapture = false;
       const input = container.querySelector('#dash-capture-input');
-      if (input) input.focus();
+      if (input) input.focus({ preventScroll: true });
     }
   },
 
@@ -402,7 +401,7 @@ const DashboardView = {
             ${ctx.projectStats.map(ps => `
               <button type="button" class="dash-scope-pill ${AppState.selectedProjectId === ps.project.id ? 'is-active' : ''}"
                 data-dash="scope-project" data-project-id="${this.esc(ps.project.id)}" title="${this.esc(ps.project.name)}">
-                <span class="dash-scope-dot" style="background:${ps.project.color || '#388bfd'}"></span>
+                <span class="dash-scope-dot" style="background:${ps.project.color || '#0057d2'}"></span>
                 <span>${this.esc(ps.project.name)}</span>
                 <span class="dash-scope-count">${ps.open}</span>
               </button>
@@ -537,62 +536,7 @@ const DashboardView = {
     return parts.join('');
   },
 
-  // 3. 4-CARD INTERACTIVE OPERATIONAL PULSE STRIP
-  renderPulseStrip(ctx) {
-    const ringC = 2 * Math.PI * 16;
-    const ringOffset = ringC * (1 - ctx.todayPct / 100);
-    const s = ctx.sprint;
-
-    return `
-      <section class="dash-pulse-strip" aria-label="Operational metrics and quick tab filters">
-        <!-- 1. Today's Execution -->
-        <button type="button" class="dash-pulse-card ${this.activeTab === 'today' ? 'is-selected' : ''}" data-dash="switch-tab" data-tab="today">
-          <div class="dash-kpi-ring">
-            <svg viewBox="0 0 40 40" aria-hidden="true">
-              <circle class="dash-kpi-ring-track" cx="20" cy="20" r="16"></circle>
-              <circle class="dash-kpi-ring-fill" cx="20" cy="20" r="16" style="stroke-dasharray:${ringC.toFixed(2)};stroke-dashoffset:${ringOffset.toFixed(2)}"></circle>
-            </svg>
-            <span>${ctx.todayPct}%</span>
-          </div>
-          <div class="dash-pulse-copy">
-            <span class="dash-pulse-label">Today's Plan</span>
-            <strong>${ctx.completedCount}/${ctx.todayTotal} <small>done · ${Utils.formatMinutes(ctx.remainingMinutes)} left</small></strong>
-          </div>
-        </button>
-
-        <!-- 2. In Flight (WIP) -->
-        <button type="button" class="dash-pulse-card ${this.activeTab === 'wip' ? 'is-selected' : ''}" data-dash="switch-tab" data-tab="wip">
-          <span class="dash-kpi-icon tone-brand"><i class="fa-solid fa-bolt"></i></span>
-          <div class="dash-pulse-copy">
-            <span class="dash-pulse-label">In Progress (WIP)</span>
-            <strong>${ctx.wip.length} <small>active · ${ctx.wip.filter(t => t.status === 'inreview').length} in review</small></strong>
-          </div>
-        </button>
-
-        <!-- 3. Triage & Blockers -->
-        <button type="button" class="dash-pulse-card ${ctx.attention.length ? 'is-alert' : ''} ${this.activeTab === 'triage' ? 'is-selected' : ''}" data-dash="switch-tab" data-tab="triage">
-          <span class="dash-kpi-icon ${ctx.attention.length ? 'tone-danger' : 'tone-success'}">
-            <i class="fa-solid ${ctx.attention.length ? 'fa-triangle-exclamation' : 'fa-check-double'}"></i>
-          </span>
-          <div class="dash-pulse-copy">
-            <span class="dash-pulse-label">Needs Triage</span>
-            <strong>${ctx.attention.length} <small>${ctx.attention.length ? 'overdue / blocked' : 'all clear'}</small></strong>
-          </div>
-        </button>
-
-        <!-- 4. Active Sprint Pulse -->
-        <button type="button" class="dash-pulse-card ${this.activeTab === 'sprint' ? 'is-selected' : ''}" data-dash="switch-tab" data-tab="sprint">
-          <span class="dash-kpi-icon tone-violet"><i class="fa-solid fa-flag-checkered"></i></span>
-          <div class="dash-pulse-copy">
-            <span class="dash-pulse-label">${s ? this.esc(s.sprint.name) : 'Active Sprint'}</span>
-            <strong>${s ? `${s.done}/${s.total} <small>tasks · ${s.percent}%</small>` : '<small>No active sprint</small>'}</strong>
-          </div>
-        </button>
-      </section>
-    `;
-  },
-
-  // 4. UNIFIED EXECUTION WORKBENCH
+  // 3. UNIFIED EXECUTION WORKBENCH
   renderWorkbench(ctx) {
     const tabs = [
       { id: 'today', label: "Today's Plan", icon: 'fa-calendar-day', count: ctx.todayOpen.length },
@@ -762,7 +706,7 @@ const DashboardView = {
       <div class="dash-project-groups">
         ${groups.map(g => {
       const p = g.project;
-      const pColor = p.color || '#388bfd';
+      const pColor = p.color || '#0057d2';
       return `
             <div class="dash-proj-group">
               <div class="dash-proj-group-header" style="--project-color: ${pColor};">
@@ -799,7 +743,7 @@ const DashboardView = {
     const groups = this.groupTasksByProject(matches);
     return groups.map(group => {
       const p = group.project;
-      const pColor = p.color || '#388bfd';
+      const pColor = p.color || '#0057d2';
       return `
         <div class="planner-smart-group">
           <div class="planner-smart-group-header" style="--project-color: ${pColor};">
@@ -927,10 +871,10 @@ const DashboardView = {
       const p = ps.project;
       const isScoped = AppState.selectedProjectId === p.id;
       return `
-              <div class="dash-proj-row ${isScoped ? 'is-scoped' : ''}" style="--proj-color:${p.color || '#388bfd'}">
+              <div class="dash-proj-row ${isScoped ? 'is-scoped' : ''}" style="--proj-color:${p.color || '#0057d2'}">
                 <div class="dash-proj-row-top">
                   <button type="button" class="dash-proj-select" data-dash="scope-project" data-project-id="${this.esc(isScoped ? '' : p.id)}" title="${isScoped ? 'Click to show All Projects' : `Filter dashboard by ${this.esc(p.name)}`}">
-                    <span class="dash-proj-dot" style="background:${p.color || '#388bfd'}"></span>
+                    <span class="dash-proj-dot" style="background:${p.color || '#0057d2'}"></span>
                     <span class="dash-proj-name">${this.esc(p.name)}</span>
                     <span class="dash-proj-key">${this.esc(p.key)}</span>
                   </button>
@@ -940,7 +884,7 @@ const DashboardView = {
                   </div>
                 </div>
 
-                <div class="dash-proj-bar"><i style="width:${ps.pct}%;background:${p.color || '#388bfd'}"></i></div>
+                <div class="dash-proj-bar"><i style="width:${ps.pct}%;background:${p.color || '#0057d2'}"></i></div>
 
                 <div class="dash-proj-actions">
                   <a href="#/tasks?project=${encodeURIComponent(p.id)}&mode=board" class="dash-mini-link" title="Open Kanban Board">
@@ -1039,7 +983,7 @@ const DashboardView = {
         </div>
 
         <div style="font-size: 11px; padding: 6px 9px; border-radius: 6px; margin-bottom: 8px; border: 1px solid ${nextRolloverSprint ? 'rgba(56,139,253,0.3)' : 'rgba(210,153,34,0.4)'}; background: ${nextRolloverSprint ? 'rgba(56,139,253,0.08)' : 'rgba(210,153,34,0.1)'}; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-          <span><i class="fa-solid ${nextRolloverSprint ? 'fa-arrow-right-arrow-left' : 'fa-triangle-exclamation'}" style="color: ${nextRolloverSprint ? 'var(--accent-primary)' : '#d29922'}; margin-right: 4px;"></i>${nextRolloverSprint ? `Auto-rollover → <strong>${this.esc(nextRolloverSprint.name)}</strong>` : 'No next sprint scheduled'}</span>
+          <span><i class="fa-solid ${nextRolloverSprint ? 'fa-arrow-right-arrow-left' : 'fa-triangle-exclamation'}" style="color: ${nextRolloverSprint ? 'var(--accent-primary)' : '#b45309'}; margin-right: 4px;"></i>${nextRolloverSprint ? `Auto-rollover → <strong>${this.esc(nextRolloverSprint.name)}</strong>` : 'No next sprint scheduled'}</span>
           <button type="button" class="dash-mini-link" data-dash="stack-sprints" style="padding: 1px 6px;">+ Stack</button>
         </div>
 
@@ -1271,7 +1215,7 @@ const DashboardView = {
         Router.renderCurrentRoute();
         const nextInput = container.querySelector('#dash-wb-search-input');
         if (nextInput) {
-          nextInput.focus();
+          nextInput.focus({ preventScroll: true });
           try { nextInput.setSelectionRange(pos, pos); } catch (err) { /* ignore */ }
         }
         return;

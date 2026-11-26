@@ -52,7 +52,7 @@ const AppState = {
     this.activity = StorageService.get(StorageService.KEYS.ACTIVITY, []);
     this.notifications = StorageService.get(StorageService.KEYS.NOTIFICATIONS, []);
     this.settings = StorageService.get(StorageService.KEYS.SETTINGS, {
-      theme: 'dark',
+      theme: 'light',
       soundEffects: true,
       autoSyncChecklistSubtasks: true
     });
@@ -89,8 +89,8 @@ const AppState = {
       parentIds.forEach(parentId => Automations.updateParentProgress(parentId, true));
     }
 
-    // Apply saved theme
-    document.documentElement.setAttribute('data-theme', this.settings.theme || 'dark');
+    // Apply saved theme (default light per SAP Analysis design.md)
+    document.documentElement.setAttribute('data-theme', this.settings.theme || 'light');
   },
 
   /**
@@ -852,7 +852,7 @@ const AppState = {
       name: projData.name.trim(),
       description: projData.description || '',
       status: projData.status || 'active',
-      color: projData.color || '#388bfd',
+      color: projData.color || '#0057d2',
       icon: projData.icon || 'fa-folder',
       startDate: projData.startDate || now,
       targetDate: projData.targetDate || null,

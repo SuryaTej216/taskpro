@@ -1,292 +1,388 @@
-/* TaskForge — Atlassian Design System Styles */
-/* Token-first, neutral-dominant, 8px grid, four-plane elevation */
+/* ============================================================
+   TaskForge — SAP Analysis Design System Core Styles
+   White canvas, two greys (#f5f6f7, #eaecee), one acting blue (#0057d2),
+   broad flat bands, hairline rules, 0/4/8/12px radius cap,
+   variable 350–700 weight axis, zero letter-spacing.
+   ============================================================ */
 
 /* ============================================================
-   ROOT DESIGN TOKENS — LIGHT THEME (Default per ADS)
+   ROOT DESIGN TOKENS — LIGHT THEME (SAP Analysis Default)
    ============================================================ */
 :root {
-  /* Surface Backgrounds (four-plane model) */
-  --surface: #FFFFFF;
-  --surface-sunken: #F8F8F8;
-  --surface-raised: #FFFFFF;
-  --surface-overlay: #FFFFFF;
-  --surface-hovered: #F0F1F2;
-  --surface-pressed: #DDDEE1;
+  /* SAP Core Palette (verbatim from design.md) */
+  --sap-primary: #0057d2;
+  --sap-primary-deep: #0040b0;
+  --sap-on-primary: #ffffff;
+  --sap-navy: #022879;
+  --sap-sky: #6bc0ff;
 
-  /* Legacy aliases the JS views reference */
-  --bg-app: #F8F8F8;
-  --bg-surface: #FFFFFF;
-  --bg-surface-elevated: #F0F1F2;
-  --bg-surface-hover: #F0F1F2;
-  --bg-surface-active: #DDDEE1;
+  /* Unique Dark Architectural Chrome — SAP Midnight Sapphire-Obsidian (Navbar, Topbar, Popup Headers) */
+  --sap-dark-chrome-v:
+    radial-gradient(ellipse 145% 42% at 0% 0%, rgba(0, 87, 210, 0.38) 0%, transparent 62%),
+    radial-gradient(ellipse 120% 40% at 100% 100%, rgba(107, 192, 255, 0.16) 0%, transparent 65%),
+    repeating-linear-gradient(135deg, rgba(107, 192, 255, 0.03) 0px, rgba(107, 192, 255, 0.03) 1px, transparent 1px, transparent 18px),
+    linear-gradient(180deg, #040d21 0%, #06183d 34%, #022879 74%, #04112b 100%);
+  --sap-dark-chrome-h:
+    radial-gradient(ellipse 46% 155% at 14% -35%, rgba(107, 192, 255, 0.22) 0%, transparent 66%),
+    radial-gradient(ellipse 46% 145% at 88% 130%, rgba(0, 87, 210, 0.4) 0%, transparent 68%),
+    repeating-linear-gradient(135deg, rgba(107, 192, 255, 0.032) 0px, rgba(107, 192, 255, 0.032) 1px, transparent 1px, transparent 18px),
+    linear-gradient(96deg, #040d21 0%, #06183d 34%, #022879 70%, #071940 100%);
+  --sap-dark-chrome-border: rgba(107, 192, 255, 0.22);
+  --sap-dark-chrome-border-subtle: rgba(107, 192, 255, 0.14);
+  --sap-dark-chrome-text: #ffffff;
+  --sap-dark-chrome-muted: #c2d6ee;
+  --sap-dark-chrome-subtle: #94b3d6;
+  --sap-dark-chrome-control-bg: rgba(255, 255, 255, 0.08);
+  --sap-dark-chrome-control-hover: rgba(107, 192, 255, 0.16);
+  --sap-dark-chrome-accent: #6bc0ff;
 
-  /* Background — Neutral */
-  --background-neutral: #0515240F;
-  --background-neutral-hovered: #0B120E24;
-  --background-neutral-pressed: #080F214A;
+  --sap-canvas: #ffffff;
+  --sap-chrome: #f5f6f7;
+  --sap-band: #eaecee;
+  --sap-band-blue: #ebf8ff;
+  --sap-band-lavender: #f7f4ff;
+
+  --sap-ink: #000000;
+  --sap-ink-lead: #3c3c3c;
+  --sap-ink-body: #223548;
+  --sap-ink-list: #354a5f;
+  --sap-ink-meta: #475e75;
+  --sap-ink-nav: #545454;
+  --sap-hairline: #475e75;
+  --sap-divider: rgba(71, 94, 117, 0.22);
+  --sap-divider-subtle: rgba(71, 94, 117, 0.14);
+
+  /* SAP Spacing Scale */
+  --space-xxs: 2px;
+  --space-xs: 3px;
+  --space-sm: 8px;
+  --space-md: 9px;
+  --space-lg: 10px;
+  --space-xl: 12px;
+  --space-xxl: 15px;
+  --space-wide: 16px;
+  --space-section: 20px;
+  --space-giant: 24px;
+  --space-max: 32px;
+  --space-huge: 40px;
+  --space-hero: 48px;
+  --space-band: 56px;
+  --space-page: 72px;
+
+  /* SAP Rounded Scale (capped at 12px — zero pills) */
+  --sap-radius-none: 0px;
+  --sap-radius-sm: 4px;
+  --sap-radius-md: 8px;
+  --sap-radius-lg: 12px;
+
+  /* Surface Backgrounds mapped to SAP */
+  --surface: #ffffff;
+  --surface-sunken: #f5f6f7;
+  --surface-raised: #ffffff;
+  --surface-overlay: #ffffff;
+  --surface-hovered: #f5f6f7;
+  --surface-pressed: #eaecee;
+
+  /* Legacy Surface Aliases */
+  --bg-app: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f5f6f7;
+  --bg-surface-hover: #f5f6f7;
+  --bg-surface-active: #eaecee;
+
+  /* Neutral Controls */
+  --background-neutral: #f5f6f7;
+  --background-neutral-hovered: #eaecee;
+  --background-neutral-pressed: #dce1e6;
   --background-neutral-subtle: transparent;
-  --background-neutral-subtle-hovered: #0515240F;
-  --background-neutral-subtle-pressed: #0B120E24;
-  --background-neutral-bold: #292A2E;
-  --background-neutral-bold-hovered: #3B3D42;
+  --background-neutral-subtle-hovered: #f5f6f7;
+  --background-neutral-subtle-pressed: #eaecee;
+  --background-neutral-bold: #000000;
+  --background-neutral-bold-hovered: #223548;
 
-  /* Background — Selected / Brand */
-  --background-selected: #E9F2FE;
-  --background-selected-bold: #1868DB;
-  --background-brand-bold: #1868DB;
-  --background-brand-bold-hovered: #1558BC;
+  /* Selected / Brand (One Acting Color: SAP Blue #0057d2) */
+  --background-selected: #ebf8ff;
+  --background-selected-bold: #0057d2;
+  --background-brand-bold: #0057d2;
+  --background-brand-bold-hovered: #0040b0;
 
-  /* Text */
-  --text-primary: #292A2E;
-  --text-secondary: #505258;
-  --text-muted: #6B6E76;
-  --text-inverse: #FFFFFF;
-  --text-disabled: #080F214A;
+  /* Text Ladder */
+  --text-heading: #000000;
+  --text-lead: #3c3c3c;
+  --text-primary: #223548;
+  --text-list: #354a5f;
+  --text-secondary: #354a5f;
+  --text-muted: #475e75;
+  --text-nav: #545454;
+  --text-inverse: #ffffff;
+  --text-disabled: rgba(71, 94, 117, 0.48);
 
-  /* Semantic Text */
-  --text-brand: #1868DB;
-  --text-selected: #1868DB;
-  --text-danger: #AE2E24;
-  --text-warning: #9E4C00;
-  --text-success: #087F30;
-  --text-discovery: #803FA5;
-  --text-information: #1558BC;
+  /* Semantic Text (Enterprise SAP-harmonized) */
+  --text-brand: #0057d2;
+  --text-selected: #0057d2;
+  --text-danger: #aa0808;
+  --text-warning: #92400e;
+  --text-success: #107e3e;
+  --text-discovery: #5d36d6;
+  --text-information: #0040b0;
 
   /* Links */
-  --link-color: #1868DB;
-  --link-pressed: #1558BC;
+  --link-color: #0057d2;
+  --link-pressed: #0040b0;
 
   /* Icons */
-  --icon-default: #292A2E;
-  --icon-subtle: #505258;
-  --icon-subtlest: #6B6E76;
-  --icon-brand: #1868DB;
-  --icon-danger: #C9372C;
-  --icon-warning: #E06C00;
-  --icon-success: #0BDA51;
-  --icon-discovery: #AF59E1;
-  --icon-information: #357DE8;
+  --icon-default: #223548;
+  --icon-subtle: #475e75;
+  --icon-subtlest: #545454;
+  --icon-brand: #0057d2;
+  --icon-danger: #bb0000;
+  --icon-warning: #b45309;
+  --icon-success: #107e3e;
+  --icon-discovery: #5d36d6;
+  --icon-information: #0057d2;
 
-  /* Borders */
-  --border: #0B120E24;
-  --border-bold: #7D818A;
-  --border-input: #8C8F97;
-  --border-focused: #4688EC;
-  --border-selected: #1868DB;
-  --border-brand: #1868DB;
-  --border-danger: #E2483D;
-  --border-warning: #E06C00;
-  --border-success: #0BDA51;
-  --border-discovery: #AF59E1;
-  --border-information: #357DE8;
+  /* Borders & Hairlines */
+  --border: rgba(71, 94, 117, 0.24);
+  --border-bold: #475e75;
+  --border-input: #475e75;
+  --border-focused: #0057d2;
+  --border-selected: #0057d2;
+  --border-brand: #0057d2;
+  --border-danger: #bb0000;
+  --border-warning: #b45309;
+  --border-success: #107e3e;
+  --border-discovery: #5d36d6;
+  --border-information: #0057d2;
 
-  /* Legacy border aliases */
-  --border-subtle: #0B120E24;
-  --border-default: #0B120E24;
-  --border-strong: #7D818A;
-  --border-focus: #4688EC;
+  /* Legacy Border Aliases */
+  --border-subtle: rgba(71, 94, 117, 0.16);
+  --border-default: rgba(71, 94, 117, 0.24);
+  --border-strong: #475e75;
+  --border-focus: #0057d2;
 
-  /* Accent — Blue (Primary Brand) */
-  --accent-primary: #1868DB;
-  --accent-primary-hover: #1558BC;
-  --accent-primary-subtle: #E9F2FE;
+  /* Brand Accent */
+  --accent-primary: #0057d2;
+  --accent-primary-hover: #0040b0;
+  --accent-primary-subtle: #ebf8ff;
 
-  /* Semantic Backgrounds */
-  --accent-success: #0BDA51;
-  --accent-success-subtle: #E6FCF0;
-  --accent-warning: #FBC828;
-  --accent-warning-subtle: #FFF5DB;
-  --accent-danger: #C9372C;
-  --accent-danger-subtle: #FFECEB;
-  --accent-purple: #964AC0;
-  --accent-purple-subtle: #F8EEFE;
-  --accent-cyan: #227D9B;
-  --accent-cyan-subtle: #E7F9FF;
+  /* Functional Semantic Tones (Subtle SAP enterprise calibration) */
+  --accent-success: #107e3e;
+  --accent-success-subtle: #edf7f1;
+  --accent-warning: #b45309;
+  --accent-warning-subtle: #fef6e7;
+  --accent-danger: #bb0000;
+  --accent-danger-subtle: #fdeeee;
+  --accent-purple: #5d36d6;
+  --accent-purple-subtle: #f7f4ff;
+  --accent-cyan: #0057d2;
+  --accent-cyan-subtle: #ebf8ff;
 
   /* Status Colors */
-  --status-backlog: #8C8F97;
-  --status-todo: #357DE8;
-  --status-inprogress: #E06C00;
-  --status-inreview: #AF59E1;
-  --status-done: #0BDA51;
-  --status-blocked: #C9372C;
-  --status-cancelled: #6B6E76;
+  --status-backlog: #475e75;
+  --status-todo: #0057d2;
+  --status-inprogress: #b45309;
+  --status-inreview: #5d36d6;
+  --status-done: #107e3e;
+  --status-blocked: #bb0000;
+  --status-cancelled: #545454;
 
   /* Priority Colors */
-  --priority-critical: #AE2E24;
-  --priority-highest: #C9372C;
-  --priority-high: #E06C00;
-  --priority-medium: #357DE8;
-  --priority-low: #0BDA51;
-  --priority-lowest: #8C8F97;
+  --priority-critical: #aa0808;
+  --priority-highest: #bb0000;
+  --priority-high: #b45309;
+  --priority-medium: #0057d2;
+  --priority-low: #107e3e;
+  --priority-lowest: #475e75;
 
-  /* Typography — Inter stands in for Atlassian Sans */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* Single Variable Typeface Family — no monospace per design.md (use tabular-nums) */
+  --font-sans: '72 Brand Variable', '72', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: '72 Brand Variable', '72', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
-  /* Rounded — ADS t-shirt scale */
-  --radius-sm: 0.25rem;
-  /* small */
-  --radius-md: 0.375rem;
-  /* medium */
-  --radius-lg: 0.5rem;
-  /* large */
-  --radius-xl: 0.75rem;
-  /* xlarge */
-  --radius-xxl: 1rem;
-  /* xxlarge */
-  --radius-full: 624.9375rem;
+  /* Radius Legacy Aliases — STRICTLY CAPPED AT 12px (Zero pills) */
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-xxl: 12px;
+  --radius-full: 8px;
 
-  /* Layout */
-  --sidebar-width: 240px;
-  --sidebar-collapsed-width: 56px;
-  --topbar-height: 56px;
+  /* Layout Dimensions */
+  --sidebar-width: 248px;
+  --sidebar-collapsed-width: 60px;
+  --topbar-height: 60px;
 
-  /* Shadows — ADS four-plane model */
-  --shadow-raised: 0px 1px 1px #1E1F2140, 0px 0px 1px #1E1F214F;
-  --shadow-overlay: 0px 8px 12px #1E1F2126, 0px 0px 1px #1E1F214F;
-  --shadow-overflow: 0px 0px 8px #1E1F2129, 0px 0px 1px #1E1F211F;
+  /* Elevation — FLAT BY DEFAULT (Band depth, not shadow) */
+  --shadow-raised: none;
+  --shadow-overlay: 0 4px 16px rgba(2, 40, 121, 0.08);
+  --shadow-overflow: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 6px 20px rgba(2, 40, 121, 0.1);
+  --shadow-overlay-alias: 0 4px 16px rgba(2, 40, 121, 0.08);
 
-  /* Legacy shadow aliases */
-  --shadow-sm: 0px 1px 1px #1E1F2140, 0px 0px 1px #1E1F214F;
-  --shadow-md: 0px 1px 1px #1E1F2140, 0px 0px 1px #1E1F214F;
-  --shadow-lg: 0px 8px 12px #1E1F2126, 0px 0px 1px #1E1F214F;
-  --shadow-overlay-alias: 0px 8px 12px #1E1F2126, 0px 0px 1px #1E1F214F;
+  /* Motion — Crisp, understated enterprise transitions */
+  --duration-short: 140ms;
+  --duration-medium: 180ms;
+  --duration-long: 220ms;
+  --easing-out: cubic-bezier(0.2, 0, 0, 1);
+  --easing-inout: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Motion — ADS durations & easings */
-  --duration-short: 150ms;
-  --duration-medium: 200ms;
-  --duration-long: 250ms;
-  --easing-out: cubic-bezier(0.4, 1, 0.6, 1);
-  --easing-inout: cubic-bezier(0.4, 0, 0, 1);
+  --transition-fast: 140ms ease;
+  --transition-normal: 180ms ease;
+  --transition-smooth: 220ms ease;
 
-  /* Transitions (legacy aliases) */
-  --transition-fast: 150ms cubic-bezier(0.4, 1, 0.6, 1);
-  --transition-normal: 200ms cubic-bezier(0.4, 1, 0.6, 1);
-  --transition-smooth: 250ms cubic-bezier(0.4, 0, 0, 1);
-
-  /* Blanket */
-  --blanket: #050C1F75;
+  /* Modal / Drawer Blanket */
+  --blanket: rgba(2, 40, 121, 0.36);
 }
 
 /* ============================================================
-   DARK THEME — Inferred from ADS principles
+   DARK THEME — SAP Night Calibration (Flat Bands, Crisp Slate)
    ============================================================ */
 [data-theme="dark"] {
-  --surface: #1D2125;
-  --surface-sunken: #161A1D;
-  --surface-raised: #22272B;
-  --surface-overlay: #282E33;
-  --surface-hovered: #282E33;
-  --surface-pressed: #2C333A;
+  --sap-primary: #6bc0ff;
+  --sap-primary-deep: #3b9eff;
+  --sap-on-primary: #061529;
+  --sap-navy: #022879;
+  --sap-sky: #6bc0ff;
 
-  --bg-app: #161A1D;
-  --bg-surface: #1D2125;
-  --bg-surface-elevated: #22272B;
-  --bg-surface-hover: #282E33;
-  --bg-surface-active: #2C333A;
+  --sap-canvas: #0f1722;
+  --sap-chrome: #162231;
+  --sap-band: #1c2a3c;
+  --sap-band-blue: #102a49;
+  --sap-band-lavender: #201c38;
 
-  --background-neutral: #A1BDD914;
-  --background-neutral-hovered: #A6C5E229;
-  --background-neutral-pressed: #BFDBF847;
+  --sap-ink: #ffffff;
+  --sap-ink-lead: #d8e2ec;
+  --sap-ink-body: #cbd7e4;
+  --sap-ink-list: #adc0d4;
+  --sap-ink-meta: #8da4bc;
+  --sap-ink-nav: #b5c3d1;
+  --sap-hairline: #5b7490;
+  --sap-divider: rgba(141, 164, 188, 0.22);
+  --sap-divider-subtle: rgba(141, 164, 188, 0.14);
+
+  --surface: #0f1722;
+  --surface-sunken: #162231;
+  --surface-raised: #162231;
+  --surface-overlay: #162231;
+  --surface-hovered: #1c2a3c;
+  --surface-pressed: #24354b;
+
+  --bg-app: #0f1722;
+  --bg-surface: #0f1722;
+  --bg-surface-elevated: #162231;
+  --bg-surface-hover: #1c2a3c;
+  --bg-surface-active: #24354b;
+
+  --background-neutral: #162231;
+  --background-neutral-hovered: #1c2a3c;
+  --background-neutral-pressed: #24354b;
   --background-neutral-subtle: transparent;
-  --background-neutral-subtle-hovered: #A1BDD914;
-  --background-neutral-subtle-pressed: #A6C5E229;
-  --background-neutral-bold: #DEE4EA;
-  --background-neutral-bold-hovered: #B6C2CF;
+  --background-neutral-subtle-hovered: #1c2a3c;
+  --background-neutral-subtle-pressed: #24354b;
+  --background-neutral-bold: #ffffff;
+  --background-neutral-bold-hovered: #d8e2ec;
 
-  --background-selected: #1C2B41;
-  --background-selected-bold: #579DFF;
-  --background-brand-bold: #579DFF;
-  --background-brand-bold-hovered: #85B8FF;
+  --background-selected: #102a49;
+  --background-selected-bold: #0057d2;
+  --background-brand-bold: #0057d2;
+  --background-brand-bold-hovered: #0040b0;
 
-  --text-primary: #DEE4EA;
-  --text-secondary: #9FADBC;
-  --text-muted: #738496;
-  --text-inverse: #1D2125;
-  --text-disabled: #BFDBF847;
+  --text-heading: #ffffff;
+  --text-lead: #d8e2ec;
+  --text-primary: #e4ecf4;
+  --text-list: #adc0d4;
+  --text-secondary: #b5c3d1;
+  --text-muted: #8da4bc;
+  --text-nav: #b5c3d1;
+  --text-inverse: #ffffff;
+  --text-disabled: rgba(141, 164, 188, 0.45);
 
-  --text-brand: #579DFF;
-  --text-selected: #579DFF;
-  --text-danger: #FF9C8F;
-  --text-warning: #F5CD47;
-  --text-success: #57F287;
-  --text-discovery: #DFD8FD;
-  --text-information: #85B8FF;
+  --text-brand: #6bc0ff;
+  --text-selected: #6bc0ff;
+  --text-danger: #ff8f8f;
+  --text-warning: #f5c065;
+  --text-success: #5cd694;
+  --text-discovery: #b9a4ff;
+  --text-information: #6bc0ff;
 
-  --link-color: #579DFF;
-  --link-pressed: #85B8FF;
+  --link-color: #6bc0ff;
+  --link-pressed: #9ad5ff;
 
-  --icon-default: #DEE4EA;
-  --icon-subtle: #9FADBC;
-  --icon-subtlest: #738496;
-  --icon-brand: #579DFF;
-  --icon-danger: #F87462;
-  --icon-warning: #F5CD47;
-  --icon-success: #0BDA51;
-  --icon-discovery: #B8ACF6;
-  --icon-information: #85B8FF;
+  --icon-default: #e4ecf4;
+  --icon-subtle: #9cb2c8;
+  --icon-subtlest: #7b93ac;
+  --icon-brand: #6bc0ff;
+  --icon-danger: #ff8f8f;
+  --icon-warning: #f5c065;
+  --icon-success: #5cd694;
+  --icon-discovery: #b9a4ff;
+  --icon-information: #6bc0ff;
 
-  --border: #A6C5E229;
-  --border-bold: #738496;
-  --border-input: #738496;
-  --border-focused: #579DFF;
-  --border-selected: #579DFF;
-  --border-brand: #579DFF;
-  --border-danger: #F87462;
-  --border-warning: #F5CD47;
-  --border-success: #0BDA51;
-  --border-discovery: #B8ACF6;
-  --border-information: #85B8FF;
+  --border: rgba(141, 164, 188, 0.24);
+  --border-bold: #5b7490;
+  --border-input: #5b7490;
+  --border-focused: #6bc0ff;
+  --border-selected: #6bc0ff;
+  --border-brand: #6bc0ff;
+  --border-danger: #f87171;
+  --border-warning: #f5c065;
+  --border-success: #5cd694;
+  --border-discovery: #b9a4ff;
+  --border-information: #6bc0ff;
 
-  --border-subtle: #A6C5E229;
-  --border-default: #A6C5E229;
-  --border-strong: #738496;
-  --border-focus: #579DFF;
+  --border-subtle: rgba(141, 164, 188, 0.16);
+  --border-default: rgba(141, 164, 188, 0.24);
+  --border-strong: #5b7490;
+  --border-focus: #6bc0ff;
 
-  --accent-primary: #579DFF;
-  --accent-primary-hover: #85B8FF;
-  --accent-primary-subtle: #1C2B41;
+  --accent-primary: #6bc0ff;
+  --accent-primary-hover: #9ad5ff;
+  --accent-primary-subtle: #102a49;
 
-  --accent-success: #0BDA51;
-  --accent-success-subtle: #06401B;
-  --accent-warning: #F5CD47;
-  --accent-warning-subtle: #332E1B;
-  --accent-danger: #F87462;
-  --accent-danger-subtle: #42221F;
-  --accent-purple: #B8ACF6;
-  --accent-purple-subtle: #2B2440;
-  --accent-cyan: #6CC3E0;
-  --accent-cyan-subtle: #1D3649;
+  --accent-success: #5cd694;
+  --accent-success-subtle: #113022;
+  --accent-warning: #f5c065;
+  --accent-warning-subtle: #332610;
+  --accent-danger: #ff8f8f;
+  --accent-danger-subtle: #3a1719;
+  --accent-purple: #b9a4ff;
+  --accent-purple-subtle: #201c38;
+  --accent-cyan: #6bc0ff;
+  --accent-cyan-subtle: #102a49;
 
-  --status-backlog: #738496;
-  --status-todo: #579DFF;
-  --status-inprogress: #F5CD47;
-  --status-inreview: #B8ACF6;
-  --status-done: #0BDA51;
-  --status-blocked: #F87462;
-  --status-cancelled: #596773;
+  --status-backlog: #8da4bc;
+  --status-todo: #6bc0ff;
+  --status-inprogress: #f5c065;
+  --status-inreview: #b9a4ff;
+  --status-done: #5cd694;
+  --status-blocked: #ff8f8f;
+  --status-cancelled: #7b93ac;
 
-  --priority-critical: #FF9C8F;
-  --priority-highest: #F87462;
-  --priority-high: #F5CD47;
-  --priority-medium: #579DFF;
-  --priority-low: #0BDA51;
-  --priority-lowest: #738496;
+  --priority-critical: #ff8f8f;
+  --priority-highest: #ff9c8f;
+  --priority-high: #f5c065;
+  --priority-medium: #6bc0ff;
+  --priority-low: #5cd694;
+  --priority-lowest: #8da4bc;
 
-  --shadow-raised: 0px 1px 1px #03040480, 0px 0px 1px #03040480;
-  --shadow-overlay: 0px 8px 12px #0304044D, 0px 0px 1px #03040480;
-  --shadow-overflow: 0px 0px 8px #03040440, 0px 0px 1px #03040440;
-  --shadow-sm: 0px 1px 1px #03040480, 0px 0px 1px #03040480;
-  --shadow-md: 0px 1px 1px #03040480, 0px 0px 1px #03040480;
-  --shadow-lg: 0px 8px 12px #0304044D, 0px 0px 1px #03040480;
-  --shadow-overlay-alias: 0px 8px 12px #0304044D, 0px 0px 1px #03040480;
+  --shadow-raised: none;
+  --shadow-overlay: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-overflow: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-overlay-alias: 0 6px 20px rgba(0, 0, 0, 0.45);
 
-  --blanket: #03040480;
+  --blanket: rgba(2, 12, 32, 0.72);
 }
 
 /* ============================================================
-   BASE RESET
+   BASE RESET & SAP TYPOGRAPHY PRINCIPLES
+   Headings in true black (#000000), tight 1.1 leading;
+   Body copy in slate (#223548), open 1.5 leading;
+   Zero letter-spacing across the system.
    ============================================================ */
 *,
 *::before,
@@ -302,12 +398,21 @@ body {
   height: 100%;
   overflow: hidden;
   font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.25rem;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
   color: var(--text-primary);
-  background-color: var(--bg-app);
+  background-color: var(--sap-canvas);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-heading);
+  letter-spacing: 0;
+  line-height: 1.1;
 }
 
 button,
@@ -317,6 +422,7 @@ select {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
+  letter-spacing: 0;
   outline: none;
 }
 
@@ -327,6 +433,7 @@ a {
 
 a:hover {
   text-decoration: underline;
+  color: var(--link-pressed);
 }
 
 ul,
@@ -334,15 +441,13 @@ ol {
   list-style: none;
 }
 
-/* ============================================================
-   SCROLLBARS — Unique Floating Capsule Glass Design
-   Ultra-refined, subtle by default, illuminates on hover & scroll
-   ============================================================ */
-html, body {
-  scroll-behavior: smooth;
+code, kbd, .sp-mono-key, .datagrid-key-link, .project-key, .planner-task-key, .dash-key {
+  font-variant-numeric: tabular-nums;
 }
 
-/* Base scrollbar width */
+/* ============================================================
+   SCROLLBARS — Quiet Flat SAP Slate
+   ============================================================ */
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
@@ -356,53 +461,36 @@ html, body {
 
 ::-webkit-scrollbar-track {
   background: transparent;
-  border-radius: var(--radius-full);
 }
 
-/* Floating Capsule Thumb with inset padding */
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.28);
-  border-radius: var(--radius-full);
+  background: rgba(71, 94, 117, 0.25);
+  border-radius: 4px;
   border: 2px solid transparent;
   background-clip: padding-box;
-  transition: background 240ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 240ms ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #388BFF 0%, #1868DB 100%);
+  background: var(--sap-primary);
   border: 1px solid transparent;
   background-clip: padding-box;
-  box-shadow: 0 0 10px rgba(56, 139, 255, 0.5);
 }
 
-::-webkit-scrollbar-thumb:active {
-  background: #1868DB;
-  box-shadow: 0 0 14px rgba(24, 104, 219, 0.7);
-}
-
-/* Dark Theme Variant */
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(141, 164, 188, 0.25);
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #579DFF 0%, #388BFF 100%);
-  box-shadow: 0 0 12px rgba(87, 157, 255, 0.55);
+  background: var(--sap-sky);
 }
 
-[data-theme="dark"] ::-webkit-scrollbar-thumb:active {
-  background: #579DFF;
-  box-shadow: 0 0 16px rgba(87, 157, 255, 0.75);
-}
-
-/* Firefox standard properties */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+  scrollbar-color: rgba(71, 94, 117, 0.28) transparent;
 }
 
 [data-theme="dark"] * {
-  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  scrollbar-color: rgba(141, 164, 188, 0.28) transparent;
 }
 
 /* ============================================================
@@ -412,31 +500,29 @@ html, body {
   display: flex;
   width: 100vw;
   height: 100vh;
-  background-color: var(--bg-app);
+  background-color: var(--sap-canvas);
   overflow: hidden;
 }
 
 /* ============================================================
-   SIDEBAR — Deep Navy Professional Chrome
-   Stays dark blue in both light and dark themes.
+   LEFT SIDEBAR — Unique Dark SAP Midnight Sapphire-Obsidian Navbar
+   Stays uniquely dark across both light and dark themes.
    ============================================================ */
 #sidebar {
   width: var(--sidebar-width);
   height: 100vh;
-  background:
-    radial-gradient(ellipse 160% 60% at 50% 0%, rgba(37, 99, 235, 0.22) 0%, transparent 60%),
-    radial-gradient(ellipse 120% 50% at 0% 100%, rgba(30, 64, 175, 0.16) 0%, transparent 65%),
-    linear-gradient(180deg, #070E1B 0%, #0C1931 25%, #11254A 60%, #091325 100%);
-  border-right: 1px solid rgba(87, 157, 255, 0.14);
+  background: var(--sap-dark-chrome-v);
+  border-right: 1px solid var(--sap-dark-chrome-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  transition: width 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 180ms var(--easing-out);
   z-index: 50;
   user-select: none;
-  color: #B6C2CF;
+  color: var(--sap-dark-chrome-muted);
   overflow: hidden;
-  box-shadow: 2px 0 24px rgba(2, 6, 23, 0.35);
+  box-shadow: none;
+  border-radius: 0;
 }
 
 #sidebar.collapsed {
@@ -448,11 +534,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1rem;
-  border-bottom: 1px solid rgba(87, 157, 255, 0.12);
-  background: rgba(7, 14, 27, 0.35);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  padding: 0 var(--space-wide);
+  border-bottom: 1px solid var(--sap-dark-chrome-border-subtle);
+  background: rgba(4, 13, 33, 0.36);
   flex-shrink: 0;
 }
 
@@ -472,65 +556,64 @@ html, body {
 .brand-logo {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
+  gap: 10px;
   font-weight: 700;
-  font-size: 0.9375rem;
-  letter-spacing: -0.2px;
-  color: #FFFFFF;
+  font-size: 16px;
+  letter-spacing: 0;
+  color: #ffffff;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .brand-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #388BFF 0%, #1868DB 100%);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--sap-radius-md);
+  background: #0057d2;
+  border: 1px solid rgba(107, 192, 255, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #FFFFFF;
+  color: #ffffff;
   font-size: 14px;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(24, 104, 219, 0.4);
-  transition: transform var(--transition-fast);
-}
-
-.brand-logo:hover .brand-icon {
-  transform: rotate(5deg) scale(1.05);
 }
 
 .brand-text-wrap {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: 6px;
 }
 
 .brand-title {
-  color: #FFFFFF;
+  color: #ffffff;
   font-weight: 700;
-  letter-spacing: -0.2px;
+  font-size: 16px;
+  line-height: 1.1;
+  letter-spacing: 0;
 }
 
 .brand-badge {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(87, 157, 255, 0.16);
-  color: #579DFF;
-  border: 1px solid rgba(87, 157, 255, 0.28);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 2px 6px;
+  border-radius: var(--sap-radius-sm);
+  background: rgba(107, 192, 255, 0.16);
+  color: #6bc0ff;
+  border: 1px solid rgba(107, 192, 255, 0.38);
   text-transform: uppercase;
+  line-height: 1.2;
 }
 
 .sidebar-collapse-btn {
   background: transparent;
-  border: none;
-  color: #7F93A8;
+  border: 1px solid transparent;
+  color: var(--sap-dark-chrome-subtle);
   cursor: pointer;
-  padding: 0.375rem;
-  border-radius: var(--radius-md);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--sap-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -538,73 +621,76 @@ html, body {
 }
 
 .sidebar-collapse-btn:hover {
-  color: #FFFFFF;
-  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  background-color: var(--sap-dark-chrome-control-hover);
 }
 
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0.75rem 0.5rem;
+  padding: var(--space-xl) var(--space-sm);
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 2px;
+}
+
+#sidebar .sidebar-content::-webkit-scrollbar-thumb {
+  background: rgba(107, 192, 255, 0.22);
+}
+
+#sidebar .sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #6bc0ff;
 }
 
 .nav-group-header {
-  display: flex !important;
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.625rem 0.75rem 0.25rem !important;
-  margin-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 12px 4px;
+  margin-top: 6px;
+  border-top: 1px solid var(--sap-dark-chrome-border-subtle);
 }
 
-.sidebar-content>.nav-group-header:first-child,
-.sidebar-content>.nav-group-header:first-of-type {
-  margin-top: 0 !important;
-  border-top: none !important;
-  padding-top: 0.25rem !important;
+.sidebar-content > .nav-group-header:first-child,
+.sidebar-content > .nav-group-header:first-of-type {
+  margin-top: 0;
+  border-top: none;
+  padding-top: 4px;
 }
 
 .nav-group-title,
 .nav-group-header .nav-group-title {
-  font-size: 0.75rem !important;
-  /* 12px for high legibility */
-  font-weight: 700 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.08em !important;
-  color: #E2E8F0 !important;
-  /* High contrast bright silver-white */
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--sap-dark-chrome-subtle);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: block !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border: none !important;
+  display: block;
 }
 
 .sidebar-group-action-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #E2E8F0 !important;
+  background: var(--sap-dark-chrome-control-bg);
+  border: 1px solid var(--sap-dark-chrome-border);
+  color: #6bc0ff;
   cursor: pointer;
-  width: 1.375rem;
-  height: 1.375rem;
-  border-radius: var(--radius-sm);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--sap-radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6875rem;
-  transition: all 140ms ease;
+  font-size: 11px;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .sidebar-group-action-btn:hover {
-  color: #FFFFFF;
-  background: #1868DB;
-  border-color: #579DFF;
+  color: #022879;
+  background: #6bc0ff;
+  border-color: #6bc0ff;
 }
 
 #sidebar.collapsed .nav-group-title,
@@ -612,119 +698,117 @@ html, body {
   display: none;
 }
 
+/* SAP ex-app-shell-row on Unique Dark Navbar: 15px/400, 8px corner, #6bc0ff active indicator */
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.4375rem 0.75rem;
-  margin: 0.0625rem 0.25rem;
-  border-radius: var(--radius-md);
-  color: #9FB2C8;
+  gap: 10px;
+  padding: 9px 12px;
+  margin: 1px 4px;
+  border-radius: var(--sap-radius-md);
+  color: var(--sap-dark-chrome-muted);
   cursor: pointer;
   text-decoration: none;
-  font-weight: 500;
-  font-size: 0.84375rem;
-  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 21px;
+  letter-spacing: 0;
+  transition: background var(--transition-fast), color var(--transition-fast);
   white-space: nowrap;
   position: relative;
 }
 
 .nav-item:hover {
-  color: #FFFFFF;
-  background-color: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+  background-color: var(--sap-dark-chrome-control-hover);
   text-decoration: none;
-  transform: translateX(2px);
-}
-
-#sidebar.collapsed .nav-item:hover {
-  transform: none;
 }
 
 .nav-item.active {
-  color: #FFFFFF;
-  background-color: rgba(87, 157, 255, 0.14);
-  font-weight: 600;
+  color: #ffffff;
+  background-color: rgba(0, 87, 210, 0.44);
+  font-weight: 500;
 }
 
 .nav-item.active::before {
   content: '';
   position: absolute;
-  left: -0.25rem;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 0;
+  top: 6px;
+  bottom: 6px;
   width: 3px;
-  height: 18px;
-  background-color: #579DFF;
-  border-radius: 0 3px 3px 0;
-  box-shadow: 0 0 10px rgba(87, 157, 255, 0.7);
+  background-color: #6bc0ff;
+  border-radius: 0;
 }
 
 #sidebar.collapsed .nav-item.active::before {
   left: 0;
-  height: 24px;
+  top: 4px;
+  bottom: 4px;
 }
 
 .nav-item i {
-  font-size: 0.9375rem;
-  width: 1.25rem;
+  font-size: 14px;
+  width: 18px;
   text-align: center;
   flex-shrink: 0;
-  color: #7F93A8;
-  transition: color 140ms ease;
+  color: var(--sap-dark-chrome-subtle);
+  transition: color var(--transition-fast);
 }
 
 .nav-item:hover i {
-  color: #DEE4EA;
+  color: #ffffff;
 }
 
 .nav-item.active i {
-  color: #579DFF;
+  color: #6bc0ff;
 }
 
 .nav-item .badge-count {
   margin-left: auto;
-  font-size: 0.6875rem;
-  font-weight: 653;
-  padding: 0.0625rem 0.4375rem;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.08);
-  color: #8C9BAB;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.nav-item:hover .badge-count {
-  background: rgba(255, 255, 255, 0.14);
-  color: #DEE4EA;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 7px;
+  border-radius: var(--sap-radius-sm);
+  background: rgba(255, 255, 255, 0.12);
+  color: #d7e7f9;
 }
 
 .nav-item.active .badge-count {
-  background: #579DFF;
-  color: #111C2D;
-  font-weight: 700;
+  background: #6bc0ff;
+  color: #022879;
 }
 
+/* Project list items retain SAP 350 list-item weight on dark navbar */
 .project-nav-item {
-  font-size: 0.8125rem;
+  font-size: 15px;
+  font-weight: 350;
+  line-height: 21px;
+  color: #b7cde8;
+}
+
+.project-nav-item:hover {
+  color: #ffffff;
 }
 
 .nav-project-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
   flex-shrink: 0;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
 }
 
 .project-active-badge {
-  font-size: 0.625rem;
-  padding: 0 0.375rem;
-  background: rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 #sidebar.collapsed .nav-item {
   justify-content: center;
-  padding: 0.5rem;
-  margin: 0.125rem 0.25rem;
+  padding: 9px;
+  margin: 2px 6px;
 }
 
 #sidebar.collapsed .nav-item .nav-item-label,
@@ -736,74 +820,54 @@ html, body {
   display: inline-block;
 }
 
+/* Sidebar Footer Band (Dark Obsidian Anchor) */
 .sidebar-footer {
-  padding: 0.625rem 0.875rem;
-  border-top: 1px solid rgba(87, 157, 255, 0.12);
+  padding: 10px 12px;
+  border-top: 1px solid var(--sap-dark-chrome-border-subtle);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 8px;
   flex-shrink: 0;
-  background: rgba(7, 14, 27, 0.4);
+  background: rgba(4, 13, 33, 0.56);
 }
 
 .sidebar-status-bar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.375rem;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: var(--radius-sm);
-  font-size: 0.6875rem;
-  color: #7F93A8;
+  gap: 8px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--sap-dark-chrome-border-subtle);
+  border-radius: var(--sap-radius-sm);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sap-dark-chrome-muted);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
 
 .sidebar-status-bar:hover {
-  background: rgba(255, 255, 255, 0.09);
-  color: #E2ECF7;
+  border-color: #6bc0ff;
+  background: rgba(107, 192, 255, 0.12);
+  color: #ffffff;
 }
 
 .status-pulse-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #36B37E;
-  box-shadow: 0 0 6px #36B37E;
+  background: #5cd694;
   flex-shrink: 0;
-  animation: pulseGreen 2.5s infinite;
 }
 
 @keyframes pulseGreen {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(54, 179, 126, 0.7);
-  }
-
-  70% {
-    transform: scale(1.1);
-    box-shadow: 0 0 0 4px rgba(54, 179, 126, 0);
-  }
-
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(54, 179, 126, 0);
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 
 @keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.4);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 
 .sidebar-footer-actions {
@@ -816,136 +880,65 @@ html, body {
 .sidebar-undo-redo-group {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 4px;
 }
 
 .sidebar-footer-btn {
-  color: #8C9BAB;
+  color: var(--sap-dark-chrome-muted);
   border-color: transparent;
   background: transparent;
-  padding: 0.25rem 0.5rem;
+  padding: 4px 8px;
+  border-radius: var(--sap-radius-md);
 }
 
 .sidebar-footer-btn:hover {
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  background: var(--sap-dark-chrome-control-hover);
 }
 
 #sidebar.collapsed .sidebar-footer {
-  padding: 0.5rem 0.25rem;
-  gap: 0.375rem;
+  padding: 8px 4px;
+  gap: 6px;
   justify-content: center;
   align-items: center;
 }
 
 #sidebar.collapsed .sidebar-status-bar {
-  padding: 0.25rem;
+  padding: 6px;
   justify-content: center;
 }
 
-#sidebar.collapsed .sidebar-status-bar .status-text {
-  display: none;
-}
-
-#sidebar.collapsed .sidebar-footer-actions {
-  flex-direction: column;
-  gap: 0.25rem;
-  align-items: center;
-}
-
-#sidebar.collapsed .sidebar-undo-redo-group {
-  flex-direction: column;
-}
-
+#sidebar.collapsed .sidebar-status-bar .status-text,
 #sidebar.collapsed .sidebar-footer-btn span {
   display: none;
 }
 
+#sidebar.collapsed .sidebar-footer-actions,
+#sidebar.collapsed .sidebar-undo-redo-group {
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
 #sidebar.collapsed .sidebar-footer-btn {
-  width: 2rem;
-  height: 2rem;
+  width: 32px;
+  height: 32px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Sidebar scrollbar — stealth micro-pill */
-#sidebar .sidebar-content::-webkit-scrollbar {
-  width: 4px;
-}
-
-#sidebar .sidebar-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-#sidebar .sidebar-content::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: var(--radius-full);
-  transition: background 200ms ease;
-}
-
-#sidebar:hover .sidebar-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
-}
-
-#sidebar:hover .sidebar-content::-webkit-scrollbar-thumb:hover {
-  background: #579DFF;
-  box-shadow: 0 0 8px rgba(87, 157, 255, 0.5);
-}
-
-/* Floating Scroll to Top button */
-.scroll-to-top-btn,
-#scroll-to-top-btn {
-  position: fixed;
-  bottom: 1.75rem;
-  right: 1.75rem;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: var(--radius-full);
-  background: var(--surface-overlay);
-  border: 1px solid var(--border);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 800;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(12px) scale(0.9);
-  transition: all 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  font-size: 0.875rem;
-}
-
-.scroll-to-top-btn.visible,
-#scroll-to-top-btn.visible {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0) scale(1);
-}
-
-.scroll-to-top-btn:hover,
-#scroll-to-top-btn:hover {
-  background: #579DFF;
-  color: #FFFFFF;
-  border-color: #579DFF;
-  box-shadow: 0 8px 24px rgba(87, 157, 255, 0.45);
-  transform: translateY(-2px) scale(1.08);
-}
-
-/* Sidebar Floating Tooltip for Collapsed Mode */
+/* Sidebar Floating Tooltip */
 .sidebar-floating-tooltip {
   position: fixed;
-  background: #11254A;
-  color: #FFFFFF;
-  font-size: 0.75rem;
+  background: #040d21;
+  color: #ffffff;
+  font-size: 13px;
   font-weight: 500;
-  padding: 0.3125rem 0.625rem;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(87, 157, 255, 0.25);
+  padding: 6px 10px;
+  border: 1px solid var(--sap-dark-chrome-border);
+  border-radius: var(--sap-radius-sm);
   pointer-events: none;
   z-index: 9999;
   opacity: 0;
@@ -969,7 +962,49 @@ html, body {
   height: 0;
   border-top: 5px solid transparent;
   border-bottom: 5px solid transparent;
-  border-right: 5px solid #11254A;
+  border-right: 5px solid var(--sap-navy);
+}
+
+/* ============================================================
+   FLOATING SCROLL TO TOP — SAP button-floating
+   #0057d2 fill, #ffffff text, 8px corner, flat
+   ============================================================ */
+.scroll-to-top-btn,
+#scroll-to-top-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--sap-radius-md);
+  background: #0057d2;
+  border: 1px solid #0057d2;
+  box-shadow: none;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 800;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: opacity 180ms ease, transform 180ms ease, background 140ms ease;
+  font-size: 14px;
+}
+
+.scroll-to-top-btn.visible,
+#scroll-to-top-btn.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.scroll-to-top-btn:hover,
+#scroll-to-top-btn:hover {
+  background: #0040b0;
+  border-color: #0040b0;
+  color: #ffffff;
 }
 
 /* ============================================================
@@ -981,338 +1016,512 @@ html, body {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background-color: var(--bg-app);
+  background-color: var(--sap-canvas);
+  min-width: 0;
 }
 
 /* ============================================================
-   TOPBAR — Deep Navy Professional Chrome
-   Stays dark blue in both light and dark themes.
+   STOREY 1: TOPBAR — Unique Dark SAP Midnight Sapphire-Obsidian Bar
+   Height 60px, square edges, stays uniquely dark in both themes
    ============================================================ */
 #topbar {
   height: var(--topbar-height);
-  background:
-    radial-gradient(ellipse 60% 120% at 50% -20%, rgba(59, 130, 246, 0.24) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 100% at 100% 0%, rgba(56, 189, 248, 0.12) 0%, transparent 60%),
-    linear-gradient(90deg, #070E1B 0%, #0C1A32 20%, #12254A 50%, #0D1B35 80%, #070E1B 100%);
-  border-bottom: 1px solid rgba(87, 157, 255, 0.14);
+  background: var(--sap-dark-chrome-h);
+  border-bottom: 1px solid var(--sap-dark-chrome-border);
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.5rem;
-  gap: 1rem;
+  padding: 0 var(--space-giant);
+  gap: var(--space-wide);
   z-index: 40;
   flex-shrink: 0;
-  color: #B6C2CF;
-  box-shadow: 0 4px 20px -2px rgba(2, 6, 23, 0.4), inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--sap-dark-chrome-muted);
+  box-shadow: none;
 }
 
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-xl);
   flex: 1;
-  max-width: 600px;
-}
-
-.global-search-trigger {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
-  padding: 0.4375rem 1rem;
-  color: #8C9BAB;
-  width: 100%;
-  max-width: 400px;
-  cursor: pointer;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 0.8125rem;
-  backdrop-filter: blur(4px);
-}
-
-.global-search-trigger:hover {
-  border-color: rgba(255, 255, 255, 0.24);
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 2px 12px rgba(87, 157, 255, 0.1);
-}
-
-.search-kbd-shortcut {
-  margin-left: auto;
-  font-size: 0.625rem;
-  padding: 0.125rem 0.5rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: var(--radius-full);
-  color: #9FB2C8;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  max-width: 640px;
+  min-width: 0;
 }
 
 .project-selector-dropdown {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4375rem 0.875rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--sap-dark-chrome-control-bg);
+  border: 1px solid var(--sap-dark-chrome-border);
+  border-radius: var(--sap-radius-md);
   cursor: pointer;
-  font-weight: 600;
-  font-size: 0.8125rem;
-  color: #DEE4EA;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  color: #ffffff;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
   white-space: nowrap;
-  backdrop-filter: blur(4px);
 }
 
 .project-selector-dropdown:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #FFFFFF;
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 8px rgba(87, 157, 255, 0.08);
+  border-color: #6bc0ff;
+  background: var(--sap-dark-chrome-control-hover);
+  color: #ffffff;
+}
+
+.topbar-picker-icon {
+  color: #6bc0ff;
+  font-size: 13px;
+}
+
+.topbar-picker-chevron {
+  font-size: 10px;
+  color: var(--sap-dark-chrome-subtle);
+}
+
+.global-search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  background: var(--sap-dark-chrome-control-bg);
+  border: 1px solid var(--sap-dark-chrome-border);
+  border-radius: var(--sap-radius-md);
+  padding: 0 12px;
+  color: var(--sap-dark-chrome-muted);
+  width: 100%;
+  max-width: 400px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.global-search-trigger:hover {
+  border-color: #6bc0ff;
+  background: var(--sap-dark-chrome-control-hover);
+  color: #ffffff;
+}
+
+.topbar-search-icon {
+  color: #6bc0ff;
+  font-size: 13px;
+}
+
+.search-kbd-shortcut {
+  margin-left: auto;
+  font-size: 12px;
+  padding: 2px 6px;
+  background: rgba(4, 13, 33, 0.55);
+  border: 1px solid var(--sap-dark-chrome-border);
+  border-radius: var(--sap-radius-sm);
+  color: var(--sap-dark-chrome-muted);
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-sm);
   flex-shrink: 0;
 }
 
-/* Icon buttons in topbar — circular with glow */
-#topbar .btn-icon {
-  background: transparent;
-  border: 1px solid transparent;
-  color: #8C9BAB;
-  width: 2.125rem;
-  height: 2.125rem;
-  border-radius: var(--radius-full);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+/* Topbar Buttons — SAP button-primary & dark-chrome button-outline (8px corners, flat) */
+#topbar .btn-primary {
+  height: 40px;
+  padding: 0 14px;
+  background: #0057d2;
+  color: #ffffff;
+  border: 1px solid #6bc0ff;
+  border-radius: var(--sap-radius-md);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 17.6px;
+  letter-spacing: 0;
+  box-shadow: none;
 }
 
-#topbar .btn-icon:hover {
-  color: #FFFFFF;
-  background-color: rgba(255, 255, 255, 0.1);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(87, 157, 255, 0.12);
+#topbar .btn-primary:hover:not(:disabled) {
+  background: #6bc0ff;
+  border-color: #6bc0ff;
+  color: #022879;
+  transform: none;
+  box-shadow: none;
 }
 
-#topbar .btn-icon.active {
-  color: #FFFFFF;
-  background-color: rgba(87, 157, 255, 0.2);
-  border-color: rgba(87, 157, 255, 0.3);
+#topbar .btn-primary:hover:not(:disabled) .topbar-btn-kbd {
+  background: rgba(2, 40, 121, 0.16);
+  border-color: rgba(2, 40, 121, 0.3);
+  color: #022879;
 }
 
-/* Generic btn-icon */
+.topbar-btn-kbd {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--sap-radius-sm);
+  padding: 1px 5px;
+  margin-left: 4px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+#topbar .btn-secondary {
+  height: 40px;
+  padding: 0 12px;
+  background: var(--sap-dark-chrome-control-bg);
+  border: 1px solid rgba(107, 192, 255, 0.36);
+  color: #ffffff;
+  border-radius: var(--sap-radius-md);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 17.6px;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+#topbar .btn-secondary:hover:not(:disabled) {
+  background: var(--sap-dark-chrome-control-hover);
+  border-color: #6bc0ff;
+  color: #ffffff;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Icon Buttons — Generic (content pane) + Dark Topbar Override */
 .btn-icon {
   background: transparent;
   border: 1px solid transparent;
-  color: var(--icon-subtle);
-  width: 2.125rem;
-  height: 2.125rem;
-  border-radius: var(--radius-full);
+  color: var(--sap-ink-nav);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--sap-radius-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   position: relative;
 }
 
 .btn-icon:hover {
-  color: var(--icon-default);
-  background-color: var(--background-neutral-subtle-hovered);
-  transform: translateY(-1px);
+  color: var(--sap-ink);
+  background-color: var(--sap-band);
+  transform: none;
+  box-shadow: none;
 }
 
-/* Primary button in topbar — gradient glow */
-#topbar .btn-primary {
-  background: linear-gradient(135deg, #579DFF, #4688EC);
-  color: #0D1B2A;
-  border-color: transparent;
+.btn-icon.active {
+  color: var(--sap-primary);
+  background-color: var(--sap-band-blue);
+  border-color: rgba(0, 87, 210, 0.3);
+}
+
+#topbar .btn-icon {
+  color: var(--sap-dark-chrome-muted);
+}
+
+#topbar .btn-icon:hover {
+  color: #ffffff;
+  background-color: var(--sap-dark-chrome-control-hover);
+  border-color: var(--sap-dark-chrome-border);
+}
+
+#topbar .btn-icon.active {
+  color: #ffffff;
+  background-color: rgba(0, 87, 210, 0.45);
+  border-color: #6bc0ff;
+}
+
+.user-avatar-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--sap-radius-md);
+  background: #6bc0ff;
+  color: #022879;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
-  border-radius: var(--radius-full);
-  box-shadow: 0 2px 12px rgba(87, 157, 255, 0.3);
-  letter-spacing: 0.01em;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid #6bc0ff;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-#topbar .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #85B8FF, #579DFF);
-  box-shadow: 0 4px 20px rgba(87, 157, 255, 0.45);
-  transform: translateY(-1px);
-}
-
-.topbar-btn-kbd {
-  font-size: 0.5625rem;
-  font-family: var(--font-mono);
-  background: rgba(13, 27, 42, 0.2);
-  border: 1px solid rgba(13, 27, 42, 0.25);
-  border-radius: var(--radius-full);
-  padding: 0.0625rem 0.3125rem;
-  margin-left: 0.375rem;
-  line-height: 1;
-  font-weight: 700;
-  display: inline-block;
-}
-
-/* Secondary button in topbar — glass pill */
-#topbar .btn-secondary {
-  background-color: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #DEE4EA;
-  border-radius: var(--radius-full);
-  font-weight: 600;
-  backdrop-filter: blur(4px);
-}
-
-#topbar .btn-secondary:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #FFFFFF;
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(87, 157, 255, 0.08);
+.user-avatar-btn:hover {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #0040b0;
 }
 
 .notification-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 6px;
+  right: 6px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent-danger);
-  box-shadow: 0 0 0 2px #111C2D;
-  animation: notifPulse 2s ease-in-out infinite;
+  background: #ff5a5f;
+  border: 2px solid #022059;
 }
 
-@keyframes notifPulse {
-
-  0%,
-  100% {
-    box-shadow: 0 0 0 2px #111C2D;
-  }
-
-  50% {
-    box-shadow: 0 0 0 2px #111C2D, 0 0 6px 2px rgba(248, 116, 98, 0.4);
-  }
-}
-
-/* Dropdown popover styles — premium glass floating card */
+/* ============================================================
+   POPOVERS & SHORTCUTS MODAL (Clean SAP Surface)
+   ============================================================ */
 .topbar-dropdown-popover {
-  animation: dropdownSlideIn 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  animation: dropdownSlideIn 140ms var(--easing-out);
 }
 
 @keyframes dropdownSlideIn {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.97);
+    transform: translateY(-4px);
   }
-
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
+}
+
+.sap-popover {
+  position: fixed;
+  background: var(--sap-canvas);
+  border: 1px solid var(--sap-hairline);
+  border-radius: var(--sap-radius-md);
+  box-shadow: var(--shadow-overlay);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.sap-notifications-popover {
+  width: 360px;
+  max-height: 460px;
+  flex-direction: column;
+}
+
+.sap-popover-header {
+  padding: 13px 16px;
+  background: var(--sap-dark-chrome-h);
+  border-bottom: 1px solid var(--sap-dark-chrome-border);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sap-popover-title {
+  font-weight: 500;
+  font-size: 15px;
+  color: #ffffff;
+}
+
+.sap-popover-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sap-notifications-list {
+  overflow-y: auto;
+  max-height: 380px;
+  padding: 8px;
+}
+
+.sap-project-popover {
+  width: 260px;
+  padding: 6px;
+}
+
+.sap-profile-popover {
+  position: fixed;
+  width: 248px;
+  z-index: 1000;
+  padding: 6px;
+}
+
+.sap-profile-header {
+  padding: 12px 14px;
+  background: var(--sap-dark-chrome-h);
+  border-bottom: 1px solid var(--sap-dark-chrome-border);
+  margin: -6px -6px 6px -6px;
+  border-radius: 7px 7px 0 0;
+}
+
+.sap-profile-name {
+  font-weight: 500;
+  font-size: 15px;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.sap-profile-role {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--sap-dark-chrome-subtle);
+  margin-top: 2px;
+}
+
+.sap-shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  font-size: 14px;
+}
+
+.sap-shortcuts-heading {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sap-ink-meta);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.sap-shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--sap-ink-list);
+  font-weight: 350;
+}
+
+.sap-shortcuts-footer {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sap-shortcuts-hint {
+  color: var(--sap-ink-meta);
+  font-size: 13px;
 }
 
 .dropdown-menu-item {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 0.875rem;
-  border-radius: var(--radius-lg);
-  color: var(--text-primary);
-  font-size: 0.8125rem;
-  font-weight: 500;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--sap-radius-md);
+  color: var(--sap-ink-body);
+  font-size: 14px;
+  font-weight: 400;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: background var(--transition-fast), color var(--transition-fast);
   user-select: none;
-  margin: 1px 0;
 }
 
 .dropdown-menu-item:hover {
-  background-color: var(--background-selected);
-  color: var(--text-selected);
-  transform: translateX(2px);
+  background-color: var(--sap-band-blue);
+  color: var(--sap-primary);
 }
 
 .dropdown-menu-item.active {
-  background-color: var(--background-selected);
-  color: var(--text-brand);
-  font-weight: 600;
+  background-color: var(--sap-band-blue);
+  color: var(--sap-primary);
+  font-weight: 500;
 }
 
 .dropdown-menu-item i {
-  font-size: 0.8125rem;
-  width: 1.125rem;
+  font-size: 13px;
+  width: 18px;
   text-align: center;
-  transition: color 150ms ease;
-}
-
-.dropdown-menu-item:hover i {
-  color: var(--icon-brand);
 }
 
 .dropdown-divider {
   height: 1px;
   background-color: var(--border);
-  margin: 0.375rem 0.5rem;
+  margin: 6px 8px;
 }
 
 /* ============================================================
    VIEW CONTAINER & PAGE LAYOUT
+   White working canvas with clean vertical rhythm
    ============================================================ */
 #view-container {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
+  background: var(--sap-canvas);
 }
 
 .view-page {
-  padding: 1.5rem 2rem;
+  padding: var(--space-giant) var(--space-max);
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  background: var(--sap-canvas);
 }
 
 .view-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-giant);
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--space-wide);
 }
 
 .view-title-group h1 {
-  font-size: 1.5rem;
-  font-weight: 653;
-  letter-spacing: -0.3px;
-  color: var(--text-primary);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--sap-ink);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  line-height: 1.75rem;
+  gap: 10px;
+  line-height: 1.15;
 }
 
 .view-title-group p {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
+  color: var(--sap-ink-lead);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  margin-top: 6px;
 }
 
 .view-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-sm);
+}
+
+/* SAP Band Utility Classes (square, full-width horizontal zones) */
+.sap-band-neutral {
+  background: var(--sap-chrome);
+  color: var(--sap-ink-body);
+  border-radius: 0;
+}
+
+.sap-band-blue {
+  background: var(--sap-band-blue);
+  color: var(--sap-ink-body);
+  border-radius: 0;
+}
+
+.sap-band-lavender {
+  background: var(--sap-band-lavender);
+  color: var(--sap-ink-body);
+  border-radius: 0;
+}
+
+.sap-band-footer {
+  background: var(--sap-band);
+  color: var(--sap-ink-nav);
+  border-radius: 0;
 }
